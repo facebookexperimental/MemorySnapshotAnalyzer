@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Treemap</title>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="data.js"></script>
+</head>
+
+<body>
+    <div id="svg"></div>
+    <script>
+        const height = 1000;
+        const width = 1600;
+
+        // TODO: the script filename above should be selectable at runtime
+        // TODO: use d2.json(input) to fetch data.json
+
+        // TODO: move this script into a separate script file and use TypeScript
+
+        // TODO: text box with a "Find" button that allow us to highlight matching nodes (and a "Reset" button, if a highlight is present)
+
+        const DOM = (() => {
+            var count = 0;
+
+            function uid(name) {
+                return new Id("O-" + (name == null ? "" : name + "-") + ++count);
+            }
+
+            function Id(id) {
+                this.id = id;
+                this.href = `#${id}`;
+            }
+
+            Id.prototype.toString = function () {
+                return "url(" + this.href + ")";
+            };
+
+            return { uid : uid };
+        })();
+
+        function shorten(name) {
+            let indexOfLessThan = name.indexOf('<');
+            indexOfLessThan = indexOfLessThan == -1 ? name.length : indexOfLessThan;
+            let indexOfDot = name.lastIndexOf('.', indexOfLessThan);
+            return indexOfDot == -1 ? name : name.substr(indexOfDot + 1);
+        }
+
+        // TODO: provide dropdown to select name formatting options (include/exclude namespace, assembly)
+        const nodeName = d => d.data.name;
+
+        const depthColorScale = d3.scaleSequential([0, 8], d3.interpolateOranges);
+
+        const nodeTypeColor = {
+            root: d3.schemePastel1[1],
+            static: d3.schemePastel1[3],
+            gchandle: d3.schemePastel1[6],
+            array: d3.schemePastel1[4],
+            box: d3.schemePastel1[0],
+            object: d3.schemePastel1[5],
+            intrinsic: d3.schemePastel1[8],
+            elided: d3.schemePastel1[7],
+            group: d3.schemePastel1[2]
+        };
+
+        const colorGrouping = 0;
+
+        function nodeColor(d, root) {
+            // TODO: provide dropdown for coloring options
+
+            if (colorGrouping == 0) {
+                // By depth
+                if (d.data.name.startsWith("elided+")) {
+                    return nodeTypeColor["elided"];
+                }
+                else if (d.data.name == "intrinsic") {
+                    return nodeTypeColor["intrinsic"];
+                }
+                else {
+                    return depthColorScale(d.depth - root.depth);
+                }
+            }
+            else if (colorGrouping == 1) {
+                // By node type
+                return nodeTypeColor[d.data.nodetype];
+            }
+            else if (colorGrouping == 2) {
+                // Diff view
+                if (d.data.diff == "different") {
+                    if (d.data.children || d.data._children) {
+                        // new leaf
+                        return d3.schemeSet2[1];
+                    }
+                    else {
+                        // affected non-leaf
+                        return d3.schemePastel2[1];
+                    }
+                }
+                else if (d.data.diff == "same") {
+                    // non-affected node
+                    return d3.schemePastel1[5];
+                }
+                else {
+                    // non-object node
+                    if (d.data.name.startsWith("elided+")) {
+                        return nodeTypeColor["elided"];
+                    }
+                    else if (d.data.name == "intrinsic") {
+                        return nodeTypeColor["intrinsic"];
+                    }
+                    else {
+                        return nodeTypeColor["root"];
+                    }
+                }
+            }
+            else {
+                // By assembly group: {mscorlib,System[.*]}/{Unity[.*],UnityEngine[.*],UnityEditor[.*]}/other
+                //return color()
+                return '#fff';
+            }
+        }
+
+        const format = d3.format(",d");
+
+        const svg = d3.create("svg")
+            .attr("viewBox", [0.5, -30.5, width, height + 30])
+            .style("font", "10px sans-serif");
+
+        var paddingInner = 1,
+            paddingTop = 13,
+            paddingRight = 1,
+            paddingBottom = 1,
+            paddingLeft = 1;
+
+        function computeTreemap(root, width, height) {
+            root.x0 = root.y0 = 0;
+            root.x1 = width;
+            root.y1 = height;
+            root.eachBefore(positionNode);
+            return root;
+        }
+
+        function positionNode(node) {
+            var p = paddingInner;
+            var x0 = Math.trunc(node.x0) + p,
+                y0 = Math.trunc(node.y0) + p,
+                x1 = Math.trunc(node.x1) - p,
+                y1 = Math.trunc(node.y1) - p;
+            if (x1 < x0) x1 = x0;
+            if (y1 < y0) y1 = y0;
+            node.x0 = x0;
+            node.y0 = y0;
+            node.x1 = x1;
+            node.y1 = y1;
+
+            if (x1 < x0 + 3 || y1 < y0 + 3) {
+                if (node.children) {
+                    node._children = node.children;
+                    node.children = null;
+                }
+            } else {
+                if (node._children) {
+                    node.children = node._children;
+                    node._children = null;
+                }
+            }
+
+            if (node.children) {
+                x0 += paddingLeft;
+                y0 += paddingTop;
+                x1 -= paddingRight;
+                y1 -= paddingBottom;
+                if (x1 < x0) x1 = x0;
+                if (y1 < y0) y1 = y0;
+                d3.treemapSquarify(node, x0, y0, x1, y1);
+            }
+        }
+
+        const hierarchy = d3.hierarchy(data)
+            .sum(d => d.value);
+
+        let group = svg.append("g")
+            .call(render, hierarchy);
+
+        function render(group, root) {
+            computeTreemap(root, width, height);
+
+            const node = group.selectAll("g")
+                .data(root)
+                .join("g");
+
+            node.filter(d => d === root ? d.parent : d.children)
+                .attr("cursor", "pointer")
+                .on("click", (event, d) => d === root ? zoomout(root) : zoomin(d));
+
+            node.append("title")
+                .text(d => `${d.ancestors().reverse().map(d => d.data.name).join("\n")}\n${format(d.value)}`);
+
+            node.append("rect")
+                .attr("id", d => (d.nodeUid = DOM.uid("node")).id)
+                .attr("fill", d => nodeColor(d, root))
+                .attr("stroke-width", "1")
+                .attr("stroke", "#335")
+                .attr("x", d => d.x0)
+                .attr("y", d => d.y0)
+                .attr("width", d => d.x1 - d.x0)
+                .attr("height", d => d.y1 - d.y0);
+
+            var select = node.filter(d => d.x1 > d.x0 + 10 && d.y1 > d.y0 + 10);
+            select.append("clipPath")
+                .attr("id", d => (d.clipUid = DOM.uid("clip")).id)
+                .append("use")
+                .attr("xlink:href", d => d.nodeUid.href);
+
+            select.append("text")
+                .attr("clip-path", d => d.clipUid)
+                .text(nodeName)
+                .attr("x", d => d.x0 + 3)
+                .attr("y", d => d.y0 + 10);
+        }
+
+        function zoomin(d) {
+            // TODO: preserve aspect ratio; animate
+            group.remove();
+            group = svg.append("g").call(render, d);
+        }
+
+        function zoomout(d) {
+            group.remove();
+            group = svg.insert("g", "*").call(render, d.parent);
+        }
+
+        var svgElement = document.getElementById("svg");
+        svgElement.style = "height: " + height + "px; width: " + width + "px";
+        svgElement.append(svg.node());
+    </script>
+</body>
+
+</html>
