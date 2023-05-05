@@ -1,4 +1,6 @@
-﻿using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+
+using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandProcessing;
 using MemorySnapshotAnalyzer.UnityBackend;
 using Microsoft.Extensions.Configuration;

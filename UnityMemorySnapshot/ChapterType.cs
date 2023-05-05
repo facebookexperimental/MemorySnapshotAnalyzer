@@ -1,6 +1,11 @@
-﻿namespace MemorySnapshotAnalyzer.UnityBackend
+﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+
+namespace MemorySnapshotAnalyzer.UnityBackend
 {
     /*
+    For reference, the chapters we are finding in a Unity memory snapshot typically look as follows
+    (the chapters that are currently interpreted by this project are indicated with a '+' sign below):
+
     Chapter Metadata_Version: value 0x000C
     Chapter Metadata_RecordDate: value 0x8DB348A37D69C80
     Chapter Metadata_UserMetadata: value of size 68
@@ -81,6 +86,7 @@
     Chapter 61: array of length 163, element size 8
     */
 
+    // Keep in sync with `EnumType` in https://github.com/Unity-Technologies/UnityCsReference/blob/master/Modules/ProfilerEditor/MemoryProfiler/MemorySnapshotFileReader.cs
     public enum ChapterType : ushort
     {
         Metadata_Version,
