@@ -1,4 +1,6 @@
-﻿using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+
+using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 

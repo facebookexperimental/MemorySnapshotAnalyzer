@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+
+using System.Runtime.InteropServices;
 
 namespace MemorySnapshotAnalyzer.UnityBackend
 {

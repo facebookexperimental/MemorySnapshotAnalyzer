@@ -1,4 +1,6 @@
-﻿namespace MemorySnapshotAnalyzer.CommandProcessing
+﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+
+namespace MemorySnapshotAnalyzer.CommandProcessing
 {
     enum Token
     {

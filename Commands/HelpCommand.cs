@@ -1,4 +1,6 @@
-﻿using MemorySnapshotAnalyzer.CommandProcessing;
+﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+
+using MemorySnapshotAnalyzer.CommandProcessing;
 
 namespace MemorySnapshotAnalyzer.Commands
 {

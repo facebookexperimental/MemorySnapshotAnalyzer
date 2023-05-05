@@ -1,4 +1,6 @@
-﻿namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
+﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+
+namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
     public interface IMemoryAccessor
     {

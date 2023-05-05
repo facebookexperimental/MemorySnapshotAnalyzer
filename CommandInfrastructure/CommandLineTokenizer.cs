@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+
+using System.Text;
 
 namespace MemorySnapshotAnalyzer.CommandProcessing
 {
