@@ -88,3 +88,7 @@ Within the `treemap.html` file, you can also edit the value of the `colorGroupin
 * **colorGrouping = 0**: Darker rectangles indicate deeper nesting levels.
 * **colorGrouping = 1**: Different colors are used to make it easy to distinguish, e.g., boxed objects or arrays from regular objects.
 * **colorGrouping = 2**: When comparing an "after" heap snapshot against a "before" heap snapshot, highlight the nodes that are only present in the "after" snapshot.
+
+## License
+
+MemorySnapshotAnalyzer is licensed under the [MIT License](LICENSE).
