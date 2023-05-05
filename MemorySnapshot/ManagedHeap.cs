@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+
+using System;
 
 namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {

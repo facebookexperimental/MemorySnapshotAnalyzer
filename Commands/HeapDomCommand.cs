@@ -1,4 +1,6 @@
-﻿using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+
+using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandProcessing;
 using Newtonsoft.Json;

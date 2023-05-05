@@ -1,4 +1,6 @@
-﻿using MemorySnapshotAnalyzer.CommandProcessing;
+﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+
+using MemorySnapshotAnalyzer.CommandProcessing;
 using MemorySnapshotAnalyzer.Commands;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
