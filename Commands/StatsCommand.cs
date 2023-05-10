@@ -35,7 +35,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpTypeSystemStatistics()
         {
-            ITypeSystem typeSystem = CurrentMemorySnapshot.TypeSystem;
+            ITypeSystem typeSystem = CurrentMemorySnapshot.ManagedHeap.TypeSystem;
 
             Output.WriteLine("Pointer size: {0}", typeSystem.PointerSize);
             Output.WriteLine("VTable offset in header: {0}", typeSystem.VTableOffsetInHeader);

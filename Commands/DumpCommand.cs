@@ -19,7 +19,7 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             // TOOD: support format argument (words/symbols)
 
-            MemoryView memoryView = CurrentMemorySnapshot.GetMemoryViewForAddress(Address);
+            MemoryView memoryView = CurrentManagedHeap.GetMemoryViewForAddress(Address);
             if (!memoryView.IsValid)
             {
                 throw new CommandException($"address {Address} not in mapped memory");

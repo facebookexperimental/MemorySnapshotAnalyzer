@@ -56,7 +56,9 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
             else
             {
-                m_output.WriteLineIndented(indent, m_currentMemorySnapshot.Filename);
+                m_output.WriteLineIndented(indent, "{0} ({1} type indices)",
+                    m_currentMemorySnapshot.Filename,
+                    m_currentMemorySnapshot.ManagedHeap.TypeSystem.NumberOfTypeIndices);
             }
 
             if (m_currentRootSet == null)
@@ -167,11 +169,11 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 m_output.Write("[context {0}] enumerating root set ...", m_id);
                 if (m_rootSet_singletonRootAddress.Value != 0)
                 {
-                    m_currentRootSet = new SingletonRootSet(CurrentMemorySnapshot!, m_rootSet_singletonRootAddress);
+                    m_currentRootSet = new SingletonRootSet(CurrentMemorySnapshot!.ManagedHeap, m_rootSet_singletonRootAddress);
                 }
                 else
                 {
-                    m_currentRootSet = new RootSet(CurrentMemorySnapshot!);
+                    m_currentRootSet = new RootSet(CurrentMemorySnapshot!.ManagedHeap);
                 }
                 m_output.WriteLine(" {0} roots ({1} GCHandles, {2} statics)",
                     m_currentRootSet.NumberOfRoots,

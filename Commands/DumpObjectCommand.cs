@@ -27,7 +27,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            ITypeSystem typeSystem = CurrentMemorySnapshot.TypeSystem;
+            ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
 
             if (AddressOrIndex.Size == 0 && !LiveOnly)
             {
@@ -59,7 +59,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 address = AddressOrIndex;
             }
 
-            MemoryView objectView = CurrentMemorySnapshot.GetMemoryViewForAddress(address);
+            MemoryView objectView = CurrentManagedHeap.GetMemoryViewForAddress(address);
             if (!objectView.IsValid)
             {
                 throw new CommandException($"address {address} is not in mapped memory");
@@ -96,7 +96,7 @@ namespace MemorySnapshotAnalyzer.Commands
             for (int objectIndex = 0; objectIndex < numberOfLiveObjects; objectIndex++)
             {
                 int typeIndex = CurrentTracedHeap.ObjectTypeIndex(objectIndex);
-                string typeName = CurrentMemorySnapshot.TypeSystem.QualifiedName(typeIndex);
+                string typeName = CurrentManagedHeap.TypeSystem.QualifiedName(typeIndex);
                 if (perTypeCounts.TryGetValue(typeName, out int count))
                 {
                     perTypeCounts[typeName] = count + 1;

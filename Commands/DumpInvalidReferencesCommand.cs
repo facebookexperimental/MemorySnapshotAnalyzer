@@ -37,7 +37,7 @@ namespace MemorySnapshotAnalyzer.Commands
                     i,
                     tuple.Item2,
                     tuple.Item1,
-                    CurrentMemorySnapshot.TypeSystem.QualifiedName(typeIndex),
+                    CurrentManagedHeap.TypeSystem.QualifiedName(typeIndex),
                     typeIndex);
                 i++;
             }

@@ -13,7 +13,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             public string ClassName;
         };
 
-        MemorySnapshot MemorySnapshot { get; }
+        ManagedHeap ManagedHeap { get; }
 
         int NumberOfRoots { get; }
 

@@ -15,24 +15,24 @@ namespace MemorySnapshotAnalyzer.Analysis
             public ulong Value;
         }
 
-        readonly MemorySnapshot m_memorySnapshot;
+        readonly ManagedHeap m_managedHeap;
         readonly RootEntry[] m_roots;
 
-        public RootSet(MemorySnapshot memorySnapshot)
+        public RootSet(ManagedHeap managedHeap)
         {
-            m_memorySnapshot = memorySnapshot;
+            m_managedHeap = managedHeap;
 
-            ITypeSystem typeSystem = m_memorySnapshot.TypeSystem;
+            ITypeSystem typeSystem = m_managedHeap.TypeSystem;
 
             var roots = new List<RootEntry>();
 
             // Enumerate GCHandle targets as roots.
-            for (int gcHandleIndex = 0; gcHandleIndex < m_memorySnapshot.NumberOfGCHandles; gcHandleIndex++)
+            for (int gcHandleIndex = 0; gcHandleIndex < managedHeap.NumberOfGCHandles; gcHandleIndex++)
             {
                 RootEntry entry;
                 entry.TypeIndexOrNegativeOne = -1;
                 entry.FieldNumberOrGCHandleIndex = gcHandleIndex;
-                entry.Value = m_memorySnapshot.GCHandleTarget(gcHandleIndex).Value;
+                entry.Value = managedHeap.GCHandleTarget(gcHandleIndex).Value;
                 entry.Offset = 0;
                 roots.Add(entry);
             }
@@ -51,13 +51,13 @@ namespace MemorySnapshotAnalyzer.Analysis
                         if (staticFieldBytesView.IsValid)
                         {
                             int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
-                            foreach (int offset in m_memorySnapshot.GetFieldPointerOffsets(fieldTypeIndex, baseOffset: 0))
+                            foreach (int offset in managedHeap.GetFieldPointerOffsets(fieldTypeIndex, baseOffset: 0))
                             {
                                 RootEntry entry;
                                 entry.TypeIndexOrNegativeOne = typeIndex;
                                 entry.FieldNumberOrGCHandleIndex = fieldNumber;
                                 entry.Offset = offset;
-                                entry.Value = staticFieldBytesView.ReadPointer(offset, m_memorySnapshot.Native).Value;
+                                entry.Value = staticFieldBytesView.ReadPointer(offset, managedHeap.Native).Value;
                                 roots.Add(entry);
                             }
                         }
@@ -68,17 +68,17 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_roots = roots.ToArray();
         }
 
-        MemorySnapshot IRootSet.MemorySnapshot => m_memorySnapshot;
+        ManagedHeap IRootSet.ManagedHeap => m_managedHeap;
 
         public int NumberOfRoots => m_roots.Length;
 
-        public int NumberOfGCHandles => m_memorySnapshot.NumberOfGCHandles;
+        public int NumberOfGCHandles => m_managedHeap.NumberOfGCHandles;
 
         public int NumberOfStaticRoots => NumberOfRoots - NumberOfGCHandles;
 
         NativeWord IRootSet.GetRoot(int rootIndex)
         {
-            return m_memorySnapshot.Native.From(m_roots[rootIndex].Value);
+            return m_managedHeap.Native.From(m_roots[rootIndex].Value);
         }
 
         bool IRootSet.IsGCHandle(int rootIndex)
@@ -99,8 +99,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             else
             {
                 return string.Format("{0}.{1}+0x{2:X}",
-                    m_memorySnapshot.TypeSystem.UnqualifiedName(typeIndex),
-                    m_memorySnapshot.TypeSystem.FieldName(typeIndex, entry.FieldNumberOrGCHandleIndex),
+                    m_managedHeap.TypeSystem.UnqualifiedName(typeIndex),
+                    m_managedHeap.TypeSystem.FieldName(typeIndex, entry.FieldNumberOrGCHandleIndex),
                     entry.Offset);
             }
         }
@@ -146,9 +146,9 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
 
             IRootSet.StaticRootInfo info;
-            info.AssemblyName = m_memorySnapshot.TypeSystem.Assembly(typeIndex);
+            info.AssemblyName = m_managedHeap.TypeSystem.Assembly(typeIndex);
 
-            string qualifiedName = m_memorySnapshot.TypeSystem.QualifiedName(typeIndex);
+            string qualifiedName = m_managedHeap.TypeSystem.QualifiedName(typeIndex);
             int indexOfDot = IndexOfLastNamespaceDot(qualifiedName);
             if (indexOfDot == -1)
             {

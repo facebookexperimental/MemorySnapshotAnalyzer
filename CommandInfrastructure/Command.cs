@@ -55,6 +55,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             m_context.CurrentMemorySnapshot = memorySnapshot;
         }
 
+        public ManagedHeap CurrentManagedHeap => CurrentMemorySnapshot.ManagedHeap;
+
         public IRootSet CurrentRootSet
         {
             get
@@ -118,7 +120,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             {
                 return (int)addressOrIndex.Value;
             }
-            else if (!CurrentMemorySnapshot.GetMemoryViewForAddress(addressOrIndex).IsValid)
+            else if (!CurrentMemorySnapshot.ManagedHeap.GetMemoryViewForAddress(addressOrIndex).IsValid)
             {
                 throw new CommandException($"argument ${addressOrIndex} is neither an address in mapped memory, nor is it an object index");
             }
@@ -130,7 +132,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         public void DescribeAddress(NativeWord addressOfValue, StringBuilder sb)
         {
-            MemoryView memoryView = CurrentMemorySnapshot.GetMemoryViewForAddress(addressOfValue);
+            MemoryView memoryView = CurrentMemorySnapshot.ManagedHeap.GetMemoryViewForAddress(addressOfValue);
             if (!memoryView.IsValid)
             {
                 sb.AppendFormat("{0}: not in mapped memory", addressOfValue);
@@ -168,7 +170,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 return;
             }
 
-            ITypeSystem typeSystem = CurrentMemorySnapshot.TypeSystem;
+            ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
             int typeInfoIndex = typeSystem.TypeInfoAddressToIndex(addressOfValue);
             if (typeInfoIndex != -1)
             {
@@ -204,10 +206,10 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         void DescribeObject(int objectIndex, NativeWord objectAddress, StringBuilder sb)
         {
-            int typeIndex = CurrentMemorySnapshot.TryGetTypeIndex(objectAddress);
-            MemoryView objectView = CurrentMemorySnapshot.GetMemoryViewForAddress(objectAddress);
-            int objectSize = CurrentMemorySnapshot.GetObjectSize(objectView, typeIndex, committedOnly: false);
-            int committedSize = CurrentMemorySnapshot.GetObjectSize(objectView, typeIndex, committedOnly: true);
+            int typeIndex = CurrentManagedHeap.TryGetTypeIndex(objectAddress);
+            MemoryView objectView = CurrentManagedHeap.GetMemoryViewForAddress(objectAddress);
+            int objectSize = CurrentManagedHeap.GetObjectSize(objectView, typeIndex, committedOnly: false);
+            int committedSize = CurrentManagedHeap.GetObjectSize(objectView, typeIndex, committedOnly: true);
             sb.AppendFormat("live object[object index {0}, size {1}",
                 objectIndex,
                 objectSize);
@@ -217,7 +219,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                     committedSize);
             }
             sb.AppendFormat(", {0}, type index {1}]",
-                CurrentMemorySnapshot.TypeSystem.QualifiedName(typeIndex),
+                CurrentManagedHeap.TypeSystem.QualifiedName(typeIndex),
                 typeIndex);
         }
 
@@ -225,7 +227,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             // TODO: if the address is not valid, later reads into the assumed object memory range can throw
 
-            ITypeSystem typeSystem = CurrentMemorySnapshot.TypeSystem;
+            ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
 
             NativeWord klassPointer = objectView.ReadPointer(typeSystem.VTableOffsetInHeader, CurrentMemorySnapshot.Native);
 
@@ -233,7 +235,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             int typeIndex = typeSystem.TypeInfoAddressToIndex(klassPointer);
             if (typeIndex == -1)
             {
-                MemoryView klassView = CurrentMemorySnapshot.GetMemoryViewForAddress(klassPointer);
+                MemoryView klassView = CurrentManagedHeap.GetMemoryViewForAddress(klassPointer);
                 if (!klassView.IsValid)
                 {
                     throw new CommandException($"class pointer address {klassPointer} not in mapped memory");
@@ -254,7 +256,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         protected void DumpObject(MemoryView objectView, int typeIndex, int indent)
         {
-            ITypeSystem typeSystem = CurrentMemorySnapshot.TypeSystem;
+            ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
 
             if (typeIndex == typeSystem.SystemStringTypeIndex)
             {
@@ -279,7 +281,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                     arraySize,
                     typeSystem.QualifiedName(elementTypeIndex));
 
-                int elementSize = CurrentMemorySnapshot.GetElementSize(elementTypeIndex);
+                int elementSize = CurrentManagedHeap.GetElementSize(elementTypeIndex);
                 int offsetOfFirstElement = typeSystem.ArrayFirstElementOffset;
                 for (int i = 0; i < arraySize; i++)
                 {
@@ -328,7 +330,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         protected void DumpFieldValue(MemoryView objectView, int fieldTypeIndex, int indent)
         {
-            ITypeSystem typeSystem = CurrentMemorySnapshot.TypeSystem;
+            ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
 
             if (typeSystem.IsValueType(fieldTypeIndex))
             {
@@ -343,7 +345,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         protected void DumpValueType(MemoryView objectView, int typeIndex, int indent)
         {
-            ITypeSystem typeSystem = CurrentMemorySnapshot.TypeSystem;
+            ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
 
             int numberOfFields = typeSystem.NumberOfFields(typeIndex);
             if (numberOfFields == 0)

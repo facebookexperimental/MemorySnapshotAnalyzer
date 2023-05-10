@@ -50,7 +50,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 int count = kvp.Value.Item1;
                 long totalSize = kvp.Value.Item2;
                 Output.WriteLine("Type {0} (index {1}): {2} instances, total {3} bytes",
-                    CurrentMemorySnapshot.TypeSystem.QualifiedName(typeIndex),
+                    CurrentManagedHeap.TypeSystem.QualifiedName(typeIndex),
                     typeIndex,
                     count,
                     totalSize);

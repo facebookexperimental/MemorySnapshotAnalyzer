@@ -27,8 +27,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             public int TypeIndex;
         }
 
-        readonly MemorySnapshot m_memorySnapshot;
         readonly IRootSet m_rootSet;
+        readonly ManagedHeap m_managedHeap;
         readonly ulong m_minHeapAddress;
         readonly ulong m_maxHeapAddress;
         readonly Native m_native;
@@ -42,13 +42,12 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         public TracedHeap(IRootSet rootSet)
         {
-            m_memorySnapshot = rootSet.MemorySnapshot;
-            m_native = rootSet.MemorySnapshot.Native;
             m_rootSet = rootSet;
+            m_managedHeap = rootSet.ManagedHeap;
+            m_native = m_managedHeap.Native;
 
-            ManagedHeap managedHeap = rootSet.MemorySnapshot.ManagedHeap;
-            m_minHeapAddress = managedHeap.GetSegment(0).StartAddress.Value;
-            m_maxHeapAddress = managedHeap.GetSegment(managedHeap.NumberOfSegments - 1).EndAddress.Value;
+            m_minHeapAddress = m_managedHeap.GetSegment(0).StartAddress.Value;
+            m_maxHeapAddress = m_managedHeap.GetSegment(m_managedHeap.NumberOfSegments - 1).EndAddress.Value;
 
             m_postorderObjectAddresses = new List<PostorderEntry>();
             m_numberOfPredecessors = new Dictionary<ulong, int>();
@@ -162,7 +161,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
             m_numberOfPredecessors.Add(reference.Value, 1);
 
-            int typeIndex = m_memorySnapshot.TryGetTypeIndex(reference);
+            int typeIndex = m_managedHeap.TryGetTypeIndex(reference);
             if (typeIndex == -1)
             {
                 // Not a valid object pointer; ignore.
@@ -207,8 +206,8 @@ namespace MemorySnapshotAnalyzer.Analysis
 
                 // Push all of the node's children that are nodes we haven't encountered previously.
                 NativeWord address = m_native.From(entry.Address);
-                MemoryView objectView = m_memorySnapshot.GetMemoryViewForAddress(address);
-                foreach (int offset in m_memorySnapshot.GetObjectPointerOffsets(objectView, entry.TypeIndex))
+                MemoryView objectView = m_managedHeap.GetMemoryViewForAddress(address);
+                foreach (int offset in m_managedHeap.GetObjectPointerOffsets(objectView, entry.TypeIndex))
                 {
                     NativeWord reference = objectView.ReadPointer(offset, m_native);
                     Mark(reference, address);

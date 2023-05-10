@@ -33,7 +33,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
                 if (DumpObjects)
                 {
-                    MemoryView objectView = CurrentMemorySnapshot.GetMemoryViewForAddress(address);
+                    MemoryView objectView = CurrentManagedHeap.GetMemoryViewForAddress(address);
                     if (objectView.IsValid)
                     {
                         DumpObject(objectView);
@@ -43,7 +43,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
                 if (InvalidRootsOnly)
                 {
-                    MemoryView memoryView = CurrentMemorySnapshot.GetMemoryViewForAddress(address);
+                    MemoryView memoryView = CurrentManagedHeap.GetMemoryViewForAddress(address);
                     if (memoryView.IsValid)
                     {
                         continue;

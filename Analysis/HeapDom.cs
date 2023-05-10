@@ -16,7 +16,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly IBacktracer m_backtracer;
         readonly TracedHeap m_tracedHeap;
         readonly IRootSet m_rootSet;
-        readonly MemorySnapshot m_memorySnapshot;
+        readonly ManagedHeap m_managedHeap;
         readonly bool m_weakGCHandles;
         readonly int m_rootNodeIndex;
         readonly Dictionary<int, List<int>> m_domTree;
@@ -28,7 +28,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_backtracer = backtracer;
             m_tracedHeap = backtracer.TracedHeap;
             m_rootSet = m_tracedHeap.RootSet;
-            m_memorySnapshot = m_rootSet.MemorySnapshot;
+            m_managedHeap = m_rootSet.ManagedHeap;
             m_weakGCHandles = weakGCHandles;
             m_rootNodeIndex = m_backtracer.RootNodeIndex;
 
@@ -191,8 +191,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             if (m_backtracer.IsLiveObjectNode(nodeIndex))
             {
                 int typeIndex = m_tracedHeap.ObjectTypeIndex(nodeIndex);
-                MemoryView objectView = m_memorySnapshot.GetMemoryViewForAddress(m_tracedHeap.ObjectAddress(nodeIndex));
-                return m_memorySnapshot.GetObjectSize(objectView, typeIndex, committedOnly: true);
+                MemoryView objectView = m_managedHeap.GetMemoryViewForAddress(m_tracedHeap.ObjectAddress(nodeIndex));
+                return m_managedHeap.GetObjectSize(objectView, typeIndex, committedOnly: true);
             }
             else
             {

@@ -6,16 +6,16 @@ namespace MemorySnapshotAnalyzer.Analysis
 {
     public class SingletonRootSet : IRootSet
     {
-        readonly MemorySnapshot m_memorySnapshot;
+        readonly ManagedHeap m_managedHeap;
         readonly NativeWord m_address;
 
-        public SingletonRootSet(MemorySnapshot memorySnapshot, NativeWord address)
+        public SingletonRootSet(ManagedHeap managedHeap, NativeWord address)
         {
-            m_memorySnapshot = memorySnapshot;
+            m_managedHeap = managedHeap;
             m_address = address;
         }
 
-        MemorySnapshot IRootSet.MemorySnapshot => m_memorySnapshot;
+        ManagedHeap IRootSet.ManagedHeap => m_managedHeap;
 
         int IRootSet.NumberOfRoots => 1;
 

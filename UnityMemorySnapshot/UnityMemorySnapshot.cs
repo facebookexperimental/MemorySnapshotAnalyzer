@@ -14,8 +14,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         readonly ChapterObject[] m_chapters;
         readonly VirtualMachineInformation m_virtualMachineInformation;
         readonly ManagedHeap m_managedHeap;
-        readonly ITypeSystem m_typeSystem;
-        readonly ulong[] m_gcHandleTargets;
 
         public UnityMemorySnapshot(string filename)
         {
@@ -28,9 +26,8 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
             m_chapters = ParseChapters(fileSize);
             m_virtualMachineInformation = ParseVirtualMachineInformation();
-            m_managedHeap = ParseManagedHeap();
-            m_typeSystem = new UnityTypeSystem(ParseTypeDescriptions(), ParseFieldDescriptions(), m_virtualMachineInformation);
-            m_gcHandleTargets = ParseGCHandleTargets();
+            var typeSystem = new UnityTypeSystem(ParseTypeDescriptions(), ParseFieldDescriptions(), m_virtualMachineInformation);
+            m_managedHeap = ParseManagedHeap(typeSystem);
         }
 
         ChapterObject[] ParseChapters(long fileSize)
@@ -128,7 +125,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return virtualMachineInformation;
         }
 
-        ManagedHeap ParseManagedHeap()
+        ManagedHeap ParseManagedHeap(ITypeSystem typeSystem)
         {
             var startAddresses = GetChapter<ChapterArrayOfConstantSizeElements>(ChapterType.ManagedHeapSections_StartAddress);
             var contents = GetArrayOfVariableSizeElementsChapter(ChapterType.ManagedHeapSections_Bytes, (int)startAddresses.Length);
@@ -140,7 +137,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
                 segments[i] = new ManagedHeapSegment(Native.From(startAddress & 0x7fffffffffffffff), contents[i], (startAddress >> 63) != 0);
             }
 
-            return new ManagedHeap(segments);
+            // Unity memory profiler does not dump memory segments sorted by start address.
+            Array.Sort(segments, (segment1, segment2) => segment1.StartAddress.Value.CompareTo(segment2.StartAddress.Value));
+
+            var gcHandleTargets = ParseGCHandleTargets();
+            return new UnityManagedHeap(typeSystem, Native, segments, gcHandleTargets);
         }
 
         TypeDescription[] ParseTypeDescriptions()
@@ -223,16 +224,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         public override Native Native => new Native(m_virtualMachineInformation.PointerSize);
 
-        public override ManagedHeap ManagedHeap { get { return m_managedHeap; } }
-
-        public override ITypeSystem TypeSystem { get { return m_typeSystem; } }
-
-        public override int NumberOfGCHandles => m_gcHandleTargets.Length;
-
-        public override NativeWord GCHandleTarget(int gcHandleIndex)
-        {
-            return Native.From(m_gcHandleTargets[gcHandleIndex]);
-        }
+        public override ManagedHeap ManagedHeap => m_managedHeap;
 
         static void ExpectValue(uint value, uint expectedValue, string name)
         {
