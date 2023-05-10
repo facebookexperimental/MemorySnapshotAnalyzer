@@ -1,43 +1,50 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 
 namespace MemorySnapshotAnalyzer.UnityBackend
 {
-    public sealed class UnityMemorySnapshot : MemorySnapshot
+    sealed class UnityMemorySnapshot : MemorySnapshot
     {
+        readonly FileStream m_fileStream;
         readonly string m_filename;
         readonly MemoryMappedFile m_memoryMappedFile;
         readonly MemoryMappedViewAccessor m_viewAccessor;
-        readonly ChapterObject[] m_chapters;
-        readonly VirtualMachineInformation m_virtualMachineInformation;
-        readonly ManagedHeap m_managedHeap;
+        ChapterObject[]? m_chapters;
+        VirtualMachineInformation m_virtualMachineInformation;
+        ManagedHeap? m_managedHeap;
 
-        public UnityMemorySnapshot(string filename)
+        internal UnityMemorySnapshot(string filename, FileStream fileStream)
         {
             m_filename = filename;
+            m_fileStream = fileStream;
 
-            var fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read);
             long fileSize = fileStream.Length;
             m_memoryMappedFile = MemoryMappedFile.CreateFromFile(fileStream, null, fileSize, MemoryMappedFileAccess.Read, HandleInheritability.None, leaveOpen: false);
             m_viewAccessor = m_memoryMappedFile.CreateViewAccessor(0, fileSize, MemoryMappedFileAccess.Read);
+        }
 
-            m_chapters = ParseChapters(fileSize);
+        internal bool CheckSignature()
+        {
+            m_viewAccessor.Read(0, out Header header);
+            return header.Signature == 0xAEABCDCD;
+        }
+
+        internal void Load()
+        {
+            m_chapters = ParseChapters();
             m_virtualMachineInformation = ParseVirtualMachineInformation();
             var typeSystem = new UnityTypeSystem(ParseTypeDescriptions(), ParseFieldDescriptions(), m_virtualMachineInformation);
             m_managedHeap = ParseManagedHeap(typeSystem);
         }
 
-        ChapterObject[] ParseChapters(long fileSize)
+        ChapterObject[] ParseChapters()
         {
-            // Header
-            m_viewAccessor.Read(0, out Header header);
-            ExpectValue(header.Signature, 0xAEABCDCD, "header signature");
-
             // Footer
-            m_viewAccessor.Read(fileSize - Marshal.SizeOf(typeof(Footer)), out Footer footer);
+            m_viewAccessor.Read(m_fileStream.Length - Marshal.SizeOf(typeof(Footer)), out Footer footer);
             ExpectValue(footer.Signature, 0xABCDCDAE, "footer signature");
 
             // Directory
@@ -77,7 +84,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         T GetChapter<T>(ChapterType chapterIndex) where T : class
         {
-            if ((int)chapterIndex >= m_chapters.Length)
+            if ((int)chapterIndex >= m_chapters!.Length)
             {
                 throw new InvalidSnapshotFormatException($"chapter {chapterIndex} missing");
             }
@@ -222,9 +229,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         public override string Filename => m_filename;
 
+        public override string Format => "Unity";
+
         public override Native Native => new Native(m_virtualMachineInformation.PointerSize);
 
-        public override ManagedHeap ManagedHeap => m_managedHeap;
+        public override ManagedHeap ManagedHeap => m_managedHeap!;
 
         static void ExpectValue(uint value, uint expectedValue, string name)
         {

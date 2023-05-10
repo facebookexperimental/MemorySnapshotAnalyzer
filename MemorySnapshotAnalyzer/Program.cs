@@ -2,6 +2,7 @@
 
 using MemorySnapshotAnalyzer.CommandProcessing;
 using MemorySnapshotAnalyzer.Commands;
+using MemorySnapshotAnalyzer.UnityBackend;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -16,6 +17,8 @@ static class Program
         IConfiguration configuration = host.Services.GetRequiredService<IConfiguration>();
 
         using Repl repl = new(configuration);
+
+        repl.AddMemorySnapshotLoader(new UnityMemorySnapshotLoader());
 
         repl.AddCommand(typeof(HelpCommand), "help");
         repl.AddCommand(typeof(ExitCommand), "exit");

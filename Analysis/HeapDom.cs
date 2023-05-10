@@ -44,8 +44,6 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         public long NodeSize(int nodeIndex)
         {
-            // TODO: do we have to add native size for C# unmanaged memory?
-            // (see https://docs.unity3d.com/Manual/performance-memory-overview.html)
             return m_sizes[nodeIndex].NodeSizeExcludingDescendants;
         }
 
@@ -113,8 +111,6 @@ namespace MemorySnapshotAnalyzer.Analysis
                     domTree.Add(parentNodeIndex, new List<int>() { nodeIndex });
                     numberOfNonLeafNodes++;
                 }
-
-                // TODO: connect native objects - objects of types derived from UnityEngine.Object, with an m_cachedPtr field holding a native object address
             }
 
             return domTree;

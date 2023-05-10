@@ -11,7 +11,6 @@
     <ProjectReference Include="..\Analysis\Analysis.csproj" />
     <ProjectReference Include="..\CommandInfrastructure\CommandProcessing.csproj" />
     <ProjectReference Include="..\MemorySnapshot\AbstractMemorySnapshot.csproj" />
-    <ProjectReference Include="..\UnityMemorySnapshot\UnityMemorySnapshot.csproj" />
   </ItemGroup>
 
 </Project>

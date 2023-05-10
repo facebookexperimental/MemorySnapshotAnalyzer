@@ -164,8 +164,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             int typeIndex = m_managedHeap.TryGetTypeIndex(reference);
             if (typeIndex == -1)
             {
-                // Not a valid object pointer; ignore.
-                // TODO: when can this happen? Often these seem to be pointers to builtin strings/objects, and Unity reports the same.
+                // Not a valid object pointer; ignore. This could be a pointer to a const or built-in object,
+                // which would be allocated off the managed heap.
                 if (m_markingRoots)
                 {
                     m_invalidRoots.Add(address);

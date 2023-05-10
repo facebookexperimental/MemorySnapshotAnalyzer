@@ -150,6 +150,9 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return m_typesByIndex[typeIndex].Assembly!;
         }
 
+        // TODO: add a method to return an "assembly group", to be used for visualization
+        // (one of {mscorlib,System[.*]}/{Unity[.*],UnityEngine[.*],UnityEditor[.*]}/other)
+
         public string QualifiedName(int typeIndex)
         {
             return m_typesByIndex[typeIndex].Name!;

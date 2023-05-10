@@ -12,6 +12,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
     {
         readonly IConfiguration m_configuration;
         readonly IOutput m_output;
+        readonly List<MemorySnapshotLoader> m_memorySnapshotLoaders;
         readonly SortedDictionary<string, Type> m_commands;
         readonly Dictionary<Type, Dictionary<string, bool>> m_commandNamedArgumentNames;
         readonly SortedDictionary<int, Context> m_contexts;
@@ -22,6 +23,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             m_configuration = configuration;
             m_output = new ConsoleOutput();
+            m_memorySnapshotLoaders = new List<MemorySnapshotLoader>();
             m_commands = new SortedDictionary<string, Type>();
             m_commandNamedArgumentNames = new Dictionary<Type, Dictionary<string, bool>>();
             m_contexts = new SortedDictionary<int, Context>();
@@ -39,6 +41,24 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             {
                 kvp.Value.Dispose();
             }
+        }
+
+        public void AddMemorySnapshotLoader(MemorySnapshotLoader loader)
+        {
+            m_memorySnapshotLoaders.Add(loader);
+        }
+
+        public MemorySnapshot? TryLoad(string filename)
+        {
+            foreach (MemorySnapshotLoader loader in m_memorySnapshotLoaders)
+            {
+                MemorySnapshot? memorySnapshot = loader.TryLoad(filename);
+                if (memorySnapshot != null)
+                {
+                    return memorySnapshot;
+                }
+            }
+            return null;
         }
 
         public void AddCommand(Type commandType, params string[] names)

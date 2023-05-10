@@ -36,5 +36,8 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             NativeWord typeInfoAddress = klassView.ReadPointer(0, Native);
             return TypeSystem.TypeInfoAddressToIndex(typeInfoAddress);
         }
+
+        // TODO: add method to report cross-heap references
+        // (objects of types derived from UnityEngine.Object, with an m_cachedPtr field holding a native object address)
     }
 }

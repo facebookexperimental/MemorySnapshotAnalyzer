@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CommandInfrastructure\CommandProcessing.csproj" />
     <ProjectReference Include="..\Commands\Commands.csproj" />
+    <ProjectReference Include="..\UnityMemorySnapshot\UnityMemorySnapshot.csproj" />
   </ItemGroup>
 
   <ItemGroup>

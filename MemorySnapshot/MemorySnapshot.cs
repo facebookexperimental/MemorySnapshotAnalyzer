@@ -12,6 +12,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract string Filename { get; }
 
+        public abstract string Format { get; }
+
         public abstract Native Native { get; }
 
         public abstract ManagedHeap ManagedHeap { get; }

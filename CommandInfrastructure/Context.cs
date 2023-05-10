@@ -56,8 +56,9 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
             else
             {
-                m_output.WriteLineIndented(indent, "{0} ({1} type indices)",
+                m_output.WriteLineIndented(indent, "{0} ({1}; {2} type indices)",
                     m_currentMemorySnapshot.Filename,
+                    m_currentMemorySnapshot.Format,
                     m_currentMemorySnapshot.ManagedHeap.TypeSystem.NumberOfTypeIndices);
             }
 

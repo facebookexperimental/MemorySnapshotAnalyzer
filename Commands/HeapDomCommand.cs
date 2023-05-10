@@ -151,8 +151,6 @@ namespace MemorySnapshotAnalyzer.Commands
             }
             Output.Write("{{\"name\":\"{0}\",", CurrentHeapDom.Backtracer.DescribeNodeIndex(nodeIndex, fullyQualified: true));
 
-            // TODO: include assembly group (one of {mscorlib,System[.*]}/{Unity[.*],UnityEngine[.*],UnityEditor[.*]}/other)
-
             if (nodeIndex == CurrentHeapDom.RootNodeIndex)
             {
                 Output.Write("\"filename\":{0},",

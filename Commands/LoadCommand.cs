@@ -2,7 +2,6 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandProcessing;
-using MemorySnapshotAnalyzer.UnityBackend;
 using Microsoft.Extensions.Configuration;
 using System.Windows.Forms;
 
@@ -28,15 +27,14 @@ namespace MemorySnapshotAnalyzer.Commands
                 }
             }
 
-            MemorySnapshot memorySnapshot = Load(Filename!);
-            SetCurrentMemorySnapshot(memorySnapshot);
-            Output.WriteLine("memory snapshot loaded successfully");
-        }
+            MemorySnapshot? memorySnapshot = Repl.TryLoad(Filename!);
+            if (memorySnapshot == null)
+            {
+                throw new CommandException("unable to detect memory snapshot file format");
+            }
 
-        public static MemorySnapshot Load(string filename)
-        {
-            // TODO: support other file formats, either via auto-detection or an enum argument
-            return new UnityMemorySnapshot(filename);
+            SetCurrentMemorySnapshot(memorySnapshot);
+            Output.WriteLine($"{memorySnapshot.Format} memory snapshot loaded successfully");
         }
 
         string? SelectFileViaDialog()
