@@ -11,13 +11,8 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         {
         }
 
-        public override int TryGetTypeIndex(NativeWord address)
+        public override int TryGetTypeIndex(MemoryView objectView)
         {
-            MemoryView objectView = GetMemoryViewForAddress(address);
-            if (!objectView.IsValid)
-            {
-                return -1;
-            }
             NativeWord klassPointer = objectView.ReadPointer(TypeSystem.VTableOffsetInHeader, Native);
 
             // This is the representation for a heap object when running standalone.

@@ -82,10 +82,12 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
             else
             {
-                m_output.WriteLineIndented(indent, "TracedHeap: {0} live objects ({1} invalid roots and {2} invalid pointers found)",
+                m_output.WriteLineIndented(indent, "TracedHeap: {0} live objects ({1} invalid roots, {2} invalid pointers, {3} non-heap roots, {4} non-heap pointers)",
                     m_currentTracedHeap.NumberOfLiveObjects,
                     m_currentTracedHeap.NumberOfInvalidRoots,
-                    m_currentTracedHeap.NumberOfInvalidPointers);
+                    m_currentTracedHeap.NumberOfInvalidPointers,
+                    m_currentTracedHeap.NumberOfNonHeapRoots,
+                    m_currentTracedHeap.NumberOfNonHeapPointers);
             }
 
             if (m_currentBacktracer == null)
@@ -199,10 +201,12 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             {
                 m_output.Write("[context {0}] tracing heap ...", m_id);
                 m_currentTracedHeap = new TracedHeap(CurrentRootSet!);
-                m_output.WriteLine(" {0} live objects ({1} invalid roots and {2} invalid pointers found)",
+                m_output.WriteLine(" {0} live objects ({1} invalid roots, {2} invalid pointers, {3} non-heap roots, {4} non-heap pointers)",
                     m_currentTracedHeap.NumberOfLiveObjects,
                     m_currentTracedHeap.NumberOfInvalidRoots,
-                    m_currentTracedHeap.NumberOfInvalidPointers);
+                    m_currentTracedHeap.NumberOfInvalidPointers,
+                    m_currentTracedHeap.NumberOfNonHeapRoots,
+                    m_currentTracedHeap.NumberOfNonHeapPointers);
             }
         }
 

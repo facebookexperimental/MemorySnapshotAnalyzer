@@ -35,9 +35,11 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly List<PostorderEntry> m_postorderObjectAddresses;
         readonly Dictionary<ulong, int> m_numberOfPredecessors;
         readonly Stack<MarkStackEntry>? m_markStack;
-        bool m_markingRoots;
-        readonly List<ulong> m_invalidRoots;
+        readonly int m_rootIndexBeingMarked;
+        readonly List<Tuple<int, ulong>> m_invalidRoots;
         readonly List<Tuple<ulong, ulong>> m_invalidPointers;
+        readonly List<Tuple<int, ulong>> m_nonHeapRoots;
+        readonly List<Tuple<ulong, ulong>> m_nonHeapPointers;
         readonly ObjectAddressToIndexEntry[] m_objectAddressesToIndex;
 
         public TracedHeap(IRootSet rootSet)
@@ -53,16 +55,18 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_numberOfPredecessors = new Dictionary<ulong, int>();
             m_markStack = new Stack<MarkStackEntry>();
 
-            m_invalidRoots = new List<ulong>();
+            m_invalidRoots = new List<Tuple<int, ulong>>();
             m_invalidPointers = new List<Tuple<ulong, ulong>>();
+            m_nonHeapRoots = new List<Tuple<int, ulong>>();
+            m_nonHeapPointers = new List<Tuple<ulong, ulong>>();
 
-            m_markingRoots = true;
             for (int rootIndex = 0; rootIndex < rootSet.NumberOfRoots; rootIndex++)
             {
+                m_rootIndexBeingMarked = rootIndex;
                 NativeWord address = rootSet.GetRoot(rootIndex);
                 Mark(address, address);
             }
-            m_markingRoots = false;
+            m_rootIndexBeingMarked = -1;
 
             ProcessMarkStack();
             m_markStack = null;
@@ -85,17 +89,37 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         public int NumberOfInvalidPointers => m_invalidPointers.Count;
 
-        public IEnumerable<NativeWord> GetInvalidRoots()
+        public int NumberOfNonHeapRoots => m_nonHeapRoots.Count;
+
+        public int NumberOfNonHeapPointers => m_nonHeapPointers.Count;
+
+        public IEnumerable<Tuple<int, NativeWord>> GetInvalidRoots()
         {
-            foreach (var address in m_invalidRoots)
+            foreach (var tuple in m_invalidRoots)
             {
-                yield return m_native.From(address);
+                yield return Tuple.Create(tuple.Item1, m_native.From(tuple.Item2));
             }
         }
 
         public IEnumerable<Tuple<NativeWord, NativeWord>> GetInvalidPointers()
         {
             foreach (var tuple in m_invalidPointers)
+            {
+                yield return Tuple.Create(m_native.From(tuple.Item1), m_native.From(tuple.Item2));
+            }
+        }
+
+        public IEnumerable<Tuple<int, NativeWord>> GetNonHeapRoots()
+        {
+            foreach (var tuple in m_nonHeapRoots)
+            {
+                yield return Tuple.Create(tuple.Item1, m_native.From(tuple.Item2));
+            }
+        }
+
+        public IEnumerable<Tuple<NativeWord, NativeWord>> GetNonHeapPointers()
+        {
+            foreach (var tuple in m_nonHeapPointers)
             {
                 yield return Tuple.Create(m_native.From(tuple.Item1), m_native.From(tuple.Item2));
             }
@@ -161,14 +185,29 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
             m_numberOfPredecessors.Add(reference.Value, 1);
 
-            int typeIndex = m_managedHeap.TryGetTypeIndex(reference);
+            MemoryView objectView = m_managedHeap.GetMemoryViewForAddress(reference);
+            if (!objectView.IsValid)
+            {
+                // Not a valid object pointer. This could be a pointer to a const or built-in object,
+                // which would be allocated off the managed heap.
+                if (m_rootIndexBeingMarked != -1)
+                {
+                    m_nonHeapRoots.Add(Tuple.Create(m_rootIndexBeingMarked, address));
+                }
+                else
+                {
+                    m_nonHeapPointers.Add(Tuple.Create(address, referrer.Value));
+                }
+                return;
+            }
+
+            int typeIndex = m_managedHeap.TryGetTypeIndex(objectView);
             if (typeIndex == -1)
             {
-                // Not a valid object pointer; ignore. This could be a pointer to a const or built-in object,
-                // which would be allocated off the managed heap.
-                if (m_markingRoots)
+                // Object layout is invalid.
+                if (m_rootIndexBeingMarked != -1)
                 {
-                    m_invalidRoots.Add(address);
+                    m_invalidRoots.Add(Tuple.Create(m_rootIndexBeingMarked, address));
                 }
                 else
                 {

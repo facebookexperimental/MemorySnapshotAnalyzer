@@ -36,6 +36,7 @@ namespace MemorySnapshotAnalyzer.Commands
             var sb = new StringBuilder();
             for (int objectIndex = 0; objectIndex < numberOfLiveObjects; objectIndex++)
             {
+                // TODO: also dump objects of types derived from the given type index?
                 int typeIndex = CurrentTracedHeap.ObjectTypeIndex(objectIndex);
                 if (typeIndex == TypeIndex)
                 {

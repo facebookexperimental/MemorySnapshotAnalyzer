@@ -83,7 +83,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             return segment.MemoryView.GetRange(offset, segment.Size - offset);
         }
 
-        public abstract int TryGetTypeIndex(NativeWord address);
+        public abstract int TryGetTypeIndex(MemoryView objectView);
 
         public int GetObjectSize(MemoryView objectView, int typeIndex, bool committedOnly)
         {

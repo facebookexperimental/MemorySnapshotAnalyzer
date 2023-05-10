@@ -206,8 +206,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         void DescribeObject(int objectIndex, NativeWord objectAddress, StringBuilder sb)
         {
-            int typeIndex = CurrentManagedHeap.TryGetTypeIndex(objectAddress);
             MemoryView objectView = CurrentManagedHeap.GetMemoryViewForAddress(objectAddress);
+            int typeIndex = CurrentManagedHeap.TryGetTypeIndex(objectView);
             int objectSize = CurrentManagedHeap.GetObjectSize(objectView, typeIndex, committedOnly: false);
             int committedSize = CurrentManagedHeap.GetObjectSize(objectView, typeIndex, committedOnly: true);
             sb.AppendFormat("live object[object index {0}, size {1}",
@@ -229,26 +229,10 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
             ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
 
-            NativeWord klassPointer = objectView.ReadPointer(typeSystem.VTableOffsetInHeader, CurrentMemorySnapshot.Native);
-
-            // This is the representation for a heap object when running standalone.
-            int typeIndex = typeSystem.TypeInfoAddressToIndex(klassPointer);
-            if (typeIndex == -1)
+            int typeIndex = CurrentManagedHeap.TryGetTypeIndex(objectView);
+            if (typeIndex < 0)
             {
-                MemoryView klassView = CurrentManagedHeap.GetMemoryViewForAddress(klassPointer);
-                if (!klassView.IsValid)
-                {
-                    throw new CommandException($"class pointer address {klassPointer} not in mapped memory");
-                }
-
-                NativeWord typeInfoAddress = klassView.ReadPointer(0, CurrentMemorySnapshot.Native);
-
-                // This is the representation for a heap object when running in the editor.
-                typeIndex = typeSystem.TypeInfoAddressToIndex(typeInfoAddress);
-                if (typeIndex < 0)
-                {
-                    throw new CommandException($"unable to determine object type");
-                }
+                throw new CommandException($"unable to determine object type");
             }
 
             DumpObject(objectView, typeIndex, 0);
