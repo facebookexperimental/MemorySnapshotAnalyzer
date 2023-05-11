@@ -6,17 +6,20 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 {
     sealed class UnityManagedHeap : ManagedHeap
     {
-        public UnityManagedHeap(ITypeSystem typeSystem, Native native, ManagedHeapSegment[] segments, ulong[] gcHandleTargets) :
-            base(typeSystem, native, segments, gcHandleTargets)
+        readonly UnityTypeSystem m_unityTypeSystem;
+
+        internal UnityManagedHeap(UnityTypeSystem unityTypeSystem, Native native, ManagedHeapSegment[] segments, ulong[] gcHandleTargets) :
+            base(unityTypeSystem, native, segments, gcHandleTargets)
         {
+            m_unityTypeSystem = unityTypeSystem;
         }
 
         public override int TryGetTypeIndex(MemoryView objectView)
         {
-            NativeWord klassPointer = objectView.ReadPointer(TypeSystem.VTableOffsetInHeader, Native);
+            NativeWord klassPointer = objectView.ReadPointer(0, Native);
 
             // This is the representation for a heap object when running standalone.
-            int typeIndex = TypeSystem.TypeInfoAddressToIndex(klassPointer);
+            int typeIndex = m_unityTypeSystem.TypeInfoAddressToIndex(klassPointer);
             if (typeIndex != -1)
             {
                 return typeIndex;
@@ -29,7 +32,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
                 return -1;
             }
             NativeWord typeInfoAddress = klassView.ReadPointer(0, Native);
-            return TypeSystem.TypeInfoAddressToIndex(typeInfoAddress);
+            return m_unityTypeSystem.TypeInfoAddressToIndex(typeInfoAddress);
         }
 
         // TODO: add method to report cross-heap references

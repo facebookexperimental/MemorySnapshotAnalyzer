@@ -36,20 +36,10 @@ namespace MemorySnapshotAnalyzer.Commands
         void DumpTypeSystemStatistics()
         {
             ITypeSystem typeSystem = CurrentMemorySnapshot.ManagedHeap.TypeSystem;
-
-            Output.WriteLine("Pointer size: {0}", typeSystem.PointerSize);
-            Output.WriteLine("VTable offset in header: {0}", typeSystem.VTableOffsetInHeader);
-            Output.WriteLine("Object header size: {0}", typeSystem.ObjectHeaderSize);
-            Output.WriteLine("Array header size: {0}", typeSystem.ArrayHeaderSize);
-            Output.WriteLine("Array bounds offset in header: {0}", typeSystem.ArrayBoundsOffsetInHeader);
-            Output.WriteLine("Array size offset in header: {0}", typeSystem.ArraySizeOffsetInHeader);
-            Output.WriteLine("Allocation granularity: {0}", typeSystem.AllocationGranularity);
-            Output.WriteLine();
-            Output.WriteLine("Number of types: {0}", typeSystem.NumberOfTypeIndices);
-            Output.WriteLine();
-            Output.WriteLine("System.String type index: {0}", typeSystem.SystemStringTypeIndex);
-            Output.WriteLine("System.String length offset: {0}", typeSystem.SystemStringLengthOffset);
-            Output.WriteLine("System.String first char offset: {0}", typeSystem.SystemStringFirstCharOffset);
+            foreach (string s in typeSystem.DumpStats())
+            {
+                Output.WriteLine(s);
+            }
         }
 
         void DumpHeapStatistics()

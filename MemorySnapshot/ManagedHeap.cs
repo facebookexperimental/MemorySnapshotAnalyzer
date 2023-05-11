@@ -85,62 +85,15 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract int TryGetTypeIndex(MemoryView objectView);
 
-        public int GetObjectSize(MemoryView objectView, int typeIndex, bool committedOnly)
-        {
-            if (TypeSystem.IsArray(typeIndex))
-            {
-                objectView.Read(TypeSystem.ArraySizeOffsetInHeader, out int arraySize);
-                int elementSize = GetElementSize(TypeSystem.BaseOrElementTypeIndex(typeIndex));
-                int arraySizeInBytes = RoundToAllocationGranularity(TypeSystem.ArrayFirstElementOffset + arraySize * elementSize);
-                // We can find arrays whose backing store has not been fully committed.
-                return committedOnly && arraySizeInBytes > objectView.Size ? (int)objectView.Size : arraySizeInBytes;
-            }
-            else if (typeIndex == TypeSystem.SystemStringTypeIndex)
-            {
-                objectView.Read(TypeSystem.SystemStringLengthOffset, out int stringLength);
-                return RoundToAllocationGranularity(TypeSystem.SystemStringFirstCharOffset + (stringLength + 1) * sizeof(char));
-            }
-            else
-            {
-                return RoundToAllocationGranularity(TypeSystem.BaseSize(typeIndex));
-            }
-        }
-
-        public int GetElementSize(int elementTypeIndex)
-        {
-            // TODO: round up element size appropriately?
-            return GetFieldSize(elementTypeIndex);
-        }
-
-        public int GetFieldSize(int typeIndex)
-        {
-            if (TypeSystem.IsValueType(typeIndex))
-            {
-                return TypeSystem.BaseSize(typeIndex);
-            }
-            else
-            {
-                return TypeSystem.PointerSize;
-            }
-        }
-
-        public int RoundToAllocationGranularity(int size)
-        {
-            int insignificantBits = TypeSystem.AllocationGranularity - 1;
-            return (size + insignificantBits) & ~insignificantBits;
-        }
-
         public IEnumerable<int> GetObjectPointerOffsets(MemoryView objectView, int typeIndex)
         {
             if (TypeSystem.IsArray(typeIndex))
             {
                 int elementTypeIndex = TypeSystem.BaseOrElementTypeIndex(typeIndex);
-                objectView.Read(TypeSystem.ArraySizeOffsetInHeader, out int arraySize);
-                int elementSize = GetElementSize(elementTypeIndex);
-                int offsetOfFirstElement = TypeSystem.ArrayFirstElementOffset;
+                int arraySize = TypeSystem.ReadArraySize(objectView);
                 for (int i = 0; i < arraySize; i++)
                 {
-                    foreach (int offset in GetFieldPointerOffsets(elementTypeIndex, offsetOfFirstElement + i * elementSize))
+                    foreach (int offset in GetFieldPointerOffsets(elementTypeIndex, TypeSystem.GetArrayElementOffset(elementTypeIndex, i)))
                     {
                         // We can find arrays whose backing store has not been fully committed.
                         if (offset + TypeSystem.PointerSize > objectView.Size)
@@ -184,15 +137,11 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 if (!TypeSystem.FieldIsStatic(typeIndex, fieldNumber))
                 {
                     int fieldTypeIndex = TypeSystem.FieldType(typeIndex, fieldNumber);
-                    int fieldOffset = TypeSystem.FieldOffset(typeIndex, fieldNumber);
-                    if (!hasHeader)
+                    int fieldOffset = TypeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: hasHeader);
+                    if (!hasHeader && fieldTypeIndex == typeIndex)
                     {
-                        if (fieldTypeIndex == typeIndex)
-                        {
-                            // Avoid infinite recursion due to the way that primitive types (such as System.Int32) are defined.
-                            continue;
-                        }
-                        fieldOffset -= TypeSystem.ObjectHeaderSize;
+                        // Avoid infinite recursion due to the way that primitive types (such as System.Int32) are defined.
+                        continue;
                     }
 
                     foreach (int offset in GetFieldPointerOffsets(fieldTypeIndex, baseOffset + fieldOffset))

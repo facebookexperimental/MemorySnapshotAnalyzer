@@ -188,7 +188,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 int typeIndex = m_tracedHeap.ObjectTypeIndex(nodeIndex);
                 MemoryView objectView = m_managedHeap.GetMemoryViewForAddress(m_tracedHeap.ObjectAddress(nodeIndex));
-                return m_managedHeap.GetObjectSize(objectView, typeIndex, committedOnly: true);
+                return m_managedHeap.TypeSystem.GetObjectSize(objectView, typeIndex, committedOnly: true);
             }
             else
             {

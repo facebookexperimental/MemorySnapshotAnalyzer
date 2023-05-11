@@ -170,22 +170,10 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 return;
             }
 
-            ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
-            int typeInfoIndex = typeSystem.TypeInfoAddressToIndex(addressOfValue);
-            if (typeInfoIndex != -1)
+            string? typeDescription = CurrentManagedHeap.TypeSystem.DescribeAddress(addressOfValue);
+            if (typeDescription != null)
             {
-                sb.AppendFormat("  start of typeinfo[{0}, type index {1}]",
-                    typeSystem.QualifiedName(typeInfoIndex),
-                    typeInfoIndex);
-                return;
-            }
-
-            typeInfoIndex = typeSystem.TypeInfoAddressToIndex(nativeValue);
-            if (typeInfoIndex != -1)
-            {
-                sb.AppendFormat("  pointer to typeinfo[{0}, type index {1}]",
-                    typeSystem.QualifiedName(typeInfoIndex),
-                    typeInfoIndex);
+                sb.AppendFormat("  {0}", typeDescription);
                 return;
             }
 
@@ -208,8 +196,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             MemoryView objectView = CurrentManagedHeap.GetMemoryViewForAddress(objectAddress);
             int typeIndex = CurrentManagedHeap.TryGetTypeIndex(objectView);
-            int objectSize = CurrentManagedHeap.GetObjectSize(objectView, typeIndex, committedOnly: false);
-            int committedSize = CurrentManagedHeap.GetObjectSize(objectView, typeIndex, committedOnly: true);
+            int objectSize = CurrentManagedHeap.TypeSystem.GetObjectSize(objectView, typeIndex, committedOnly: false);
+            int committedSize = CurrentManagedHeap.TypeSystem.GetObjectSize(objectView, typeIndex, committedOnly: true);
             sb.AppendFormat("live object[object index {0}, size {1}",
                 objectIndex,
                 objectSize);
@@ -260,16 +248,15 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             else if (typeSystem.IsArray(typeIndex))
             {
                 int elementTypeIndex = typeSystem.BaseOrElementTypeIndex(typeIndex);
-                objectView.Read(typeSystem.ArraySizeOffsetInHeader, out int arraySize);
+                int arraySize = typeSystem.ReadArraySize(objectView);
                 Output.WriteLineIndented(indent, "Array of length {0} with element type {1}",
                     arraySize,
                     typeSystem.QualifiedName(elementTypeIndex));
 
-                int elementSize = CurrentManagedHeap.GetElementSize(elementTypeIndex);
-                int offsetOfFirstElement = typeSystem.ArrayFirstElementOffset;
+                int elementSize = typeSystem.GetArrayElementSize(elementTypeIndex);
                 for (int i = 0; i < arraySize; i++)
                 {
-                    int elementOffset = offsetOfFirstElement + i * elementSize;
+                    int elementOffset = typeSystem.GetArrayElementOffset(elementTypeIndex, i);
                     // The backing store of arrays does not have to be fully committed.
                     if (elementOffset + elementSize > objectView.Size)
                     {
@@ -292,7 +279,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 {
                     if (!typeSystem.FieldIsStatic(typeIndex, fieldNumber))
                     {
-                        int fieldOffset = typeSystem.FieldOffset(typeIndex, fieldNumber);
+                        int fieldOffset = typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: true);
                         int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
                         Output.WriteLineIndented(indent + 1, "+{0}  {1} : {2} {3} (type index {4})",
                             fieldOffset,
@@ -342,7 +329,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             {
                 if (!typeSystem.FieldIsStatic(typeIndex, fieldNumber))
                 {
-                    int fieldOffset = typeSystem.FieldOffset(typeIndex, fieldNumber) - typeSystem.ObjectHeaderSize;
+                    int fieldOffset = typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: false);
                     int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
 
                     // Avoid infinite recursion due to the way that primitive types (such as System.Int32) are defined.

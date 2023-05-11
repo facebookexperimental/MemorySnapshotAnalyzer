@@ -132,7 +132,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return virtualMachineInformation;
         }
 
-        ManagedHeap ParseManagedHeap(ITypeSystem typeSystem)
+        ManagedHeap ParseManagedHeap(UnityTypeSystem typeSystem)
         {
             var startAddresses = GetChapter<ChapterArrayOfConstantSizeElements>(ChapterType.ManagedHeapSections_StartAddress);
             var contents = GetArrayOfVariableSizeElementsChapter(ChapterType.ManagedHeapSections_Bytes, (int)startAddresses.Length);

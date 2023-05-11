@@ -11,7 +11,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
 #pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value null
         [PositionalArgument(0, optional: true)]
-        public CommandLineArgument? AddressOrIndexOrSubstring;
+        public CommandLineArgument? IndexOrSubstring;
 
         [NamedArgument("assembly")]
         public string? Assembly;
@@ -33,7 +33,7 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
 
-            if (AddressOrIndexOrSubstring == null)
+            if (IndexOrSubstring == null)
             {
                 // Dump all types.
                 Output.WriteLine("Number of type indices: {0}", typeSystem.NumberOfTypeIndices);
@@ -42,27 +42,22 @@ namespace MemorySnapshotAnalyzer.Commands
                     DumpType(typeIndex, 0);
                 }
             }
-            else if (AddressOrIndexOrSubstring.ArgumentType == CommandLineArgumentType.Integer)
+            else if (IndexOrSubstring.ArgumentType == CommandLineArgumentType.Integer)
             {
-                // Dump by address and/or index.
-                NativeWord address = AddressOrIndexOrSubstring.AsNativeWord(CurrentMemorySnapshot.Native);
-                int typeIndex = typeSystem.TypeInfoAddressToIndex(address);
-                if (typeIndex < 0)
+                // Dump by index.
+                ulong value = IndexOrSubstring.IntegerValue;
+                if (value >= (ulong)typeSystem.NumberOfTypeIndices)
                 {
-                    ulong value = AddressOrIndexOrSubstring.IntegerValue;
-                    if (value >= (ulong)typeSystem.NumberOfTypeIndices)
-                    {
-                        throw new CommandException("could not find type with given address or index");
-                    }
-                    typeIndex = (int)value;
+                    throw new CommandException("could not find type with given address or index");
                 }
 
+                int typeIndex = (int)value;
                 DumpType(typeIndex, 0);
             }
-            else if (AddressOrIndexOrSubstring.ArgumentType == CommandLineArgumentType.String)
+            else if (IndexOrSubstring.ArgumentType == CommandLineArgumentType.String)
             {
                 // Dump by name.
-                string value = AddressOrIndexOrSubstring.StringValue;
+                string value = IndexOrSubstring.StringValue;
 
                 for (int typeIndex = 0; typeIndex < typeSystem.NumberOfTypeIndices; typeIndex++)
                 {
@@ -102,9 +97,8 @@ namespace MemorySnapshotAnalyzer.Commands
 
             ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
 
-            Output.WriteLineIndented(indent, "Type {0} at address {1}: qualified name {2}:{3}, {4} with base size {5}, rank {6}",
+            Output.WriteLineIndented(indent, "Type {0}: qualified name {1}:{2}, {3} with base size {4}, rank {5}",
                 typeIndex,
-                typeSystem.TypeInfoAddress(typeIndex),
                 typeSystem.Assembly(typeIndex),
                 typeSystem.QualifiedName(typeIndex),
                 typeSystem.IsValueType(typeIndex) ? "value type" : typeSystem.IsArray(typeIndex) ? "array" : "object",
@@ -120,15 +114,14 @@ namespace MemorySnapshotAnalyzer.Commands
                     int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
                     if (Statics && isStatic || !Statics && !isStatic)
                     {
-                        Output.WriteLineIndented(indent + 1, "{0} field {1} (index {2}) at offset {3}: {4} type {5} (index {6}), field size {7}",
+                        Output.WriteLineIndented(indent + 1, "{0} field {1} (index {2}) at offset {3}: {4} type {5} (index {6})",
                             typeSystem.FieldIsStatic(typeIndex, fieldNumber) ? "Static" : "Instance",
                             typeSystem.FieldName(typeIndex, fieldNumber),
                             fieldNumber,
-                            typeSystem.FieldOffset(typeIndex, fieldNumber),
+                            typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: true),
                             typeSystem.IsValueType(fieldTypeIndex) ? "value" : typeSystem.IsArray(fieldTypeIndex) ? "array" : "object",
                             typeSystem.QualifiedName(fieldTypeIndex),
-                            fieldTypeIndex,
-                            CurrentManagedHeap.GetFieldSize(fieldTypeIndex));
+                            fieldTypeIndex);
                     }
 
                     if (Statics && isStatic)
@@ -180,6 +173,6 @@ namespace MemorySnapshotAnalyzer.Commands
             return false;
         }
 
-        public override string HelpText => "dumptype [<address>|<index>|<substring> ['assembly <assembly>] ['exact]] ['recursive] ['verbose] ['statics]";
+        public override string HelpText => "dumptype [<index>|<substring> ['assembly <assembly>] ['exact]] ['recursive] ['verbose] ['statics]";
     }
 }
