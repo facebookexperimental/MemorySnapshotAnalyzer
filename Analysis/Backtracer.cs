@@ -7,13 +7,13 @@ namespace MemorySnapshotAnalyzer.Analysis
 {
     public sealed class Backtracer : IBacktracer
     {
-        readonly TracedHeap m_tracedHeap;
+        readonly ITracedHeap m_tracedHeap;
         readonly IRootSet m_rootSet;
         readonly ManagedHeap m_managedHeap;
         readonly int m_rootNodeIndex;
         readonly Dictionary<int, List<int>> m_predecessors;
 
-        public Backtracer(TracedHeap tracedHeap)
+        public Backtracer(ITracedHeap tracedHeap)
         {
             m_tracedHeap = tracedHeap;
             m_rootSet = m_tracedHeap.RootSet;
@@ -32,7 +32,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             ComputePredecessors();
         }
 
-        public TracedHeap TracedHeap => m_tracedHeap;
+        public ITracedHeap TracedHeap => m_tracedHeap;
 
         public int RootNodeIndex => m_rootNodeIndex;
 

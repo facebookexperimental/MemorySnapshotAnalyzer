@@ -70,7 +70,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public TracedHeap CurrentTracedHeap
+        public ITracedHeap CurrentTracedHeap
         {
             get
             {

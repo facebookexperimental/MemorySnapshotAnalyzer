@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.Analysis
 {
-    public sealed class TracedHeap
+    public sealed class TracedHeap : ITracedHeap
     {
         struct MarkStackEntry
         {

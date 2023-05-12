@@ -110,7 +110,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public TracedHeap TracedHeap => m_parentBacktracer.TracedHeap;
+        public ITracedHeap TracedHeap => m_parentBacktracer.TracedHeap;
 
         int IBacktracer.RootNodeIndex => m_rootNodeIndex;
 

@@ -20,7 +20,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         MemorySnapshot? m_currentMemorySnapshot;
         IRootSet? m_currentRootSet;
-        TracedHeap? m_currentTracedHeap;
+        ITracedHeap? m_currentTracedHeap;
         IBacktracer? m_currentBacktracer;
         HeapDom? m_currentHeapDom;
 
@@ -191,7 +191,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             ClearTracedHeap();
         }
 
-        public TracedHeap? CurrentTracedHeap => m_currentTracedHeap;
+        public ITracedHeap? CurrentTracedHeap => m_currentTracedHeap;
 
         public void EnsureTracedHeap()
         {
