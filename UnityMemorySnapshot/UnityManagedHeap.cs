@@ -42,6 +42,9 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             m_segmentedHeap = new UnityManagedSegmentedHeap(unityManagedTypeSystem, native, segments);
         }
 
+        // TODO: include user metadata?
+        public override string Description => "Unity managed heap";
+
         public override int TryGetTypeIndex(NativeWord objectAddress)
         {
             MemoryView objectView = m_segmentedHeap.GetMemoryViewForAddress(objectAddress);

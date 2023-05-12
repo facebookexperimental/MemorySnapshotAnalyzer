@@ -62,13 +62,13 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
     sealed class CommandLineParser
     {
         readonly CommandLineTokenizer m_tokenizer;
-        readonly MemorySnapshot? m_memorySnapshot;
+        readonly Context m_context;
         readonly string? m_commandName;
         readonly CommandLineArgument[] m_args;
 
-        public static CommandLine? Parse(string line, MemorySnapshot? memorySnapshot)
+        public static CommandLine? Parse(string line, Context context)
         {
-            var parser = new CommandLineParser(line, memorySnapshot);
+            var parser = new CommandLineParser(line, context);
             if (parser.m_commandName == null)
             {
                 return null;
@@ -76,10 +76,10 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             return new CommandLine(parser.m_commandName, parser.m_args.ToArray());
         }
 
-        CommandLineParser(string line, MemorySnapshot? memorySnapshot)
+        CommandLineParser(string line, Context context)
         {
             m_tokenizer = new CommandLineTokenizer(line);
-            m_memorySnapshot = memorySnapshot;
+            m_context = context;
 
             var args = new List<CommandLineArgument>();
             if (m_tokenizer.Peek() != Token.Eof)
@@ -244,7 +244,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                     {
                         m_tokenizer.Consume();
                         CommandLineArgument result = ParseUnaryExpr();
-                        result = result.Indirect(m_memorySnapshot);
+                        result = result.Indirect(m_context);
                         return result;
                     }
                 case Token.At:

@@ -51,6 +51,8 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             m_connections = connections;
         }
 
+        public override string Description => "Unity native objects";
+
         public override int TryGetTypeIndex(NativeWord objectAddress)
         {
             if (m_nativeObjectsByAddress.TryGetValue(objectAddress.Value, out NativeObject? nativeObject))

@@ -50,9 +50,20 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public TraceableHeap CurrentTraceableHeap => CurrentMemorySnapshot.TraceableHeap;
+        public TraceableHeap CurrentTraceableHeap
+        {
+            get
+            {
+                if (m_context.CurrentTraceableHeap == null)
+                {
+                    m_context.EnsureTraceableHeap();
+                }
 
-        public SegmentedHeap? CurrentSegmentedHeapOpt => CurrentMemorySnapshot.TraceableHeap.SegmentedHeapOpt;
+                return m_context.CurrentTraceableHeap!;
+            }
+        }
+
+        public SegmentedHeap? CurrentSegmentedHeapOpt => CurrentTraceableHeap.SegmentedHeapOpt;
 
         public IRootSet CurrentRootSet
         {

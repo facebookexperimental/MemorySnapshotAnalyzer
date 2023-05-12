@@ -10,6 +10,9 @@ namespace MemorySnapshotAnalyzer.Commands
         public OptionsCommand(Repl repl) : base(repl) {}
 
 #pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value
+        [NamedArgument("heap")]
+        public string? HeapKind;
+
         [NamedArgument("rootobject")]
         public NativeWord Address;
 
@@ -22,6 +25,23 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
+            if (HeapKind != null)
+            {
+                switch (HeapKind) {
+                    case "managed":
+                        Context.TraceableHeap_Kind = Context.TraceableHeapKind.Managed;
+                        break;
+                    case "native":
+                        Context.TraceableHeap_Kind = Context.TraceableHeapKind.Native;
+                        break;
+                    case "combined":
+                        Context.TraceableHeap_Kind = Context.TraceableHeapKind.Combined;
+                        break;
+                    default:
+                        throw new CommandException($"unknown heap kind \"{HeapKind}\"; must be one of \"managed\", \"native\", or \"combined\"");
+                }
+            }
+
             if (Address.Size != 0)
             {
                 Context.RootSet_SingletonRootAddress = Address;
@@ -37,12 +57,8 @@ namespace MemorySnapshotAnalyzer.Commands
                 Context.HeapDom_WeakGCHandles = WeakGCHandles != 0;
             }
 
-            Output.WriteLine("Root Set: rootobject is {0}",
-                Context.RootSet_SingletonRootAddress.Value == 0 ? "not set" : Context.RootSet_SingletonRootAddress.ToString());
-            Output.WriteLine("Backtracer: groupstatics is {0}",
-                Context.Backtracer_GroupStatics);
-            Output.WriteLine("Dominator computation: weakgchandles is {0}",
-                Context.HeapDom_WeakGCHandles);
+            Output.WriteLine("* [{0}]", Context.Id);
+            Context.Dump(indent: 1);
         }
 
         public override string HelpText => "options ['rootobject <address or index>] ['groupstatics] ['weakgchandles]";

@@ -134,7 +134,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
             try
             {
-                CommandLine? commandLine = CommandLineParser.Parse(line, CurrentContext.CurrentMemorySnapshot);
+                CommandLine? commandLine = CommandLineParser.Parse(line, CurrentContext);
                 if (commandLine == null)
                 {
                     return;

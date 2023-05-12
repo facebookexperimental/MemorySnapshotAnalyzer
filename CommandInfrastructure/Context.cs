@@ -11,6 +11,15 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         readonly int m_id;
         readonly IOutput m_output;
 
+        public enum TraceableHeapKind
+        {
+            Managed,
+            Native,
+            Combined,
+        }
+
+        // Options for TraceableHeap
+        TraceableHeapKind m_traceableHeap_kind;
         // Options for RootSet
         NativeWord m_rootSet_singletonRootAddress;
         // Options for Backtracer
@@ -19,6 +28,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         bool m_heapDom_weakGCHandles;
 
         MemorySnapshot? m_currentMemorySnapshot;
+        TraceableHeap? m_currentTraceableHeap;
         IRootSet? m_currentRootSet;
         TracedHeap? m_currentTracedHeap;
         IBacktracer? m_currentBacktracer;
@@ -56,10 +66,23 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
             else
             {
-                m_output.WriteLineIndented(indent, "{0} ({1}; {2} type indices)",
+                m_output.WriteLineIndented(indent, "{0} ({1})",
                     m_currentMemorySnapshot.Filename,
-                    m_currentMemorySnapshot.Format,
-                    m_currentMemorySnapshot.TraceableHeap.TypeSystem.NumberOfTypeIndices);
+                    m_currentMemorySnapshot.Format);
+            }
+
+            if (m_currentTraceableHeap == null)
+            {
+                m_output.WriteLineIndented(indent, "TraceableHeap[kind={0}] not computed",
+                    m_traceableHeap_kind);
+            }
+            else
+            {
+                m_output.WriteLineIndented(indent, "TraceableHeap[kind={0}] {1} ({2} type indices, {3})",
+                    m_traceableHeap_kind,
+                    m_currentTraceableHeap.Description,
+                    m_currentTraceableHeap.TypeSystem.NumberOfTypeIndices,
+                    m_currentTraceableHeap.SegmentedHeapOpt != null ? "with memory" : "without memory");
             }
 
             if (m_currentRootSet == null)
@@ -117,7 +140,9 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             if (m_currentMemorySnapshot != null)
             {
                 m_currentMemorySnapshot.Dispose();
+
                 m_currentMemorySnapshot = null;
+                m_currentTraceableHeap = null;
                 m_currentRootSet = null;
                 m_currentTracedHeap = null;
                 m_currentBacktracer = null;
@@ -143,6 +168,59 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
+        public TraceableHeapKind TraceableHeap_Kind
+        {
+            get { return m_traceableHeap_kind; }
+            set
+            {
+                if (m_traceableHeap_kind != value)
+                {
+                    m_traceableHeap_kind = value;
+                    ClearTraceableHeap();
+                }
+            }
+        }
+
+        public TraceableHeap? CurrentTraceableHeap => m_currentTraceableHeap;
+
+        public void EnsureTraceableHeap()
+        {
+            if (m_currentMemorySnapshot == null)
+            {
+                throw new CommandException($"context {m_id} has no memory snapshot loaded");
+            }
+
+            if (m_currentTraceableHeap == null)
+            {
+                m_output.Write("[context {0}] selecting traceable heap {1} ...", m_id, m_traceableHeap_kind);
+                switch (m_traceableHeap_kind)
+                {
+                    case TraceableHeapKind.Managed:
+                        m_currentTraceableHeap = m_currentMemorySnapshot.GetTraceableHeap(0);
+                        break;
+                    case TraceableHeapKind.Native:
+                        m_currentTraceableHeap = m_currentMemorySnapshot.GetTraceableHeap(1);
+                        break;
+                    case TraceableHeapKind.Combined:
+                        // TODO: support tracing across managed and native
+                        throw new NotImplementedException();
+                    default:
+                        throw new IndexOutOfRangeException();
+                }
+
+                m_output.WriteLine(" {0} ({1} type indices, {2})",
+                    m_currentTraceableHeap.Description,
+                    m_currentTraceableHeap.TypeSystem.NumberOfTypeIndices,
+                    m_currentTraceableHeap.SegmentedHeapOpt != null ? "with memory" : "without memory");
+            }
+        }
+
+        void ClearTraceableHeap()
+        {
+            m_currentTraceableHeap = null;
+            ClearRootSet();
+        }
+
         public NativeWord RootSet_SingletonRootAddress
         {
             get { return m_rootSet_singletonRootAddress; }
@@ -160,22 +238,20 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         public void EnsureRootSet()
         {
-            if (m_currentMemorySnapshot == null)
-            {
-                throw new CommandException($"context {m_id} has no memory snapshot loaded");
-            }
+            EnsureTraceableHeap();
 
             if (m_currentRootSet == null)
             {
                 m_output.Write("[context {0}] enumerating root set ...", m_id);
                 if (m_rootSet_singletonRootAddress.Value != 0)
                 {
-                    m_currentRootSet = new SingletonRootSet(CurrentMemorySnapshot!.TraceableHeap, m_rootSet_singletonRootAddress);
+                    m_currentRootSet = new SingletonRootSet(CurrentTraceableHeap!, m_rootSet_singletonRootAddress);
                 }
                 else
                 {
-                    m_currentRootSet = new RootSet(CurrentMemorySnapshot!.TraceableHeap);
+                    m_currentRootSet = new RootSet(CurrentTraceableHeap!);
                 }
+
                 m_output.WriteLine(" {0} roots ({1} GCHandles, {2} statics)",
                     m_currentRootSet.NumberOfRoots,
                     m_currentRootSet.NumberOfGCHandles,

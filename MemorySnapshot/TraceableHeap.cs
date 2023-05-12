@@ -28,6 +28,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             return m_native.From(m_gcHandleTargets[gcHandleIndex]);
         }
 
+        public abstract string Description { get; }
+
         public abstract int TryGetTypeIndex(NativeWord objectAddress);
 
         public abstract int GetObjectSize(NativeWord objectAddress, int typeIndex, bool committedOnly);

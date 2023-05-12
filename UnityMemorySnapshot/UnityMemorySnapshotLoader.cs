@@ -4,16 +4,15 @@ using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 
 namespace MemorySnapshotAnalyzer.UnityBackend
 {
-    public class UnityMemorySnapshotLoader : MemorySnapshotLoader
+    public sealed class UnityMemorySnapshotLoader : MemorySnapshotLoader
     {
         public override MemorySnapshot? TryLoad(string filename)
         {
             var fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read);
-            var memorySnapshot = new UnityMemorySnapshot(filename, fileStream);
-            if (memorySnapshot.CheckSignature())
+            var memorySnapshotFile = new UnityMemorySnapshotFile(filename, fileStream);
+            if (memorySnapshotFile.CheckSignature())
             {
-                memorySnapshot.Load();
-                return memorySnapshot;
+                return memorySnapshotFile.Load();
             }
             return null;
         }
