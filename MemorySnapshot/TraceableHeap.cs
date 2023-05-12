@@ -8,25 +8,20 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
     {
         readonly ITypeSystem m_typeSystem;
         readonly Native m_native;
-        readonly ulong[] m_gcHandleTargets;
 
-        public TraceableHeap(ITypeSystem typeSystem, Native native, ulong[] gcHandleTargets)
+        public TraceableHeap(ITypeSystem typeSystem)
         {
             m_typeSystem = typeSystem;
-            m_native = native;
-            m_gcHandleTargets = gcHandleTargets;
+            m_native = new Native(typeSystem.PointerSize);
         }
 
         public ITypeSystem TypeSystem => m_typeSystem;
 
         public Native Native => m_native;
 
-        public int NumberOfGCHandles => m_gcHandleTargets.Length;
+        public abstract int NumberOfGCHandles { get; }
 
-        public NativeWord GCHandleTarget(int gcHandleIndex)
-        {
-            return m_native.From(m_gcHandleTargets[gcHandleIndex]);
-        }
+        public abstract NativeWord GCHandleTarget(int gcHandleIndex);
 
         public abstract string Description { get; }
 
@@ -34,9 +29,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract int GetObjectSize(NativeWord objectAddress, int typeIndex, bool committedOnly);
 
+        public abstract string GetObjectNodeType(NativeWord address);
+
         public abstract string? GetObjectName(NativeWord objectAddress);
 
-        public abstract IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex);
+        public abstract IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex, bool includeCrossHeapReferences);
+
+        public abstract bool ContainsAddress(NativeWord address);
 
         public abstract string? DescribeAddress(NativeWord address);
 

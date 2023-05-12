@@ -119,10 +119,5 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             yield return string.Format("Pointer size: {0}", PointerSize);
             yield return string.Format("Number of types: {0}", NumberOfTypeIndices);
         }
-
-        public string? DescribeAddress(NativeWord address)
-        {
-            return null;
-        }
     }
 }

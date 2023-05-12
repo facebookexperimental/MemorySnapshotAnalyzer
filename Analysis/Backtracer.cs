@@ -78,11 +78,24 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 int objectIndex = NodeIndexToObjectIndex(nodeIndex);
                 int typeIndex = m_tracedHeap.ObjectTypeIndex(objectIndex);
-                return string.Format("{0}#{1}",
-                    fullyQualified ?
-                        m_traceableHeap.TypeSystem.QualifiedName(typeIndex) :
-                        m_traceableHeap.TypeSystem.UnqualifiedName(typeIndex),
-                    nodeIndex);
+                string typeName = fullyQualified ?
+                    m_traceableHeap.TypeSystem.QualifiedName(typeIndex) :
+                    m_traceableHeap.TypeSystem.UnqualifiedName(typeIndex);
+
+                string? objectName = m_traceableHeap.GetObjectName(m_tracedHeap.ObjectAddress(objectIndex));
+                if (objectName != null)
+                {
+                    return string.Format("{0}('{1}')#{2}",
+                        typeName,
+                        objectName,
+                        objectIndex);
+                }
+                else
+                {
+                    return string.Format("{0}#{1}",
+                        typeName,
+                        objectIndex);
+                }
             }
             else
             {
@@ -110,7 +123,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                 }
                 else
                 {
-                    return "object";
+                    return m_traceableHeap.GetObjectNodeType(m_tracedHeap.ObjectAddress(objectIndex));
                 }
             }
             else
@@ -144,7 +157,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 NativeWord address = m_tracedHeap.ObjectAddress(parentObjectIndex);
                 int typeIndex = m_tracedHeap.ObjectTypeIndex(parentObjectIndex);
-                foreach (NativeWord reference in m_traceableHeap.GetObjectPointers(address, typeIndex))
+                foreach (NativeWord reference in m_traceableHeap.GetObjectPointers(address, typeIndex, includeCrossHeapReferences: false))
                 {
                     int childObjectIndex = m_tracedHeap.ObjectAddressToIndex(reference);
                     if (childObjectIndex != -1)

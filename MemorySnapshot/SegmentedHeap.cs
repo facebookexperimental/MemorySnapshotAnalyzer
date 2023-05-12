@@ -10,10 +10,10 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         readonly Native m_native;
         readonly HeapSegment[] m_segments;
 
-        public SegmentedHeap(ITypeSystem typeSystem, Native native, HeapSegment[] segments)
+        public SegmentedHeap(ITypeSystem typeSystem, HeapSegment[] segments)
         {
             m_typeSystem = typeSystem;
-            m_native = native;
+            m_native = new Native(typeSystem.PointerSize);
 
             // Consistency check that the heap segments are ordered and non-overlapping
             for (int i = 1; i < segments.Length; i++)
@@ -27,7 +27,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             m_segments = segments;
         }
 
-        public IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex)
+        // This method provides an implementation for TraceableHeap.GetObjectPointers, for heaps whose memory we have access to.
+        public IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex, bool includeCrossHeapReferences)
         {
             MemoryView objectView = GetMemoryViewForAddress(address);
             if (m_typeSystem.IsArray(typeIndex))

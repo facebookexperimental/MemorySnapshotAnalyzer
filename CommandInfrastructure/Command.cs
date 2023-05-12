@@ -248,11 +248,14 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 typeIndex);
 
             var sb = new StringBuilder();
-            foreach (NativeWord reference in CurrentTraceableHeap.GetObjectPointers(address, typeIndex))
+            foreach (NativeWord reference in CurrentTraceableHeap.GetObjectPointers(address, typeIndex, includeCrossHeapReferences: false))
             {
                 DescribeAddress(reference, sb);
-                Output.WriteLineIndented(1, sb.ToString());
-                sb.Clear();
+                if (sb.Length > 0)
+                {
+                    Output.WriteLineIndented(1, sb.ToString());
+                    sb.Clear();
+                }
             }
         }
 

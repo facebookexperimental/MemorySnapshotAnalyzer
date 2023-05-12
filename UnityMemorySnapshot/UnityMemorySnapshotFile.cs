@@ -55,11 +55,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             var nativeObjectTypeSystem = new UnityNativeObjectTypeSystem(m_virtualMachineInformation.PointerSize, ParseNativeTypes());
             UnityNativeObjectHeap nativeObjectHeap = ParseNativeObjectHeap(nativeObjectTypeSystem);
 
-            return new UnityMemorySnapshot(this, new TraceableHeap[]
-            {
-                managedHeap,
-                nativeObjectHeap
-            });
+            return new UnityMemorySnapshot(this, managedHeap, nativeObjectHeap);
         }
 
         ChapterObject[] ParseChapters()
@@ -169,7 +165,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             Array.Sort(segments, (segment1, segment2) => segment1.StartAddress.Value.CompareTo(segment2.StartAddress.Value));
 
             var gcHandleTargets = ParseGCHandleTargets();
-            return new UnityManagedHeap(typeSystem, Native, segments, gcHandleTargets);
+            return new UnityManagedHeap(typeSystem, segments, gcHandleTargets);
         }
 
         TypeDescription[] ParseTypeDescriptions()
@@ -266,19 +262,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         {
             NativeObject[] nativeObjects = ParseNativeObjects();
 
-            // TODO: compute from managed heap
-            var gcHandleTargets = new ulong[nativeObjects.Length];
-            for (int i = 0; i < gcHandleTargets.Length; i++)
-            {
-                gcHandleTargets[i] = nativeObjects[i].ObjectAddress.Value;
-            }
-
             return new UnityNativeObjectHeap(
                 typeSystem,
                 nativeObjects,
                 ParseConnections(),
-                Native,
-                gcHandleTargets);
+                Native);
         }
 
         NativeRootReference[]? ParseNativeRootReferences()

@@ -3,6 +3,7 @@
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System;
 using System.Collections.Generic;
+using System.Reflection.Metadata.Ecma335;
 
 namespace MemorySnapshotAnalyzer.Analysis
 {
@@ -201,7 +202,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
                 // Push all of the node's children that are nodes we haven't encountered previously.
                 NativeWord address = m_native.From(entry.Address);
-                foreach (NativeWord reference in m_traceableHeap.GetObjectPointers(address, entry.TypeIndex))
+                foreach (NativeWord reference in m_traceableHeap.GetObjectPointers(address, entry.TypeIndex, includeCrossHeapReferences: false))
                 {
                     Mark(reference, address);
                 }

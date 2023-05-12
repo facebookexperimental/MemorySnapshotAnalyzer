@@ -6,11 +6,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
     public abstract class MemorySnapshot : IDisposable
     {
-        readonly TraceableHeap[] m_traceableHeaps;
+        readonly TraceableHeap m_managedHeap;
+        readonly TraceableHeap m_nativeHeap;
 
-        protected MemorySnapshot(TraceableHeap[] traceableHeaps)
+        protected MemorySnapshot(TraceableHeap managedHeap, TraceableHeap nativeHeap)
         {
-            m_traceableHeaps = traceableHeaps;
+            m_managedHeap = managedHeap;
+            m_nativeHeap = nativeHeap;
         }
 
         public abstract void Dispose();
@@ -21,11 +23,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract Native Native { get; }
 
-        public int NumberOfTraceableHeaps => m_traceableHeaps.Length;
+        public TraceableHeap ManagedHeap => m_managedHeap;
 
-        public TraceableHeap GetTraceableHeap(int heapIndex)
-        {
-            return m_traceableHeaps[heapIndex];
-        }
+        public TraceableHeap NativeHeap => m_nativeHeap;
     }
 }

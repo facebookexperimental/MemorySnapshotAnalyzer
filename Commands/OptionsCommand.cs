@@ -34,11 +34,11 @@ namespace MemorySnapshotAnalyzer.Commands
                     case "native":
                         Context.TraceableHeap_Kind = Context.TraceableHeapKind.Native;
                         break;
-                    case "combined":
-                        Context.TraceableHeap_Kind = Context.TraceableHeapKind.Combined;
+                    case "stitched":
+                        Context.TraceableHeap_Kind = Context.TraceableHeapKind.Stitched;
                         break;
                     default:
-                        throw new CommandException($"unknown heap kind \"{HeapKind}\"; must be one of \"managed\", \"native\", or \"combined\"");
+                        throw new CommandException($"unknown heap kind \"{HeapKind}\"; must be one of \"managed\", \"native\", or \"stitched\"");
                 }
             }
 

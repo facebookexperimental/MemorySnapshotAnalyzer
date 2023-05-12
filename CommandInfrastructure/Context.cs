@@ -15,7 +15,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             Managed,
             Native,
-            Combined,
+            Stitched,
         }
 
         // Options for TraceableHeap
@@ -196,14 +196,14 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 switch (m_traceableHeap_kind)
                 {
                     case TraceableHeapKind.Managed:
-                        m_currentTraceableHeap = m_currentMemorySnapshot.GetTraceableHeap(0);
+                        m_currentTraceableHeap = m_currentMemorySnapshot.ManagedHeap;
                         break;
                     case TraceableHeapKind.Native:
-                        m_currentTraceableHeap = m_currentMemorySnapshot.GetTraceableHeap(1);
+                        m_currentTraceableHeap = m_currentMemorySnapshot.NativeHeap;
                         break;
-                    case TraceableHeapKind.Combined:
-                        // TODO: support tracing across managed and native
-                        throw new NotImplementedException();
+                    case TraceableHeapKind.Stitched:
+                        m_currentTraceableHeap = new StitchedTraceableHeap(m_currentMemorySnapshot.ManagedHeap, m_currentMemorySnapshot.NativeHeap);
+                        break;
                     default:
                         throw new IndexOutOfRangeException();
                 }

@@ -8,8 +8,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
     {
         readonly UnityMemorySnapshotFile m_unityMemorySnapshotFile;
 
-        internal UnityMemorySnapshot(UnityMemorySnapshotFile unityMemorySnapshotFile, TraceableHeap[] traceableHeaps) :
-            base(traceableHeaps)
+        internal UnityMemorySnapshot(
+            UnityMemorySnapshotFile unityMemorySnapshotFile,
+            TraceableHeap managedHeap,
+            TraceableHeap nativeHeap) :
+            base(managedHeap, nativeHeap)
         {
             m_unityMemorySnapshotFile = unityMemorySnapshotFile;
         }

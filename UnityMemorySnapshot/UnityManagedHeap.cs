@@ -10,8 +10,8 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         {
             readonly UnityManagedTypeSystem m_unityManagedTypeSystem;
 
-            internal UnityManagedSegmentedHeap(UnityManagedTypeSystem unityManagedTypeSystem, Native native, HeapSegment[] segments)
-                : base(unityManagedTypeSystem, native, segments)
+            internal UnityManagedSegmentedHeap(UnityManagedTypeSystem unityManagedTypeSystem, HeapSegment[] segments)
+                : base(unityManagedTypeSystem, segments)
             {
                 // Keep a concretely-typed reference to the type system around.
                 m_unityManagedTypeSystem = unityManagedTypeSystem;
@@ -32,14 +32,22 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         readonly UnityManagedTypeSystem m_unityManagedTypeSystem;
         readonly UnityManagedSegmentedHeap m_segmentedHeap;
+        readonly ulong[] m_gcHandleTargets;
 
-        internal UnityManagedHeap(UnityManagedTypeSystem unityManagedTypeSystem, Native native, HeapSegment[] segments, ulong[] gcHandleTargets) :
-            base(unityManagedTypeSystem, native, gcHandleTargets)
+        internal UnityManagedHeap(UnityManagedTypeSystem unityManagedTypeSystem, HeapSegment[] segments, ulong[] gcHandleTargets) :
+            base(unityManagedTypeSystem)
         {
             // Keep a concretely-typed reference to the type system around.
             m_unityManagedTypeSystem = unityManagedTypeSystem;
+            m_segmentedHeap = new UnityManagedSegmentedHeap(unityManagedTypeSystem, segments);
+            m_gcHandleTargets = gcHandleTargets;
+        }
 
-            m_segmentedHeap = new UnityManagedSegmentedHeap(unityManagedTypeSystem, native, segments);
+        public override int NumberOfGCHandles => m_gcHandleTargets.Length;
+    
+        public override NativeWord GCHandleTarget(int gcHandleIndex)
+        {
+            return Native.From(m_gcHandleTargets[gcHandleIndex]);
         }
 
         // TODO: include user metadata?
@@ -73,14 +81,33 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return m_segmentedHeap.UnityManagedTypeSystem.GetObjectSize(objectView, typeIndex, committedOnly);
         }
 
+        public override string GetObjectNodeType(NativeWord address)
+        {
+            return "object";
+        }
+
         public override string? GetObjectName(NativeWord objectAddress)
         {
             return null;
         }
 
-        public override IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex)
+        public override IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex, bool includeCrossHeapReferences)
         {
-            return m_segmentedHeap.GetObjectPointers(address, typeIndex);
+            if (m_unityManagedTypeSystem.IsUnityEngineType(typeIndex))
+            {
+                MemoryView objectView = m_segmentedHeap.GetMemoryViewForAddress(address);
+                yield return objectView.ReadPointer(m_unityManagedTypeSystem.UnityEngineCachecPtrFieldOffset, Native);
+            }
+            
+            foreach (NativeWord reference in m_segmentedHeap.GetObjectPointers(address, typeIndex, includeCrossHeapReferences))
+            {
+                yield return reference;
+            }
+        }
+
+        public override bool ContainsAddress(NativeWord address)
+        {
+            return m_segmentedHeap.GetSegmentForAddress(address) != null;
         }
 
         public override string? DescribeAddress(NativeWord address)
@@ -94,9 +121,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             }
             return null;
         }
-
-        // TODO: add method to report cross-heap references
-        // (objects of types derived from UnityEngine.Object, with an m_cachedPtr field holding a native object address)
 
         public override SegmentedHeap? SegmentedHeapOpt => m_segmentedHeap;
     }

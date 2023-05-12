@@ -26,6 +26,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
     sealed class UnityNativeObjectHeap : TraceableHeap
     {
+        readonly NativeObject[] m_nativeObjects;
         readonly Dictionary<int, NativeObject> m_nativeObjectsByInstanceId;
         readonly Dictionary<ulong, NativeObject> m_nativeObjectsByAddress;
         readonly Dictionary<int, List<int>> m_connections;
@@ -36,10 +37,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             UnityNativeObjectTypeSystem typeSystem,
             NativeObject[] nativeObjects,
             Dictionary<int, List<int>> connections,
-            Native native,
-            ulong[] gcHandleTargets)
-            : base(typeSystem, native, gcHandleTargets)
+            Native native)
+            : base(typeSystem)
         {
+            m_nativeObjects = nativeObjects;
+
             m_nativeObjectsByInstanceId = new Dictionary<int, NativeObject>();
             m_nativeObjectsByAddress = new Dictionary<ulong, NativeObject>();
             foreach (NativeObject nativeObject in nativeObjects)
@@ -52,6 +54,15 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         }
 
         public override string Description => "Unity native objects";
+
+        public override int NumberOfGCHandles => m_nativeObjects.Length;
+
+        public override NativeWord GCHandleTarget(int gcHandleIndex)
+        {
+            // TODO: We are considering all objects to be reachable.
+            // This is a hack to be able to compute backtraces for the native object heap.
+            return m_nativeObjects[gcHandleIndex].ObjectAddress;
+        }
 
         public override int TryGetTypeIndex(NativeWord objectAddress)
         {
@@ -67,12 +78,17 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return checked((int)m_nativeObjectsByAddress[objectAddress.Value].ObjectSize);
         }
 
+        public override string GetObjectNodeType(NativeWord address)
+        {
+            return "native";
+        }
+
         public override string? GetObjectName(NativeWord objectAddress)
         {
             return m_nativeObjectsByAddress[objectAddress.Value].Name;
         }
 
-        public override IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex)
+        public override IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex, bool includeCrossHeapReferences)
         {
             int instanceId = m_nativeObjectsByAddress[address.Value].InstanceId;
             if (m_connections.TryGetValue(instanceId, out List<int>? successorInstanceIds))
@@ -82,6 +98,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
                     yield return m_nativeObjectsByInstanceId[successorInstanceId].ObjectAddress;
                 }
             }
+        }
+
+        public override bool ContainsAddress(NativeWord address)
+        {
+            return m_nativeObjectsByAddress.ContainsKey(address.Value);
         }
 
         public override string? DescribeAddress(NativeWord address)
