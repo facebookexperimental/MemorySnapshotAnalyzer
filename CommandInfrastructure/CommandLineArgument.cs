@@ -170,11 +170,17 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             if (memorySnapshot == null)
             {
-                throw new CommandException($"no active memory snapshot");
+                throw new CommandException("no active memory snapshot");
             }
 
             NativeWord address = AsNativeWord(memorySnapshot.Native);
-            MemoryView memoryView = memorySnapshot.SegmentedHeap.GetMemoryViewForAddress(address);
+            SegmentedHeap? segmentedHeap = memorySnapshot.TraceableHeap.SegmentedHeapOpt;
+            if (segmentedHeap == null)
+            {
+                throw new CommandException("memory contents for active heap not available");
+            }
+
+            MemoryView memoryView = segmentedHeap.GetMemoryViewForAddress(address);
             if (!memoryView.IsValid)
             {
                 throw new CommandException($"cannot indirect through address {address}");

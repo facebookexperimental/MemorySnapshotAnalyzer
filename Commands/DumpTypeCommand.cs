@@ -31,7 +31,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            ITypeSystem typeSystem = CurrentSegmentedHeap.TypeSystem;
+            ITypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
             if (IndexOrSubstring == null)
             {
@@ -95,7 +95,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 return;
             }
 
-            ITypeSystem typeSystem = CurrentSegmentedHeap.TypeSystem;
+            ITypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
             Output.WriteLineIndented(indent, "Type {0}: qualified name {1}:{2}, {3} with base size {4}, rank {5}",
                 typeIndex,
@@ -126,14 +126,22 @@ namespace MemorySnapshotAnalyzer.Commands
 
                     if (Statics && isStatic)
                     {
-                        MemoryView staticFieldBytesView = CurrentSegmentedHeap.StaticFieldBytes(typeIndex, fieldNumber);
-                        if (staticFieldBytesView.IsValid)
+                        SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
+                        if (segmentedHeap == null)
                         {
-                            DumpFieldValue(staticFieldBytesView, typeSystem.FieldType(typeIndex, fieldNumber), indent + 2);
+                            Output.WriteLineIndented(indent + 2, "Memory contents unavailable");
                         }
                         else
                         {
-                            Output.WriteLineIndented(indent + 2, "Uninitialized");
+                            MemoryView staticFieldBytesView = segmentedHeap.StaticFieldBytes(typeIndex, fieldNumber);
+                            if (staticFieldBytesView.IsValid)
+                            {
+                                DumpFieldMemory(staticFieldBytesView, typeSystem.FieldType(typeIndex, fieldNumber), indent + 2);
+                            }
+                            else
+                            {
+                                Output.WriteLineIndented(indent + 2, "Uninitialized");
+                            }
                         }
                     }
                 }
@@ -159,7 +167,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         bool HasStaticFields(int typeIndex)
         {
-            ITypeSystem typeSystem = CurrentSegmentedHeap.TypeSystem;
+            ITypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
             int numberOfFields = typeSystem.NumberOfFields(typeIndex);
             for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)

@@ -20,7 +20,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         MemorySnapshot? m_currentMemorySnapshot;
         IRootSet? m_currentRootSet;
-        ITracedHeap? m_currentTracedHeap;
+        TracedHeap? m_currentTracedHeap;
         IBacktracer? m_currentBacktracer;
         HeapDom? m_currentHeapDom;
 
@@ -59,7 +59,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 m_output.WriteLineIndented(indent, "{0} ({1}; {2} type indices)",
                     m_currentMemorySnapshot.Filename,
                     m_currentMemorySnapshot.Format,
-                    m_currentMemorySnapshot.SegmentedHeap.TypeSystem.NumberOfTypeIndices);
+                    m_currentMemorySnapshot.TraceableHeap.TypeSystem.NumberOfTypeIndices);
             }
 
             if (m_currentRootSet == null)
@@ -170,11 +170,11 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 m_output.Write("[context {0}] enumerating root set ...", m_id);
                 if (m_rootSet_singletonRootAddress.Value != 0)
                 {
-                    m_currentRootSet = new SingletonRootSet(CurrentMemorySnapshot!.SegmentedHeap, m_rootSet_singletonRootAddress);
+                    m_currentRootSet = new SingletonRootSet(CurrentMemorySnapshot!.TraceableHeap, m_rootSet_singletonRootAddress);
                 }
                 else
                 {
-                    m_currentRootSet = new RootSet(CurrentMemorySnapshot!.SegmentedHeap);
+                    m_currentRootSet = new RootSet(CurrentMemorySnapshot!.TraceableHeap);
                 }
                 m_output.WriteLine(" {0} roots ({1} GCHandles, {2} statics)",
                     m_currentRootSet.NumberOfRoots,
@@ -189,7 +189,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             ClearTracedHeap();
         }
 
-        public ITracedHeap? CurrentTracedHeap => m_currentTracedHeap;
+        public TracedHeap? CurrentTracedHeap => m_currentTracedHeap;
 
         public void EnsureTracedHeap()
         {

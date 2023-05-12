@@ -14,6 +14,9 @@ namespace MemorySnapshotAnalyzer.Commands
 #pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value null
         [PositionalArgument(0, optional: true)]
         public string? Filename;
+
+        [FlagArgument("replace")]
+        public bool ReplaceCurrentContext;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value null
 
         public override void Run()
@@ -33,8 +36,20 @@ namespace MemorySnapshotAnalyzer.Commands
                 throw new CommandException("unable to detect memory snapshot file format");
             }
 
-            SetCurrentMemorySnapshot(memorySnapshot);
+            Context context;
+            if (Context.CurrentMemorySnapshot != null && !ReplaceCurrentContext)
+            {
+                context = Repl.SwitchToNewContext();
+            }
+            else
+            {
+                context = Context;
+            }
+
+            context.CurrentMemorySnapshot = memorySnapshot;
             Output.WriteLine($"{memorySnapshot.Format} memory snapshot loaded successfully");
+
+            Repl.DumpContexts();
         }
 
         string? SelectFileViaDialog()
@@ -54,6 +69,6 @@ namespace MemorySnapshotAnalyzer.Commands
             return null;
         }
 
-        public override string HelpText => "load <filename>";
+        public override string HelpText => "load <filename> ['replace]";
     }
 }

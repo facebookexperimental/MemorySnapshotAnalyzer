@@ -6,7 +6,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 {
     public interface IBacktracer
     {
-        ITracedHeap TracedHeap { get; }
+        TracedHeap TracedHeap { get; }
 
         int RootNodeIndex { get; }
 

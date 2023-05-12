@@ -24,10 +24,15 @@ namespace MemorySnapshotAnalyzer.Analysis
 
             var roots = new List<RootEntry>();
             AddGCHandleRoots(traceableHeap, roots);
+            SegmentedHeap? segmentedHeap = traceableHeap.SegmentedHeapOpt;
+            if (segmentedHeap != null)
+            {
+                AddStaticRoots(traceableHeap.TypeSystem, segmentedHeap, roots);
+            }
             m_roots = roots.ToArray();
         }
 
-        void AddGCHandleRoots(TraceableHeap traceableHeap, List<RootEntry> roots)
+        static void AddGCHandleRoots(TraceableHeap traceableHeap, List<RootEntry> roots)
         {
             // Enumerate GCHandle targets as roots.
             for (int gcHandleIndex = 0; gcHandleIndex < traceableHeap.NumberOfGCHandles; gcHandleIndex++)
@@ -41,20 +46,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public RootSet(SegmentedHeap segmentedHeap)
+        void AddStaticRoots(ITypeSystem typeSystem, SegmentedHeap segmentedHeap, List<RootEntry> roots)
         {
-            m_traceableHeap = segmentedHeap;
-
-            var roots = new List<RootEntry>();
-            AddGCHandleRoots(segmentedHeap, roots);
-            AddStaticRoots(segmentedHeap, roots);
-            m_roots = roots.ToArray();
-        }
-
-        void AddStaticRoots(SegmentedHeap segmentedHeap, List<RootEntry> roots)
-        {
-            ITypeSystem typeSystem = segmentedHeap.TypeSystem;
-
             // Enumerate all roots in static fields.
             for (int typeIndex = 0; typeIndex < typeSystem.NumberOfTypeIndices; typeIndex++)
             {

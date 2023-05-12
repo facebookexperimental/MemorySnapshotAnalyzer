@@ -4,13 +4,17 @@ using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
-    public abstract class SegmentedHeap : TraceableHeap
+    public abstract class SegmentedHeap
     {
+        readonly ITypeSystem m_typeSystem;
+        readonly Native m_native;
         readonly HeapSegment[] m_segments;
 
-        public SegmentedHeap(ITypeSystem typeSystem, Native native, HeapSegment[] segments, ulong[] gcHandleTargets)
-            : base(typeSystem, native, gcHandleTargets)
+        public SegmentedHeap(ITypeSystem typeSystem, Native native, HeapSegment[] segments)
         {
+            m_typeSystem = typeSystem;
+            m_native = native;
+
             // Consistency check that the heap segments are ordered and non-overlapping
             for (int i = 1; i < segments.Length; i++)
             {
@@ -23,24 +27,24 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             m_segments = segments;
         }
 
-        public override IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex)
+        public IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex)
         {
             MemoryView objectView = GetMemoryViewForAddress(address);
-            if (TypeSystem.IsArray(typeIndex))
+            if (m_typeSystem.IsArray(typeIndex))
             {
-                int elementTypeIndex = TypeSystem.BaseOrElementTypeIndex(typeIndex);
+                int elementTypeIndex = m_typeSystem.BaseOrElementTypeIndex(typeIndex);
                 int arraySize = ReadArraySize(objectView);
                 for (int i = 0; i < arraySize; i++)
                 {
-                    foreach (int offset in GetFieldPointerOffsets(elementTypeIndex, TypeSystem.GetArrayElementOffset(elementTypeIndex, i)))
+                    foreach (int offset in GetFieldPointerOffsets(elementTypeIndex, m_typeSystem.GetArrayElementOffset(elementTypeIndex, i)))
                     {
                         // We can find arrays whose backing store has not been fully committed.
-                        if (offset + TypeSystem.PointerSize > objectView.Size)
+                        if (offset + m_typeSystem.PointerSize > objectView.Size)
                         {
                             break;
                         }
 
-                        yield return objectView.ReadPointer(offset, Native);
+                        yield return objectView.ReadPointer(offset, m_native);
                     }
                 }
             }
@@ -48,14 +52,14 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             {
                 foreach (int offset in GetPointerOffsets(typeIndex, baseOffset: 0, hasHeader: true))
                 {
-                    yield return objectView.ReadPointer(offset, Native);
+                    yield return objectView.ReadPointer(offset, m_native);
                 }
             }
         }
 
         public IEnumerable<int> GetFieldPointerOffsets(int typeIndex, int baseOffset)
         {
-            if (TypeSystem.IsValueType(typeIndex))
+            if (m_typeSystem.IsValueType(typeIndex))
             {
                 foreach (int offset in GetPointerOffsets(typeIndex, baseOffset, hasHeader: false))
                 {
@@ -70,13 +74,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         IEnumerable<int> GetPointerOffsets(int typeIndex, int baseOffset, bool hasHeader)
         {
-            int numberOfFields = TypeSystem.NumberOfFields(typeIndex);
+            int numberOfFields = m_typeSystem.NumberOfFields(typeIndex);
             for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
             {
-                if (!TypeSystem.FieldIsStatic(typeIndex, fieldNumber))
+                if (!m_typeSystem.FieldIsStatic(typeIndex, fieldNumber))
                 {
-                    int fieldTypeIndex = TypeSystem.FieldType(typeIndex, fieldNumber);
-                    int fieldOffset = TypeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: hasHeader);
+                    int fieldTypeIndex = m_typeSystem.FieldType(typeIndex, fieldNumber);
+                    int fieldOffset = m_typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: hasHeader);
                     if (!hasHeader && fieldTypeIndex == typeIndex)
                     {
                         // Avoid infinite recursion due to the way that primitive types (such as System.Int32) are defined.
@@ -90,7 +94,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 }
             }
 
-            int baseOrElementTypeIndex = TypeSystem.BaseOrElementTypeIndex(typeIndex);
+            int baseOrElementTypeIndex = m_typeSystem.BaseOrElementTypeIndex(typeIndex);
             if (baseOrElementTypeIndex >= 0)
             {
                 foreach (int offset in GetPointerOffsets(baseOrElementTypeIndex, baseOffset, hasHeader))
@@ -146,7 +150,5 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         public abstract MemoryView StaticFieldBytes(int typeIndex, int fieldNumber);
 
         public abstract int ReadArraySize(MemoryView objectView);
-
-        public abstract string? DescribeAddress(NativeWord address);
     }
 }

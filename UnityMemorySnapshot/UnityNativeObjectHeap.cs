@@ -26,30 +26,26 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
     sealed class UnityNativeObjectHeap : TraceableHeap
     {
-        readonly Dictionary<ulong, NativeRootReference> m_rootReferences;
-        readonly Dictionary<int, NativeObject> m_objectsByInstanceId;
+        readonly Dictionary<int, NativeObject> m_nativeObjectsByInstanceId;
+        readonly Dictionary<ulong, NativeObject> m_nativeObjectsByAddress;
         readonly Dictionary<int, List<int>> m_connections;
+
+        public override SegmentedHeap? SegmentedHeapOpt => null;
 
         public UnityNativeObjectHeap(
             UnityNativeObjectTypeSystem typeSystem,
-            NativeRootReference[] rootReferences,
-            NativeObject[] objects,
+            NativeObject[] nativeObjects,
             Dictionary<int, List<int>> connections,
             Native native,
             ulong[] gcHandleTargets)
             : base(typeSystem, native, gcHandleTargets)
         {
-            m_rootReferences = new Dictionary<ulong, NativeRootReference>();
-            foreach (NativeRootReference reference in rootReferences)
+            m_nativeObjectsByInstanceId = new Dictionary<int, NativeObject>();
+            m_nativeObjectsByAddress = new Dictionary<ulong, NativeObject>();
+            foreach (NativeObject nativeObject in nativeObjects)
             {
-                Debug.Assert(!m_rootReferences.ContainsKey(reference.Id));
-                m_rootReferences[reference.Id] = reference;
-            }
-
-            m_objectsByInstanceId = new Dictionary<int, NativeObject>();
-            foreach (NativeObject obj in objects)
-            {
-                m_objectsByInstanceId[obj.InstanceId] = obj;
+                m_nativeObjectsByInstanceId[nativeObject.InstanceId] = nativeObject;
+                m_nativeObjectsByAddress[nativeObject.ObjectAddress.Value] = nativeObject;
             }
 
             m_connections = connections;
@@ -57,17 +53,38 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         public override int TryGetTypeIndex(NativeWord objectAddress)
         {
-            throw new NotImplementedException();
+            if (m_nativeObjectsByAddress.TryGetValue(objectAddress.Value, out NativeObject? nativeObject))
+            {
+                return nativeObject!.TypeIndex;
+            }
+            return -1;
         }
 
         public override int GetObjectSize(NativeWord objectAddress, int typeIndex, bool committedOnly)
         {
-            throw new NotImplementedException();
+            return checked((int)m_nativeObjectsByAddress[objectAddress.Value].ObjectSize);
+        }
+
+        public override string? GetObjectName(NativeWord objectAddress)
+        {
+            return m_nativeObjectsByAddress[objectAddress.Value].Name;
         }
 
         public override IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex)
         {
-            throw new NotImplementedException();
+            int instanceId = m_nativeObjectsByAddress[address.Value].InstanceId;
+            if (m_connections.TryGetValue(instanceId, out List<int>? successorInstanceIds))
+            {
+                foreach (int successorInstanceId in successorInstanceIds)
+                {
+                    yield return m_nativeObjectsByInstanceId[successorInstanceId].ObjectAddress;
+                }
+            }
+        }
+
+        public override string? DescribeAddress(NativeWord address)
+        {
+            return null;
         }
     }
 }

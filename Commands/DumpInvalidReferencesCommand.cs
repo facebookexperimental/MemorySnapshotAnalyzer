@@ -1,6 +1,7 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandProcessing;
 using System;
 using System.Collections.Generic;
@@ -65,8 +66,9 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 foreach (Tuple<int, NativeWord> tuple in roots)
                 {
-                    Output.WriteLine("Root with index {0} contains {1} reference {2}",
+                    Output.WriteLine("Root with index {0} ({1}) contains {2} reference {3}",
                         tuple.Item1,
+                        CurrentRootSet.DescribeRoot(tuple.Item1, fullyQualified: true),
                         kind,
                         tuple.Item2);
                 }
@@ -82,7 +84,7 @@ namespace MemorySnapshotAnalyzer.Commands
                         tuple.Item2,
                         kind,
                         tuple.Item1,
-                        CurrentSegmentedHeap.TypeSystem.QualifiedName(typeIndex),
+                        CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
                         typeIndex);
                 }
             }

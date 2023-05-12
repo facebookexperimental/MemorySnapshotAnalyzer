@@ -14,8 +14,8 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         readonly MemoryMappedViewAccessor m_viewAccessor;
         ChapterObject[]? m_chapters;
         VirtualMachineInformation m_virtualMachineInformation;
-        SegmentedHeap? m_segmentedHeap;
-        UnityNativeObjectHeap? m_nativeObjectHeap;
+        TraceableHeap? m_managedHeap;
+        TraceableHeap? m_nativeObjectHeap;
 
         internal UnityMemorySnapshot(string filename, FileStream fileStream)
         {
@@ -38,10 +38,9 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         public override Native Native => new Native(m_virtualMachineInformation.PointerSize);
 
-        public override SegmentedHeap SegmentedHeap => m_segmentedHeap!;
-
+        public override TraceableHeap TraceableHeap => m_managedHeap!;
         // TODO:
-        internal UnityNativeObjectHeap NativeObjectHeap => m_nativeObjectHeap!;
+        //public override TraceableHeap TraceableHeap => m_nativeObjectHeap!;
 
         internal bool CheckSignature()
         {
@@ -54,7 +53,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             m_chapters = ParseChapters();
             m_virtualMachineInformation = ParseVirtualMachineInformation();
             var typeSystem = new UnityManagedTypeSystem(ParseTypeDescriptions(), ParseFieldDescriptions(), m_virtualMachineInformation);
-            m_segmentedHeap = ParseManagedHeap(typeSystem);
+            m_managedHeap = ParseManagedHeap(typeSystem);
             var nativeObjectTypeSystem = new UnityNativeObjectTypeSystem(m_virtualMachineInformation.PointerSize, ParseNativeTypes());
             m_nativeObjectHeap = ParseNativeObjectHeap(nativeObjectTypeSystem);
         }
@@ -150,7 +149,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return virtualMachineInformation;
         }
 
-        SegmentedHeap ParseManagedHeap(UnityManagedTypeSystem typeSystem)
+        TraceableHeap ParseManagedHeap(UnityManagedTypeSystem typeSystem)
         {
             var startAddresses = GetChapter<ChapterArrayOfConstantSizeElements>(ChapterType.ManagedHeapSections_StartAddress);
             var contents = GetArrayOfVariableSizeElementsChapter(ChapterType.ManagedHeapSections_Bytes, (int)startAddresses.Length);
@@ -261,14 +260,21 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         UnityNativeObjectHeap ParseNativeObjectHeap(UnityNativeObjectTypeSystem typeSystem)
         {
+            NativeObject[] nativeObjects = ParseNativeObjects();
+
+            // TODO: compute from managed heap
+            var gcHandleTargets = new ulong[nativeObjects.Length];
+            for (int i = 0; i < gcHandleTargets.Length; i++)
+            {
+                gcHandleTargets[i] = nativeObjects[i].ObjectAddress.Value;
+            }
+
             return new UnityNativeObjectHeap(
                 typeSystem,
-                ParseNativeRootReferences(),
-                ParseNativeObjects(),
+                nativeObjects,
                 ParseConnections(),
                 Native,
-                // TODO:
-                Array.Empty<ulong>());
+                gcHandleTargets);
         }
 
         NativeRootReference[] ParseNativeRootReferences()

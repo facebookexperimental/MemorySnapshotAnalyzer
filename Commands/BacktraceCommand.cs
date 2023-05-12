@@ -51,7 +51,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 return;
             }
 
-            int objectIndex = ResolveObjectAddressOrIndex(AddressOrIndex);
+            int objectIndex = ResolveToObjectIndex(AddressOrIndex);
             int nodeIndex = CurrentBacktracer.ObjectIndexToNodeIndex(objectIndex);
             DumpCore(nodeIndex);
         }
@@ -86,7 +86,7 @@ namespace MemorySnapshotAnalyzer.Commands
                     foreach (int key in keys)
                     {
                         Output.WriteLine("{0}: {1}",
-                            CurrentSegmentedHeap.TypeSystem.QualifiedName(key),
+                            CurrentTraceableHeap.TypeSystem.QualifiedName(key),
                             stats[key]);
                     }
                 }

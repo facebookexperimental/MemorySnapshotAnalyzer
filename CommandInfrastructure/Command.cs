@@ -50,12 +50,9 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public void SetCurrentMemorySnapshot(MemorySnapshot memorySnapshot)
-        {
-            m_context.CurrentMemorySnapshot = memorySnapshot;
-        }
+        public TraceableHeap CurrentTraceableHeap => CurrentMemorySnapshot.TraceableHeap;
 
-        public SegmentedHeap CurrentSegmentedHeap => CurrentMemorySnapshot.SegmentedHeap;
+        public SegmentedHeap? CurrentSegmentedHeapOpt => CurrentMemorySnapshot.TraceableHeap.SegmentedHeapOpt;
 
         public IRootSet CurrentRootSet
         {
@@ -70,7 +67,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public ITracedHeap CurrentTracedHeap
+        public TracedHeap CurrentTracedHeap
         {
             get
             {
@@ -109,39 +106,45 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public int ResolveObjectAddressOrIndex(NativeWord addressOrIndex)
+        public int ResolveToObjectIndex(NativeWord addressOrIndex)
         {
             int objectIndex = CurrentTracedHeap.ObjectAddressToIndex(addressOrIndex);
             if (objectIndex != -1)
             {
                 return objectIndex;
             }
-            else if (addressOrIndex.Value < (ulong)CurrentTracedHeap.NumberOfLiveObjects)
+
+            if (addressOrIndex.Value < (ulong)CurrentTracedHeap.NumberOfLiveObjects)
             {
                 return (int)addressOrIndex.Value;
             }
-            else if (!CurrentMemorySnapshot.SegmentedHeap.GetMemoryViewForAddress(addressOrIndex).IsValid)
+
+            SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
+            if (segmentedHeap != null && !segmentedHeap.GetMemoryViewForAddress(addressOrIndex).IsValid)
             {
                 throw new CommandException($"argument ${addressOrIndex} is neither an address in mapped memory, nor is it an object index");
             }
-            else
-            {
-                throw new CommandException($"no live object at address {addressOrIndex}");
-            }
+
+            throw new CommandException($"no live object at address {addressOrIndex}");
         }
 
         public void DescribeAddress(NativeWord addressOfValue, StringBuilder sb)
         {
-            MemoryView memoryView = CurrentMemorySnapshot.SegmentedHeap.GetMemoryViewForAddress(addressOfValue);
-            if (!memoryView.IsValid)
-            {
-                sb.AppendFormat("{0}: not in mapped memory", addressOfValue);
-                return;
-            }
+            SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
 
-            NativeWord nativeValue = memoryView.ReadNativeWord(0, CurrentMemorySnapshot.Native);
-            sb.AppendFormat("{0}: {1}", addressOfValue, nativeValue);
-            NativeWord pointerValue = memoryView.ReadPointer(0, CurrentMemorySnapshot.Native);
+            NativeWord nativeValue = default;
+            if (segmentedHeap != null)
+            {
+                MemoryView memoryView = segmentedHeap.GetMemoryViewForAddress(addressOfValue);
+                if (!memoryView.IsValid)
+                {
+                    sb.AppendFormat("{0}: not in mapped memory", addressOfValue);
+                    return;
+                }
+
+                nativeValue = memoryView.ReadNativeWord(0, CurrentMemorySnapshot.Native);
+                sb.AppendFormat("{0}: {1}", addressOfValue, nativeValue);
+            }
 
             // If we have traced the heap, check whether it's a live object or a pointer to a live object.
             if (m_context.CurrentTracedHeap != null)
@@ -150,7 +153,6 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 int objectIndex = CurrentTracedHeap.ObjectAddressToIndex(addressOfValue);
                 if (objectIndex != -1)
                 {
-                    sb.Append("  start of ");
                     DescribeObject(objectIndex, addressOfValue, sb);
                     return;
                 }
@@ -170,64 +172,97 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 return;
             }
 
-            string? typeDescription = CurrentSegmentedHeap.DescribeAddress(addressOfValue);
+            string? typeDescription = CurrentTraceableHeap.DescribeAddress(addressOfValue);
             if (typeDescription != null)
             {
                 sb.AppendFormat("  {0}", typeDescription);
                 return;
             }
 
-            HeapSegment? segment = CurrentMemorySnapshot.SegmentedHeap.GetSegmentForAddress(nativeValue);
-            if (segment == null)
+            if (segmentedHeap != null)
             {
-                sb.Append("  not a pointer to mapped memory");
-            }
-            else if (segment.IsRuntimeTypeInformation)
-            {
-                sb.AppendFormat("  pointer into rtti[segment @ {0:X016}]", segment.StartAddress);
-            }
-            else
-            {
-                sb.AppendFormat("  pointer into managed heap[segment @ {0:X016}]", segment.StartAddress);
+                HeapSegment? segment = segmentedHeap.GetSegmentForAddress(nativeValue);
+                if (segment == null)
+                {
+                    sb.Append("  not a pointer to mapped memory");
+                }
+                else if (segment.IsRuntimeTypeInformation)
+                {
+                    sb.AppendFormat("  pointer into rtti[segment @ {0:X016}]", segment.StartAddress);
+                }
+                else
+                {
+                    sb.AppendFormat("  pointer into managed heap[segment @ {0:X016}]", segment.StartAddress);
+                }
             }
         }
 
+        // Append a one-line description about the object to the given string builder.
         void DescribeObject(int objectIndex, NativeWord objectAddress, StringBuilder sb)
         {
-            int typeIndex = CurrentSegmentedHeap.TryGetTypeIndex(objectAddress);
-            int objectSize = CurrentSegmentedHeap.GetObjectSize(objectAddress, typeIndex, committedOnly: false);
-            int committedSize = CurrentSegmentedHeap.GetObjectSize(objectAddress, typeIndex, committedOnly: true);
-            sb.AppendFormat("live object[object index {0}, size {1}",
-                objectIndex,
-                objectSize);
+            int typeIndex = CurrentTraceableHeap.TryGetTypeIndex(objectAddress);
+
+            sb.AppendFormat("live object[object index {0}", objectIndex);
+
+            string? name = CurrentTraceableHeap.GetObjectName(objectAddress);
+            if (name != null)
+            {
+                sb.AppendFormat(" \"{0}\"", name);
+            }
+
+            int objectSize = CurrentTraceableHeap.GetObjectSize(objectAddress, typeIndex, committedOnly: false);
+            sb.AppendFormat(", size {0}", objectSize);
+
+            int committedSize = CurrentTraceableHeap.GetObjectSize(objectAddress, typeIndex, committedOnly: true);
             if (committedSize != objectSize)
             {
-                sb.AppendFormat(" (committed {0})",
-                    committedSize);
+                sb.AppendFormat(" (committed {0})", committedSize);
             }
-            sb.AppendFormat(", {0}, type index {1}]",
-                CurrentSegmentedHeap.TypeSystem.QualifiedName(typeIndex),
+
+            sb.AppendFormat(", type {0} (type index {1})]",
+                CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
                 typeIndex);
         }
 
-        protected void DumpObject(NativeWord address, MemoryView objectView)
+        protected void DumpObjectInformation(NativeWord address)
         {
-            // TODO: if the address is not valid, later reads into the assumed object memory range can throw
-
-            ITypeSystem typeSystem = CurrentSegmentedHeap.TypeSystem;
-
-            int typeIndex = CurrentSegmentedHeap.TryGetTypeIndex(address);
+            int typeIndex = CurrentTraceableHeap.TryGetTypeIndex(address);
             if (typeIndex < 0)
             {
                 throw new CommandException($"unable to determine object type");
             }
 
-            DumpObject(objectView, typeIndex, 0);
+            Output.WriteLine("Object of type {0} (type index {1})",
+                CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
+                typeIndex);
+
+            var sb = new StringBuilder();
+            foreach (NativeWord reference in CurrentTraceableHeap.GetObjectPointers(address, typeIndex))
+            {
+                DescribeAddress(reference, sb);
+                Output.WriteLineIndented(1, sb.ToString());
+                sb.Clear();
+            }
         }
 
-        protected void DumpObject(MemoryView objectView, int typeIndex, int indent)
+        protected void DumpObjectMemory(NativeWord address, MemoryView objectView)
         {
-            ITypeSystem typeSystem = CurrentSegmentedHeap.TypeSystem;
+            // TODO: if the address is not valid, later reads into the assumed object memory range can throw
+
+            int typeIndex = CurrentTraceableHeap.TryGetTypeIndex(address);
+            if (typeIndex < 0)
+            {
+                throw new CommandException($"unable to determine object type");
+            }
+
+            DumpObjectMemory(objectView, typeIndex, 0);
+        }
+
+        protected void DumpObjectMemory(MemoryView objectView, int typeIndex, int indent)
+        {
+            // TODO: if the address is not valid, later reads into the assumed object memory range can throw
+
+            ITypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
             if (typeIndex == typeSystem.SystemStringTypeIndex)
             {
@@ -247,7 +282,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             else if (typeSystem.IsArray(typeIndex))
             {
                 int elementTypeIndex = typeSystem.BaseOrElementTypeIndex(typeIndex);
-                int arraySize = CurrentSegmentedHeap.ReadArraySize(objectView);
+                int arraySize = CurrentSegmentedHeapOpt!.ReadArraySize(objectView);
                 Output.WriteLineIndented(indent, "Array of length {0} with element type {1}",
                     arraySize,
                     typeSystem.QualifiedName(elementTypeIndex));
@@ -264,7 +299,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
                     MemoryView elementView = objectView.GetRange(elementOffset, elementSize);
                     Output.WriteLineIndented(indent + 1, "Element {0} at offset {1}", i, elementOffset);
-                    DumpFieldValue(elementView, elementTypeIndex, indent + 2);
+                    DumpFieldMemory(elementView, elementTypeIndex, indent + 2);
                 }
             }
             else
@@ -286,25 +321,25 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                             typeSystem.IsValueType(fieldTypeIndex) ? "value" : typeSystem.IsArray(fieldTypeIndex) ? "array" : "object",
                             typeSystem.QualifiedName(fieldTypeIndex),
                             fieldTypeIndex);
-                        DumpFieldValue(objectView.GetRange(fieldOffset, objectView.Size - fieldOffset), fieldTypeIndex, indent + 2);
+                        DumpFieldMemory(objectView.GetRange(fieldOffset, objectView.Size - fieldOffset), fieldTypeIndex, indent + 2);
                     }
                 }
 
                 int baseTypeIndex = typeSystem.BaseOrElementTypeIndex(typeIndex);
                 if (baseTypeIndex >= 0)
                 {
-                    DumpObject(objectView, baseTypeIndex, indent + 1);
+                    DumpObjectMemory(objectView, baseTypeIndex, indent + 1);
                 }
             }
         }
 
-        protected void DumpFieldValue(MemoryView objectView, int fieldTypeIndex, int indent)
+        protected void DumpFieldMemory(MemoryView objectView, int fieldTypeIndex, int indent)
         {
-            ITypeSystem typeSystem = CurrentSegmentedHeap.TypeSystem;
+            ITypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
             if (typeSystem.IsValueType(fieldTypeIndex))
             {
-                DumpValueType(objectView, fieldTypeIndex, indent);
+                DumpValueTypeMemory(objectView, fieldTypeIndex, indent);
             }
             else
             {
@@ -313,9 +348,9 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        protected void DumpValueType(MemoryView objectView, int typeIndex, int indent)
+        protected void DumpValueTypeMemory(MemoryView objectView, int typeIndex, int indent)
         {
-            ITypeSystem typeSystem = CurrentSegmentedHeap.TypeSystem;
+            ITypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
             int numberOfFields = typeSystem.NumberOfFields(typeIndex);
             if (numberOfFields == 0)
@@ -340,7 +375,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                             typeSystem.IsValueType(fieldTypeIndex) ? "value" : typeSystem.IsArray(fieldTypeIndex) ? "array" : "object",
                             typeSystem.QualifiedName(fieldTypeIndex),
                             fieldTypeIndex);
-                        DumpFieldValue(objectView.GetRange(fieldOffset, objectView.Size - fieldOffset), fieldTypeIndex, indent + 1);
+                        DumpFieldMemory(objectView.GetRange(fieldOffset, objectView.Size - fieldOffset), fieldTypeIndex, indent + 1);
                     }
                 }
             }

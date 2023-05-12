@@ -16,7 +16,12 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            SegmentedHeap segmentedHeap = CurrentMemorySnapshot.SegmentedHeap;
+            SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
+            if (segmentedHeap == null)
+            {
+                throw new CommandException("memory contents for active heap not available");
+            }
+
             Native native = CurrentMemorySnapshot.Native;
 
             long instancesFound = 0;

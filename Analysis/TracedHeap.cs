@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.Analysis
 {
-    public sealed class TracedHeap : ITracedHeap
+    public sealed class TracedHeap
     {
         struct MarkStackEntry
         {
@@ -101,6 +101,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_numberOfPredecessors[m_postorderObjectAddresses[objectIndex].Address];
         }
 
+        // Returns -1 if address is not the address of a live object.
         public int ObjectAddressToIndex(NativeWord address)
         {
             // TODO: make this work for interior pointers. We'll need to remember object sizes for that

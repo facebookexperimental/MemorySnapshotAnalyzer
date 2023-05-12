@@ -16,7 +16,11 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            var segmentedHeap = CurrentMemorySnapshot.SegmentedHeap;
+            SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
+            if (segmentedHeap == null)
+            {
+                throw new CommandException("memory contents for active heap not available");
+            }
 
             int numberOfObjectSegments = 0;
             int numberOfRttiSegments = 0;

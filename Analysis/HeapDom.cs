@@ -14,7 +14,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         }
 
         readonly IBacktracer m_backtracer;
-        readonly ITracedHeap m_tracedHeap;
+        readonly TracedHeap m_tracedHeap;
         readonly IRootSet m_rootSet;
         readonly TraceableHeap m_traceableHeap;
         readonly bool m_weakGCHandles;

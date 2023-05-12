@@ -36,7 +36,6 @@ static class Program
         repl.AddCommand(typeof(DumpAssembliesCommand), "dumpassemblies", "da");
         repl.AddCommand(typeof(DumpTypeCommand), "dumptype", "dt");
         repl.AddCommand(typeof(FindCommand), "find", "f");
-        repl.AddCommand(typeof(FindObjectCommand), "findobj", "fo");
         repl.AddCommand(typeof(DumpRootsCommand), "dumproots");
         repl.AddCommand(typeof(BacktraceCommand), "backtrace", "bt");
         repl.AddCommand(typeof(HeapDomCommand), "heapdom");

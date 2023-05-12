@@ -19,7 +19,13 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             // TOOD: support format argument (words/symbols)
 
-            MemoryView memoryView = CurrentSegmentedHeap.GetMemoryViewForAddress(Address);
+            SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
+            if (segmentedHeap == null)
+            {
+                throw new CommandException("memory contents for active heap not available");
+            }
+
+            MemoryView memoryView = segmentedHeap.GetMemoryViewForAddress(Address);
             if (!memoryView.IsValid)
             {
                 throw new CommandException($"address {Address} not in mapped memory");

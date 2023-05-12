@@ -78,13 +78,24 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         public Context CurrentContext => m_contexts[m_currentContextId];
 
-        public void SwitchToContext(int id)
+        public Context SwitchToContext(int id)
         {
             if (!m_contexts.ContainsKey(id))
             {
                 m_contexts.Add(id, Context.WithSameOptionsAs(m_contexts[m_currentContextId], id));
             }
             m_currentContextId = id;
+            return m_contexts[id];
+        }
+
+        public Context SwitchToNewContext()
+        {
+            int id = 0;
+            while (m_contexts.ContainsKey(id))
+            {
+                id++;
+            }
+            return SwitchToContext(id);
         }
 
         public Context? GetContext(int id)

@@ -35,7 +35,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpTypeSystemStatistics()
         {
-            ITypeSystem typeSystem = CurrentMemorySnapshot.SegmentedHeap.TypeSystem;
+            ITypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
             foreach (string s in typeSystem.DumpStats())
             {
                 Output.WriteLine(s);
@@ -46,7 +46,11 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             // TODO: stats on gaps between segments/within segments
 
-            SegmentedHeap segmentedHeap = CurrentMemorySnapshot.SegmentedHeap;
+            SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
+            if (segmentedHeap == null)
+            {
+                throw new CommandException("memory contents for active heap not available");
+            }
 
             var histogram = new SortedDictionary<long, int>();
             var objectSegmentHistogram = new SortedDictionary<long, int>();
@@ -80,7 +84,7 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        void Tally(SortedDictionary<long, int> histogram, long size)
+        static void Tally(SortedDictionary<long, int> histogram, long size)
         {
             int count;
             if (histogram.TryGetValue(size, out count))

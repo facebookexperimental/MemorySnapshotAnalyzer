@@ -32,6 +32,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract int GetObjectSize(NativeWord objectAddress, int typeIndex, bool committedOnly);
 
+        public abstract string? GetObjectName(NativeWord objectAddress);
+
         public abstract IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex);
+
+        public abstract string? DescribeAddress(NativeWord address);
+
+        public abstract SegmentedHeap? SegmentedHeapOpt { get; }
     }
 }
