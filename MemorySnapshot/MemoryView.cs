@@ -101,7 +101,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         public string ReadString()
         {
             var sb = new StringBuilder((int)m_size);
-            for (int i = 0; i < sb.Capacity; i++)
+            for (int i = 0; i < m_size; i++)
             {
                 byte c;
                 Read(i, out c);
