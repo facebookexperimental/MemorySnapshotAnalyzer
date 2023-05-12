@@ -16,6 +16,6 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract Native Native { get; }
 
-        public abstract ManagedHeap ManagedHeap { get; }
+        public abstract SegmentedHeap SegmentedHeap { get; }
     }
 }

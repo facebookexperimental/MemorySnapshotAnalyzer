@@ -28,9 +28,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         }
 
         readonly IRootSet m_rootSet;
-        readonly ManagedHeap m_managedHeap;
-        readonly ulong m_minHeapAddress;
-        readonly ulong m_maxHeapAddress;
+        readonly TraceableHeap m_traceableHeap;
         readonly Native m_native;
         readonly List<PostorderEntry> m_postorderObjectAddresses;
         readonly Dictionary<ulong, int> m_numberOfPredecessors;
@@ -38,18 +36,13 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly int m_rootIndexBeingMarked;
         readonly List<Tuple<int, ulong>> m_invalidRoots;
         readonly List<Tuple<ulong, ulong>> m_invalidPointers;
-        readonly List<Tuple<int, ulong>> m_nonHeapRoots;
-        readonly List<Tuple<ulong, ulong>> m_nonHeapPointers;
         readonly ObjectAddressToIndexEntry[] m_objectAddressesToIndex;
 
         public TracedHeap(IRootSet rootSet)
         {
             m_rootSet = rootSet;
-            m_managedHeap = rootSet.ManagedHeap;
-            m_native = m_managedHeap.Native;
-
-            m_minHeapAddress = m_managedHeap.GetSegment(0).StartAddress.Value;
-            m_maxHeapAddress = m_managedHeap.GetSegment(m_managedHeap.NumberOfSegments - 1).EndAddress.Value;
+            m_traceableHeap = rootSet.TraceableHeap;
+            m_native = m_traceableHeap.Native;
 
             m_postorderObjectAddresses = new List<PostorderEntry>();
             m_numberOfPredecessors = new Dictionary<ulong, int>();
@@ -57,8 +50,6 @@ namespace MemorySnapshotAnalyzer.Analysis
 
             m_invalidRoots = new List<Tuple<int, ulong>>();
             m_invalidPointers = new List<Tuple<ulong, ulong>>();
-            m_nonHeapRoots = new List<Tuple<int, ulong>>();
-            m_nonHeapPointers = new List<Tuple<ulong, ulong>>();
 
             for (int rootIndex = 0; rootIndex < rootSet.NumberOfRoots; rootIndex++)
             {
@@ -89,10 +80,6 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         public int NumberOfInvalidPointers => m_invalidPointers.Count;
 
-        public int NumberOfNonHeapRoots => m_nonHeapRoots.Count;
-
-        public int NumberOfNonHeapPointers => m_nonHeapPointers.Count;
-
         public IEnumerable<Tuple<int, NativeWord>> GetInvalidRoots()
         {
             foreach (var tuple in m_invalidRoots)
@@ -104,22 +91,6 @@ namespace MemorySnapshotAnalyzer.Analysis
         public IEnumerable<Tuple<NativeWord, NativeWord>> GetInvalidPointers()
         {
             foreach (var tuple in m_invalidPointers)
-            {
-                yield return Tuple.Create(m_native.From(tuple.Item1), m_native.From(tuple.Item2));
-            }
-        }
-
-        public IEnumerable<Tuple<int, NativeWord>> GetNonHeapRoots()
-        {
-            foreach (var tuple in m_nonHeapRoots)
-            {
-                yield return Tuple.Create(tuple.Item1, m_native.From(tuple.Item2));
-            }
-        }
-
-        public IEnumerable<Tuple<NativeWord, NativeWord>> GetNonHeapPointers()
-        {
-            foreach (var tuple in m_nonHeapPointers)
             {
                 yield return Tuple.Create(m_native.From(tuple.Item1), m_native.From(tuple.Item2));
             }
@@ -171,8 +142,8 @@ namespace MemorySnapshotAnalyzer.Analysis
         {
             ulong address = reference.Value;
 
-            // Fast path to avoid heap segment lookup for values that are obviously outside the managed heap.
-            if (address < m_minHeapAddress || address >= m_maxHeapAddress)
+            // Fast path to avoid heap segment lookup for null pointers.
+            if (address == 0)
             {
                 return;
             }
@@ -185,23 +156,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
             m_numberOfPredecessors.Add(reference.Value, 1);
 
-            MemoryView objectView = m_managedHeap.GetMemoryViewForAddress(reference);
-            if (!objectView.IsValid)
-            {
-                // Not a valid object pointer. This could be a pointer to a const or built-in object,
-                // which would be allocated off the managed heap.
-                if (m_rootIndexBeingMarked != -1)
-                {
-                    m_nonHeapRoots.Add(Tuple.Create(m_rootIndexBeingMarked, address));
-                }
-                else
-                {
-                    m_nonHeapPointers.Add(Tuple.Create(address, referrer.Value));
-                }
-                return;
-            }
-
-            int typeIndex = m_managedHeap.TryGetTypeIndex(objectView);
+            int typeIndex = m_traceableHeap.TryGetTypeIndex(reference);
             if (typeIndex == -1)
             {
                 // Object layout is invalid.
@@ -245,10 +200,8 @@ namespace MemorySnapshotAnalyzer.Analysis
 
                 // Push all of the node's children that are nodes we haven't encountered previously.
                 NativeWord address = m_native.From(entry.Address);
-                MemoryView objectView = m_managedHeap.GetMemoryViewForAddress(address);
-                foreach (int offset in m_managedHeap.GetObjectPointerOffsets(objectView, entry.TypeIndex))
+                foreach (NativeWord reference in m_traceableHeap.GetObjectPointers(address, entry.TypeIndex))
                 {
-                    NativeWord reference = objectView.ReadPointer(offset, m_native);
                     Mark(reference, address);
                 }
             }

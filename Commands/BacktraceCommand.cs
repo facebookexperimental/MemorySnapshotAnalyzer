@@ -86,7 +86,7 @@ namespace MemorySnapshotAnalyzer.Commands
                     foreach (int key in keys)
                     {
                         Output.WriteLine("{0}: {1}",
-                            CurrentManagedHeap.TypeSystem.QualifiedName(key),
+                            CurrentSegmentedHeap.TypeSystem.QualifiedName(key),
                             stats[key]);
                     }
                 }

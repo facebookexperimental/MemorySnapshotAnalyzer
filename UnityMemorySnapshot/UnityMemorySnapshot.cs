@@ -1,7 +1,6 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 
@@ -15,7 +14,8 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         readonly MemoryMappedViewAccessor m_viewAccessor;
         ChapterObject[]? m_chapters;
         VirtualMachineInformation m_virtualMachineInformation;
-        ManagedHeap? m_managedHeap;
+        SegmentedHeap? m_segmentedHeap;
+        UnityNativeObjectHeap? m_nativeObjectHeap;
 
         internal UnityMemorySnapshot(string filename, FileStream fileStream)
         {
@@ -27,6 +27,22 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             m_viewAccessor = m_memoryMappedFile.CreateViewAccessor(0, fileSize, MemoryMappedFileAccess.Read);
         }
 
+        public override void Dispose()
+        {
+            m_memoryMappedFile.Dispose();
+        }
+
+        public override string Filename => m_filename;
+
+        public override string Format => "Unity";
+
+        public override Native Native => new Native(m_virtualMachineInformation.PointerSize);
+
+        public override SegmentedHeap SegmentedHeap => m_segmentedHeap!;
+
+        // TODO:
+        internal UnityNativeObjectHeap NativeObjectHeap => m_nativeObjectHeap!;
+
         internal bool CheckSignature()
         {
             m_viewAccessor.Read(0, out Header header);
@@ -37,8 +53,10 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         {
             m_chapters = ParseChapters();
             m_virtualMachineInformation = ParseVirtualMachineInformation();
-            var typeSystem = new UnityTypeSystem(ParseTypeDescriptions(), ParseFieldDescriptions(), m_virtualMachineInformation);
-            m_managedHeap = ParseManagedHeap(typeSystem);
+            var typeSystem = new UnityManagedTypeSystem(ParseTypeDescriptions(), ParseFieldDescriptions(), m_virtualMachineInformation);
+            m_segmentedHeap = ParseManagedHeap(typeSystem);
+            var nativeObjectTypeSystem = new UnityNativeObjectTypeSystem(m_virtualMachineInformation.PointerSize, ParseNativeTypes());
+            m_nativeObjectHeap = ParseNativeObjectHeap(nativeObjectTypeSystem);
         }
 
         ChapterObject[] ParseChapters()
@@ -132,16 +150,16 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return virtualMachineInformation;
         }
 
-        ManagedHeap ParseManagedHeap(UnityTypeSystem typeSystem)
+        SegmentedHeap ParseManagedHeap(UnityManagedTypeSystem typeSystem)
         {
             var startAddresses = GetChapter<ChapterArrayOfConstantSizeElements>(ChapterType.ManagedHeapSections_StartAddress);
             var contents = GetArrayOfVariableSizeElementsChapter(ChapterType.ManagedHeapSections_Bytes, (int)startAddresses.Length);
 
-            var segments = new ManagedHeapSegment[startAddresses.Length];
+            var segments = new HeapSegment[startAddresses.Length];
             for (int i = 0; i < startAddresses.Length; i++)
             {
                 ulong startAddress = startAddresses[i].ReadInteger();
-                segments[i] = new ManagedHeapSegment(Native.From(startAddress & 0x7fffffffffffffff), contents[i], (startAddress >> 63) != 0);
+                segments[i] = new HeapSegment(Native.From(startAddress & 0x7fffffffffffffff), contents[i], (startAddress >> 63) != 0);
             }
 
             // Unity memory profiler does not dump memory segments sorted by start address.
@@ -222,18 +240,113 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return targets;
         }
 
-        public override void Dispose()
+        NativeType[] ParseNativeTypes()
         {
-            m_memoryMappedFile.Dispose();
+            var names = GetChapter<ChapterArrayOfVariableSizeElements>(ChapterType.NativeTypes_Name);
+            int count = (int)names!.Length;
+
+            var baseTypeIndices = GetArrayOfConstantSizeElementsChapter(ChapterType.NativeTypes_NativeBaseTypeArrayIndex, count);
+
+            var nativeTypes = new NativeType[count];
+            for (int i = 0; i < count; i++)
+            {
+                nativeTypes[i] = new NativeType();
+
+                nativeTypes[i].Name = names[i].ReadString();
+                baseTypeIndices[i].Read(0, out nativeTypes[i].BaseTypeIndex);
+            }
+
+            return nativeTypes;
         }
 
-        public override string Filename => m_filename;
+        UnityNativeObjectHeap ParseNativeObjectHeap(UnityNativeObjectTypeSystem typeSystem)
+        {
+            return new UnityNativeObjectHeap(
+                typeSystem,
+                ParseNativeRootReferences(),
+                ParseNativeObjects(),
+                ParseConnections(),
+                Native,
+                // TODO:
+                Array.Empty<ulong>());
+        }
 
-        public override string Format => "Unity";
+        NativeRootReference[] ParseNativeRootReferences()
+        {
+            var ids = GetChapter<ChapterArrayOfConstantSizeElements>(ChapterType.NativeRootReferences_Id);
+            int count = (int)ids!.Length;
 
-        public override Native Native => new Native(m_virtualMachineInformation.PointerSize);
+            var areaNames = GetArrayOfVariableSizeElementsChapter(ChapterType.NativeRootReferences_AreaName, count);
+            var objectNames = GetArrayOfVariableSizeElementsChapter(ChapterType.NativeRootReferences_ObjectName, count);
+            var accumulatedSizes = GetArrayOfConstantSizeElementsChapter(ChapterType.NativeRootReferences_AccumulatedSize, count);
 
-        public override ManagedHeap ManagedHeap => m_managedHeap!;
+            var nativeRootReferences = new NativeRootReference[count];
+            for (int i = 0; i < count; i++)
+            {
+                nativeRootReferences[i] = new NativeRootReference();
+
+                ids[i].Read(0, out nativeRootReferences[i].Id);
+                nativeRootReferences[i].AreaNeame = areaNames[i].ReadString();
+                nativeRootReferences[i].ObjectName = objectNames[i].ReadString();
+                accumulatedSizes[i].Read(0, out nativeRootReferences[i].AccumulatedSize);
+            }
+
+            return nativeRootReferences;
+        }
+
+        NativeObject[] ParseNativeObjects()
+        {
+            var typeIndices = GetChapter<ChapterArrayOfConstantSizeElements>(ChapterType.NativeObjects_NativeTypeArrayIndex);
+            int count = (int)typeIndices!.Length;
+
+            var hideFlags = GetArrayOfConstantSizeElementsChapter(ChapterType.NativeObjects_HideFlags, count);
+            var instanceIds = GetArrayOfConstantSizeElementsChapter(ChapterType.NativeObjects_InstanceId, count);
+            var names = GetArrayOfVariableSizeElementsChapter(ChapterType.NativeObjects_Name, count);
+            var objectAddresses = GetArrayOfConstantSizeElementsChapter(ChapterType.NativeObjects_NativeObjectAddress, count);
+            var objectSizes = GetArrayOfConstantSizeElementsChapter(ChapterType.NativeObjects_Size, count);
+            var rootReferenceIds = GetArrayOfConstantSizeElementsChapter(ChapterType.NativeObjects_RootReferenceId, count);
+
+            var nativeObjects = new NativeObject[count];
+            for (int i = 0; i < count; i++)
+            {
+                nativeObjects[i] = new NativeObject();
+
+                typeIndices[i].Read(0, out nativeObjects[i].TypeIndex);
+                hideFlags[i].Read(0, out nativeObjects[i].HideFlags);
+                instanceIds[i].Read(0, out nativeObjects[i].InstanceId);
+                nativeObjects[i].Name = names[i].ReadString();
+                nativeObjects[i].ObjectAddress = Native.From(objectAddresses[i].ReadInteger());
+                objectSizes[i].Read(0, out nativeObjects[i].ObjectSize);
+                rootReferenceIds[i].Read(0, out nativeObjects[i].RootReferenceId);
+            }
+
+            return nativeObjects;
+        }
+
+        Dictionary<int, List<int>> ParseConnections()
+        {
+            var from = GetChapter<ChapterArrayOfConstantSizeElements>(ChapterType.Connections_From);
+            int count = (int)from!.Length;
+
+            var to = GetArrayOfConstantSizeElementsChapter(ChapterType.Connections_To, count);
+
+            var connections = new Dictionary<int, List<int>>();
+            for (int i = 0; i < count; i++)
+            {
+                from[i].Read(0, out int fromIndex);
+                to[i].Read(0, out int toIndex);
+                if (connections.TryGetValue(fromIndex, out List<int>? tos))
+                {
+                    tos!.Add(toIndex);
+                }
+                else
+                {
+                    connections[fromIndex] = new List<int> { toIndex };
+                }
+            }
+
+            return connections;
+        }
 
         static void ExpectValue(uint value, uint expectedValue, string name)
         {

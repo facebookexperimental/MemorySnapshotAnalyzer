@@ -36,12 +36,6 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         bool FieldIsStatic(int typeIndex, int fieldNumber);
 
-        MemoryView StaticFieldBytes(int typeIndex, int fieldNumber);
-
-        int GetObjectSize(MemoryView objectView, int typeIndex, bool committedOnly);
-
-        int ReadArraySize(MemoryView objectView);
-
         int GetArrayElementOffset(int elementTypeIndex, int elementIndex);
 
         int GetArrayElementSize(int elementTypeIndex);
@@ -53,7 +47,5 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         int SystemStringFirstCharOffset { get; }
 
         IEnumerable<string> DumpStats();
-
-        string? DescribeAddress(NativeWord address);
     }
 }

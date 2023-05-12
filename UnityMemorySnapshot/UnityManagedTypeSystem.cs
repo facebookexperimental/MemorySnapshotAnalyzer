@@ -1,7 +1,6 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using System;
 using System.Collections;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
@@ -37,7 +36,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         public bool IsStatic;
     }
 
-    sealed class UnityTypeSystem : ITypeSystem
+    sealed class UnityManagedTypeSystem : ITypeSystem
     {
         readonly TypeDescription[] m_typesByIndex;
         readonly FieldDescription[] m_fieldsByIndex;
@@ -50,7 +49,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         readonly TypeDescription[] m_typesByAddress;
 
-        internal UnityTypeSystem(TypeDescription[] types, FieldDescription[] fields, VirtualMachineInformation virtualMachineInformation)
+        internal UnityManagedTypeSystem(TypeDescription[] types, FieldDescription[] fields, VirtualMachineInformation virtualMachineInformation)
         {
             m_typesByIndex = types;
             m_fieldsByIndex = fields;
@@ -275,7 +274,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             }
         }
 
-        public int GetObjectSize(MemoryView objectView, int typeIndex, bool committedOnly)
+        internal int GetObjectSize(MemoryView objectView, int typeIndex, bool committedOnly)
         {
             if (IsArray(typeIndex))
             {
@@ -358,18 +357,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             yield return string.Format("System.String type index: {0}", SystemStringTypeIndex);
             yield return string.Format("System.String length offset: {0}", SystemStringLengthOffset);
             yield return string.Format("System.String first char offset: {0}", SystemStringFirstCharOffset);
-        }
-
-        public string? DescribeAddress(NativeWord address)
-        {
-            int typeInfoIndex = TypeInfoAddressToIndex(address);
-            if (typeInfoIndex != -1)
-            {
-                return string.Format("VTable[{0}, type index {1}]",
-                    QualifiedName(typeInfoIndex),
-                    typeInfoIndex);
-            }
-            return null;
         }
     }
 }

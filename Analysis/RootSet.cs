@@ -15,27 +15,45 @@ namespace MemorySnapshotAnalyzer.Analysis
             public ulong Value;
         }
 
-        readonly ManagedHeap m_managedHeap;
+        readonly TraceableHeap m_traceableHeap;
         readonly RootEntry[] m_roots;
 
-        public RootSet(ManagedHeap managedHeap)
+        public RootSet(TraceableHeap traceableHeap)
         {
-            m_managedHeap = managedHeap;
-
-            ITypeSystem typeSystem = m_managedHeap.TypeSystem;
+            m_traceableHeap = traceableHeap;
 
             var roots = new List<RootEntry>();
+            AddGCHandleRoots(traceableHeap, roots);
+            m_roots = roots.ToArray();
+        }
 
+        void AddGCHandleRoots(TraceableHeap traceableHeap, List<RootEntry> roots)
+        {
             // Enumerate GCHandle targets as roots.
-            for (int gcHandleIndex = 0; gcHandleIndex < managedHeap.NumberOfGCHandles; gcHandleIndex++)
+            for (int gcHandleIndex = 0; gcHandleIndex < traceableHeap.NumberOfGCHandles; gcHandleIndex++)
             {
                 RootEntry entry;
                 entry.TypeIndexOrNegativeOne = -1;
                 entry.FieldNumberOrGCHandleIndex = gcHandleIndex;
-                entry.Value = managedHeap.GCHandleTarget(gcHandleIndex).Value;
+                entry.Value = traceableHeap.GCHandleTarget(gcHandleIndex).Value;
                 entry.Offset = 0;
                 roots.Add(entry);
             }
+        }
+
+        public RootSet(SegmentedHeap segmentedHeap)
+        {
+            m_traceableHeap = segmentedHeap;
+
+            var roots = new List<RootEntry>();
+            AddGCHandleRoots(segmentedHeap, roots);
+            AddStaticRoots(segmentedHeap, roots);
+            m_roots = roots.ToArray();
+        }
+
+        void AddStaticRoots(SegmentedHeap segmentedHeap, List<RootEntry> roots)
+        {
+            ITypeSystem typeSystem = segmentedHeap.TypeSystem;
 
             // Enumerate all roots in static fields.
             for (int typeIndex = 0; typeIndex < typeSystem.NumberOfTypeIndices; typeIndex++)
@@ -45,40 +63,38 @@ namespace MemorySnapshotAnalyzer.Analysis
                 {
                     if (typeSystem.FieldIsStatic(typeIndex, fieldNumber))
                     {
-                        MemoryView staticFieldBytesView = typeSystem.StaticFieldBytes(typeIndex, fieldNumber);
+                        MemoryView staticFieldBytesView = segmentedHeap.StaticFieldBytes(typeIndex, fieldNumber);
 
                         // Check whether the type has been initialized.
                         if (staticFieldBytesView.IsValid)
                         {
                             int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
-                            foreach (int offset in managedHeap.GetFieldPointerOffsets(fieldTypeIndex, baseOffset: 0))
+                            foreach (int offset in segmentedHeap.GetFieldPointerOffsets(fieldTypeIndex, baseOffset: 0))
                             {
                                 RootEntry entry;
                                 entry.TypeIndexOrNegativeOne = typeIndex;
                                 entry.FieldNumberOrGCHandleIndex = fieldNumber;
                                 entry.Offset = offset;
-                                entry.Value = staticFieldBytesView.ReadPointer(offset, managedHeap.Native).Value;
+                                entry.Value = staticFieldBytesView.ReadPointer(offset, m_traceableHeap.Native).Value;
                                 roots.Add(entry);
                             }
                         }
                     }
                 }
             }
-
-            m_roots = roots.ToArray();
         }
 
-        ManagedHeap IRootSet.ManagedHeap => m_managedHeap;
+        TraceableHeap IRootSet.TraceableHeap => m_traceableHeap;
 
         public int NumberOfRoots => m_roots.Length;
 
-        public int NumberOfGCHandles => m_managedHeap.NumberOfGCHandles;
+        public int NumberOfGCHandles => m_traceableHeap.NumberOfGCHandles;
 
         public int NumberOfStaticRoots => NumberOfRoots - NumberOfGCHandles;
 
         NativeWord IRootSet.GetRoot(int rootIndex)
         {
-            return m_managedHeap.Native.From(m_roots[rootIndex].Value);
+            return m_traceableHeap.Native.From(m_roots[rootIndex].Value);
         }
 
         bool IRootSet.IsGCHandle(int rootIndex)
@@ -99,8 +115,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             else
             {
                 return string.Format("{0}.{1}+0x{2:X}",
-                    m_managedHeap.TypeSystem.UnqualifiedName(typeIndex),
-                    m_managedHeap.TypeSystem.FieldName(typeIndex, entry.FieldNumberOrGCHandleIndex),
+                    m_traceableHeap.TypeSystem.UnqualifiedName(typeIndex),
+                    m_traceableHeap.TypeSystem.FieldName(typeIndex, entry.FieldNumberOrGCHandleIndex),
                     entry.Offset);
             }
         }
@@ -146,9 +162,9 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
 
             IRootSet.StaticRootInfo info;
-            info.AssemblyName = m_managedHeap.TypeSystem.Assembly(typeIndex);
+            info.AssemblyName = m_traceableHeap.TypeSystem.Assembly(typeIndex);
 
-            string qualifiedName = m_managedHeap.TypeSystem.QualifiedName(typeIndex);
+            string qualifiedName = m_traceableHeap.TypeSystem.QualifiedName(typeIndex);
             int indexOfDot = IndexOfLastNamespaceDot(qualifiedName);
             if (indexOfDot == -1)
             {

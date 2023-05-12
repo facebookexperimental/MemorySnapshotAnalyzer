@@ -9,7 +9,7 @@ namespace MemorySnapshotAnalyzer.Analysis
     {
         readonly ITracedHeap m_tracedHeap;
         readonly IRootSet m_rootSet;
-        readonly ManagedHeap m_managedHeap;
+        readonly TraceableHeap m_traceableHeap;
         readonly int m_rootNodeIndex;
         readonly Dictionary<int, List<int>> m_predecessors;
 
@@ -17,7 +17,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         {
             m_tracedHeap = tracedHeap;
             m_rootSet = m_tracedHeap.RootSet;
-            m_managedHeap = m_rootSet.ManagedHeap;
+            m_traceableHeap = m_rootSet.TraceableHeap;
 
             // For the purposes of backtracing, we assign node indices as follows:
             //   0 ... N-1 : nodes for live objects 0 ... N-1, in postorder
@@ -80,8 +80,8 @@ namespace MemorySnapshotAnalyzer.Analysis
                 int typeIndex = m_tracedHeap.ObjectTypeIndex(objectIndex);
                 return string.Format("{0}#{1}",
                     fullyQualified ?
-                        m_managedHeap.TypeSystem.QualifiedName(typeIndex) :
-                        m_managedHeap.TypeSystem.UnqualifiedName(typeIndex),
+                        m_traceableHeap.TypeSystem.QualifiedName(typeIndex) :
+                        m_traceableHeap.TypeSystem.UnqualifiedName(typeIndex),
                     nodeIndex);
             }
             else
@@ -100,11 +100,11 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 int objectIndex = NodeIndexToObjectIndex(nodeIndex);
                 int typeIndex = m_tracedHeap.ObjectTypeIndex(objectIndex);
-                if (m_managedHeap.TypeSystem.IsArray(typeIndex))
+                if (m_traceableHeap.TypeSystem.IsArray(typeIndex))
                 {
                     return "array";
                 }
-                else if (m_managedHeap.TypeSystem.IsValueType(typeIndex))
+                else if (m_traceableHeap.TypeSystem.IsValueType(typeIndex))
                 {
                     return "box";
                 }
@@ -144,10 +144,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 NativeWord address = m_tracedHeap.ObjectAddress(parentObjectIndex);
                 int typeIndex = m_tracedHeap.ObjectTypeIndex(parentObjectIndex);
-                MemoryView objectView = m_managedHeap.GetMemoryViewForAddress(address);
-                foreach (int offset in m_managedHeap.GetObjectPointerOffsets(objectView, typeIndex))
+                foreach (NativeWord reference in m_traceableHeap.GetObjectPointers(address, typeIndex))
                 {
-                    NativeWord reference = objectView.ReadPointer(offset, m_managedHeap.Native);
                     int childObjectIndex = m_tracedHeap.ObjectAddressToIndex(reference);
                     if (childObjectIndex != -1)
                     {

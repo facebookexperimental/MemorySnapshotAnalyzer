@@ -33,17 +33,17 @@ namespace MemorySnapshotAnalyzer.Commands
 
                 if (DumpObjects)
                 {
-                    MemoryView objectView = CurrentManagedHeap.GetMemoryViewForAddress(address);
+                    MemoryView objectView = CurrentSegmentedHeap.GetMemoryViewForAddress(address);
                     if (objectView.IsValid)
                     {
-                        DumpObject(objectView);
+                        DumpObject(address, objectView);
                         continue;
                     }
                 }
 
                 if (InvalidRootsOnly)
                 {
-                    MemoryView memoryView = CurrentManagedHeap.GetMemoryViewForAddress(address);
+                    MemoryView memoryView = CurrentSegmentedHeap.GetMemoryViewForAddress(address);
                     if (memoryView.IsValid)
                     {
                         continue;

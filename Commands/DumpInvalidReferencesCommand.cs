@@ -36,11 +36,6 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 Dump(CurrentTracedHeap.GetInvalidRoots(), CurrentTracedHeap.GetInvalidPointers(), "invalid");
             }
-
-            if (NonHeap)
-            {
-                Dump(CurrentTracedHeap.GetNonHeapRoots(), CurrentTracedHeap.GetNonHeapPointers(), "non-heap");
-            }
         }
 
         void Dump(IEnumerable<Tuple<int, NativeWord>> roots, IEnumerable<Tuple<NativeWord, NativeWord>> pointers, string kind)
@@ -87,7 +82,7 @@ namespace MemorySnapshotAnalyzer.Commands
                         tuple.Item2,
                         kind,
                         tuple.Item1,
-                        CurrentManagedHeap.TypeSystem.QualifiedName(typeIndex),
+                        CurrentSegmentedHeap.TypeSystem.QualifiedName(typeIndex),
                         typeIndex);
                 }
             }

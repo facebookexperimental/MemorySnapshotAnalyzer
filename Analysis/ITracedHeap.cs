@@ -16,17 +16,9 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         int NumberOfInvalidPointers { get; }
 
-        int NumberOfNonHeapRoots { get; }
-
-        int NumberOfNonHeapPointers { get; }
-
         IEnumerable<Tuple<int, NativeWord>> GetInvalidRoots();
 
         IEnumerable<Tuple<NativeWord, NativeWord>> GetInvalidPointers();
-
-        IEnumerable<Tuple<int, NativeWord>> GetNonHeapRoots();
-
-        IEnumerable<Tuple<NativeWord, NativeWord>> GetNonHeapPointers();
 
         int GetNumberOfPredecessors(int objectIndex);
 

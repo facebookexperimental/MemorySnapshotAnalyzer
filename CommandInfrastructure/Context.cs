@@ -59,7 +59,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 m_output.WriteLineIndented(indent, "{0} ({1}; {2} type indices)",
                     m_currentMemorySnapshot.Filename,
                     m_currentMemorySnapshot.Format,
-                    m_currentMemorySnapshot.ManagedHeap.TypeSystem.NumberOfTypeIndices);
+                    m_currentMemorySnapshot.SegmentedHeap.TypeSystem.NumberOfTypeIndices);
             }
 
             if (m_currentRootSet == null)
@@ -82,12 +82,10 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
             else
             {
-                m_output.WriteLineIndented(indent, "TracedHeap: {0} live objects ({1} invalid roots, {2} invalid pointers, {3} non-heap roots, {4} non-heap pointers)",
+                m_output.WriteLineIndented(indent, "TracedHeap: {0} live objects ({1} invalid roots, {2} invalid pointers)",
                     m_currentTracedHeap.NumberOfLiveObjects,
                     m_currentTracedHeap.NumberOfInvalidRoots,
-                    m_currentTracedHeap.NumberOfInvalidPointers,
-                    m_currentTracedHeap.NumberOfNonHeapRoots,
-                    m_currentTracedHeap.NumberOfNonHeapPointers);
+                    m_currentTracedHeap.NumberOfInvalidPointers);
             }
 
             if (m_currentBacktracer == null)
@@ -172,11 +170,11 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 m_output.Write("[context {0}] enumerating root set ...", m_id);
                 if (m_rootSet_singletonRootAddress.Value != 0)
                 {
-                    m_currentRootSet = new SingletonRootSet(CurrentMemorySnapshot!.ManagedHeap, m_rootSet_singletonRootAddress);
+                    m_currentRootSet = new SingletonRootSet(CurrentMemorySnapshot!.SegmentedHeap, m_rootSet_singletonRootAddress);
                 }
                 else
                 {
-                    m_currentRootSet = new RootSet(CurrentMemorySnapshot!.ManagedHeap);
+                    m_currentRootSet = new RootSet(CurrentMemorySnapshot!.SegmentedHeap);
                 }
                 m_output.WriteLine(" {0} roots ({1} GCHandles, {2} statics)",
                     m_currentRootSet.NumberOfRoots,
@@ -201,12 +199,10 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             {
                 m_output.Write("[context {0}] tracing heap ...", m_id);
                 m_currentTracedHeap = new TracedHeap(CurrentRootSet!);
-                m_output.WriteLine(" {0} live objects ({1} invalid roots, {2} invalid pointers, {3} non-heap roots, {4} non-heap pointers)",
+                m_output.WriteLine(" {0} live objects ({1} invalid roots, {2} invalid pointers)",
                     m_currentTracedHeap.NumberOfLiveObjects,
                     m_currentTracedHeap.NumberOfInvalidRoots,
-                    m_currentTracedHeap.NumberOfInvalidPointers,
-                    m_currentTracedHeap.NumberOfNonHeapRoots,
-                    m_currentTracedHeap.NumberOfNonHeapPointers);
+                    m_currentTracedHeap.NumberOfInvalidPointers);
             }
         }
 

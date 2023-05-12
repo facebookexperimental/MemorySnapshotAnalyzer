@@ -16,13 +16,13 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            ManagedHeap managedHeap = CurrentMemorySnapshot.ManagedHeap;
+            SegmentedHeap segmentedHeap = CurrentMemorySnapshot.SegmentedHeap;
             Native native = CurrentMemorySnapshot.Native;
 
             long instancesFound = 0;
-            for (int i = 0; i < managedHeap.NumberOfSegments; i++)
+            for (int i = 0; i < segmentedHeap.NumberOfSegments; i++)
             {
-                ManagedHeapSegment segment = managedHeap.GetSegment(i);
+                HeapSegment segment = segmentedHeap.GetSegment(i);
                 MemoryView memoryView = segment.MemoryView;
                 long limit = memoryView.Size - native.Size;
                 for (long offset = 0; offset <= limit; offset += native.Size)

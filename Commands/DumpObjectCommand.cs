@@ -27,7 +27,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
+            ITypeSystem typeSystem = CurrentSegmentedHeap.TypeSystem;
 
             if (AddressOrIndex.Size == 0 && !LiveOnly)
             {
@@ -59,7 +59,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 address = AddressOrIndex;
             }
 
-            MemoryView objectView = CurrentManagedHeap.GetMemoryViewForAddress(address);
+            MemoryView objectView = CurrentSegmentedHeap.GetMemoryViewForAddress(address);
             if (!objectView.IsValid)
             {
                 throw new CommandException($"address {address} is not in mapped memory");
@@ -67,15 +67,14 @@ namespace MemorySnapshotAnalyzer.Commands
 
             if (TypeIndex == -1)
             {
-                DumpObject(objectView);
+                DumpObject(address, objectView);
+            }
+            else if (TypeIndex < 0 || TypeIndex >= typeSystem.NumberOfTypeIndices)
+            {
+                throw new CommandException($"invalid type index {TypeIndex}");
             }
             else
             {
-                if (TypeIndex < 0 || TypeIndex >= typeSystem.NumberOfTypeIndices)
-                {
-                    throw new CommandException($"invalid type index {TypeIndex}");
-                }
-
                 if (typeSystem.IsValueType(TypeIndex))
                 {
                     DumpValueType(objectView, TypeIndex, 0);
@@ -96,7 +95,7 @@ namespace MemorySnapshotAnalyzer.Commands
             for (int objectIndex = 0; objectIndex < numberOfLiveObjects; objectIndex++)
             {
                 int typeIndex = CurrentTracedHeap.ObjectTypeIndex(objectIndex);
-                string typeName = CurrentManagedHeap.TypeSystem.QualifiedName(typeIndex);
+                string typeName = CurrentSegmentedHeap.TypeSystem.QualifiedName(typeIndex);
                 if (perTypeCounts.TryGetValue(typeName, out int count))
                 {
                     perTypeCounts[typeName] = count + 1;

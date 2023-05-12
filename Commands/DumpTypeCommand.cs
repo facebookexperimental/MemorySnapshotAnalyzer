@@ -31,7 +31,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
+            ITypeSystem typeSystem = CurrentSegmentedHeap.TypeSystem;
 
             if (IndexOrSubstring == null)
             {
@@ -95,7 +95,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 return;
             }
 
-            ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
+            ITypeSystem typeSystem = CurrentSegmentedHeap.TypeSystem;
 
             Output.WriteLineIndented(indent, "Type {0}: qualified name {1}:{2}, {3} with base size {4}, rank {5}",
                 typeIndex,
@@ -126,7 +126,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
                     if (Statics && isStatic)
                     {
-                        MemoryView staticFieldBytesView = typeSystem.StaticFieldBytes(typeIndex, fieldNumber);
+                        MemoryView staticFieldBytesView = CurrentSegmentedHeap.StaticFieldBytes(typeIndex, fieldNumber);
                         if (staticFieldBytesView.IsValid)
                         {
                             DumpFieldValue(staticFieldBytesView, typeSystem.FieldType(typeIndex, fieldNumber), indent + 2);
@@ -159,7 +159,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         bool HasStaticFields(int typeIndex)
         {
-            ITypeSystem typeSystem = CurrentManagedHeap.TypeSystem;
+            ITypeSystem typeSystem = CurrentSegmentedHeap.TypeSystem;
 
             int numberOfFields = typeSystem.NumberOfFields(typeIndex);
             for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)

@@ -16,13 +16,13 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            var managedHeap = CurrentMemorySnapshot.ManagedHeap;
+            var segmentedHeap = CurrentMemorySnapshot.SegmentedHeap;
 
             int numberOfObjectSegments = 0;
             int numberOfRttiSegments = 0;
-            for (int i = 0; i < managedHeap.NumberOfSegments; i++)
+            for (int i = 0; i < segmentedHeap.NumberOfSegments; i++)
             {
-                ManagedHeapSegment segment = managedHeap.GetSegment(i);
+                HeapSegment segment = segmentedHeap.GetSegment(i);
                 if (segment.IsRuntimeTypeInformation)
                 {
                     numberOfRttiSegments++;
@@ -32,11 +32,11 @@ namespace MemorySnapshotAnalyzer.Commands
                     numberOfObjectSegments++;
                 }
             }
-            Output.WriteLine($"total number of segments: {managedHeap.NumberOfSegments} ({numberOfObjectSegments} object, {numberOfRttiSegments} RTTI)");
+            Output.WriteLine($"total number of segments: {segmentedHeap.NumberOfSegments} ({numberOfObjectSegments} object, {numberOfRttiSegments} RTTI)");
 
-            for (int i = 0; i < managedHeap.NumberOfSegments; i++)
+            for (int i = 0; i < segmentedHeap.NumberOfSegments; i++)
             {
-                ManagedHeapSegment segment = managedHeap.GetSegment(i);
+                HeapSegment segment = segmentedHeap.GetSegment(i);
                 if (!RttiOnly || segment.IsRuntimeTypeInformation)
                 {
                     Output.WriteLine("segment {0,6}: {1}",

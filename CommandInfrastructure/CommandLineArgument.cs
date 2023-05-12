@@ -174,7 +174,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
 
             NativeWord address = AsNativeWord(memorySnapshot.Native);
-            MemoryView memoryView = memorySnapshot.ManagedHeap.GetMemoryViewForAddress(address);
+            MemoryView memoryView = memorySnapshot.SegmentedHeap.GetMemoryViewForAddress(address);
             if (!memoryView.IsValid)
             {
                 throw new CommandException($"cannot indirect through address {address}");

@@ -31,7 +31,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
             Output.WriteLine("found {0} object(s) of type {1}",
                 numberOfObjectsFound,
-                CurrentManagedHeap.TypeSystem.QualifiedName(TypeIndex));
+                CurrentSegmentedHeap.TypeSystem.QualifiedName(TypeIndex));
 
             var sb = new StringBuilder();
             for (int objectIndex = 0; objectIndex < numberOfLiveObjects; objectIndex++)

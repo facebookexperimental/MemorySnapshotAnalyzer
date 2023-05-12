@@ -13,11 +13,11 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             // TOOD: support format argument (words/symbols)
 
-            ManagedHeapSegment? segment = CurrentMemorySnapshot.ManagedHeap.GetSegmentForAddress(Address);
+            HeapSegment? segment = CurrentMemorySnapshot.SegmentedHeap.GetSegmentForAddress(Address);
 
             if (segment == null && Address.Value <= int.MaxValue)
             {
-                segment = CurrentMemorySnapshot.ManagedHeap.GetSegment((int)Address.Value);
+                segment = CurrentMemorySnapshot.SegmentedHeap.GetSegment((int)Address.Value);
             }
 
             if (segment == null)

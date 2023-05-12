@@ -13,7 +13,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             public string ClassName;
         };
 
-        ManagedHeap ManagedHeap { get; }
+        TraceableHeap TraceableHeap { get; }
 
         int NumberOfRoots { get; }
 

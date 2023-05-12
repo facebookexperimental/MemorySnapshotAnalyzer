@@ -35,7 +35,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpTypeSystemStatistics()
         {
-            ITypeSystem typeSystem = CurrentMemorySnapshot.ManagedHeap.TypeSystem;
+            ITypeSystem typeSystem = CurrentMemorySnapshot.SegmentedHeap.TypeSystem;
             foreach (string s in typeSystem.DumpStats())
             {
                 Output.WriteLine(s);
@@ -46,15 +46,15 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             // TODO: stats on gaps between segments/within segments
 
-            ManagedHeap managedHeap = CurrentMemorySnapshot.ManagedHeap;
+            SegmentedHeap segmentedHeap = CurrentMemorySnapshot.SegmentedHeap;
 
             var histogram = new SortedDictionary<long, int>();
             var objectSegmentHistogram = new SortedDictionary<long, int>();
             var rttiSegmentHistogram = new SortedDictionary<long, int>();
             long totalSize = 0;
-            for (int i = 0; i < managedHeap.NumberOfSegments; i++)
+            for (int i = 0; i < segmentedHeap.NumberOfSegments; i++)
             {
-                ManagedHeapSegment segment = managedHeap.GetSegment(i);
+                HeapSegment segment = segmentedHeap.GetSegment(i);
                 totalSize += segment.Size;
 
                 Tally(histogram, segment.Size);
