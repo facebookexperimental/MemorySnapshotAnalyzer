@@ -18,12 +18,16 @@ The syntax for command lines is, admittedly, a bit idiosyncratic; see `CommandPr
 * The first word is the command name, which can be available as abbreviations (e.g., `dumpsegment` or `ds`). See the help text for available comamnds and their abbreviations.
 * Commands can be followed by multiple arguments. Arguments can be expressions that will be evaluated, e.g., `print 0x12345678 + 32`. This allows, e.g., to use addresses and combine them with offsets.
 * String arguments need to be double-quoted, e.g., `dumpassemblies "MyAssembly"` lists all assemblies whose names contain the given substring.
-* Flag arguments and named arguments are specified using names prefixed with an apostrophe, e.g., `dumptype 'recursive` lists all types including their base types, and `options 'rootobject 0x12345678` configures the root object used by some analyses to be the given address.
+* Flag arguments and named arguments are specified using names prefixed with an apostrophe. Examples:
+  * `dumptype 'recursive` requests that types are listed with their base types (recursively)
+  * `options 'rootobject 0x12345678` sets the `rootobject` option to the given value
+  * `options 'nofuseobjectpairs` disables the `fuseobjectpairs` option
 
-Note that many commands take indices instead of addresses. Make sure to not confuse these indices with one another:
+Note that some commands take indices of different kinds (as well as addresses). Make sure to not confuse these indices with one another:
 * The type system assigns a type index to each type.
 * Heap tracing assigns an object index to each live object.
-* (For developers on the tool itself: Internally, the root set also assigns a root index to each root, and backtracing assigns a node index to each node that can be part of a backtrace - or of the dominator tree.)
+* Indices can be specific to the context (see below) and can change with different analysis options (e.g., heap stitching).
+* (Only of interest to developers working on the analyzer itself: Internally, the root set also assigns a root index to each root, and backtracing assigns a node index to each node that can be part of a backtrace - or of the dominator tree.)
 
 ### Pagination
 
@@ -33,28 +37,24 @@ Output of commands is paginated to the console window height. Type `q` to get ba
 
 MemorySnapshotAnalyzer allows for several snapshots to be loaded at the same time. For instance, this allows snapshots taken at different times during execution of the same application to be compared.
 
-When the tool starts up, it runs in a context with ID `0` and no snapshot loaded. Use the `load` command to load a snapshot into the current context. You can use `context` command with an integer ID to switch to another context (which will be created if it didn't exist).
+When the tool starts up, it runs in a context with ID `0` and no snapshot loaded. You can use `context` command with an integer ID to switch to another context (which will be created if it didn't exist).
 
-For example, to load two different snapshots at the same time:
-```
-context 0
-load "before.snap"
-context 1
-load "after.snap"
-```
+Use the `load` command to load a snapshot; by default, this will be loaded into a new context unless the current context had no snapshot loaded. You can use `load` with the `'replace` option to force loading into the current context.
 
 ## The Analysis Stack
 
 MemorySnapshotAnalyzer allows analysis of what's in a heap snapshot at different levels of abstraction, ranging from bytes within ranges of committed memory up to object graphs. The levels of analysis, and which of them have been computed within a given context, are listed by the `context` command. Note that analyses at these levels are computed implicitly by commands as needed, which will be increasingly more expensive.
+* **Types:**
+  * Given that we are processing memory snapshots from managed runtimes, some type information will be available for any heap snapshot. Use `stats 'types` to print high-level type system information (such as high-level properties of object representation in memory), and `dumptype` to dump loaded types and their layout. Use `dumpobj 'memory 'astype` to dump the contents of a given address interpreted as the given type.
 * **Memory:**
+  * Note that depending on how the memory snapshot was produced and the file format, the actual contents of heap memory may or may not be available in the snapshot. Some commands can be used to find out if heap memory is available, and to inspect it.
   * Use `listsegs` to list regions of committed memory ("memory segments") and `stats 'heap`, `dumpseg`, `describe`, or `dump` to print out the meaning or contents of memory addresses without specific interpretation as objects. This can be useful when investigating a memory corruption. Use `find` to find bit patterns in the managed heap. This can be useful to find garbage objects of specific types.
-  * Given that we are processing memory snapshots from managed runtimes, we already have type information at this level. Use `stats 'types` to print high-level type system information (such as high-level properties of object representation in memory), and `dumptype` to dump loaded types and their layout. Use `dumpobj` to dump the contents of a given address interpreted as the given type.
 * **Root set:**
   * Use `dumproots` to get information about memory locations that are considered roots for the purpose of garbage collection.
-  * Use `dumproots 'invalid` to get information about roots that do not seem to point to live objects. This can be useful to find inconsistencies in the heap.
+  * Use `dumproots 'invalid` to get information about roots that do not seem to point to valid objects. This can be useful to find inconsistencies in the heap (though this can also just be a built-in or preallocated object).
   * Use `options 'rootobject 0x12345678` to ignore the root set and instead consider the given object address as the single root. This allows to get analysis results restricted to the graph of objects reachable from the specified object. The address does not need to be that of an object that is reachable using the snapshot's root set, which can be useful to look at "garbage" as if it was still live.
 * **Traced heap:**
-  * Use `dumpobj 'live` to dump the objects that are currently considered "live" for the purpose of the garbage collector. This causes the entire heap to be traced, starting from the root set and following all managed pointers within reachable objects. Use `findobj` to find objects of specific types on the heap.
+  * Use `dumpobj 'list` to dump the objects that are currently considered "live" for the purpose of the garbage collector. This causes the entire heap to be traced, starting from the root set and following all managed pointers within reachable objects. Use `dumpobj 'list 'type` to list objects of specific types on the heap, or `dumpobj` with an object index or address to dump the given object.
   * Use `dumpinvalidrefs` to dump references that are no valid (e.g., do not point into the managed heap or to a managed object). This can be useful to find inconsistencies in the heap.
 * **Backtracer:**
   * Use `backtrace` to dump "backtraces" that indicate how a given object is reachable on the heap. This causes the predecessor set to be computed for each object in the object graph. This can be useful to determine why an object is still alive, e.g., when all references to it had been expected to be released and the object was expected to be reclaimed by the garbage collector.
@@ -66,12 +66,21 @@ MemorySnapshotAnalyzer allows analysis of what's in a heap snapshot at different
   * Unfortunately, if the application whose heap usage you are analyzing is structured in a way such that many objects are reachable from unrelated parts of the root set (e.g., from static variables of different classes), it can happen that the only dominating node is the top-level node of the dominator tree itself (the node representing the entire process heap). `heapdomstats` can be used to get a sense of how much this is happening for the particular snapshots you are looking at.
   * Diffing: `heapdom 'relativeto` can allow you to get an idea of which nodes in the current context's snapshot (the "after" snapshot) were not present in the snapshot loaded into another context (the "before" snapshot). This can be used to get an idea of the cost of non-transient allocations performed by an application action, by capturing a "before" and an "after" snapshot around said action in a manual test run. Note that the simple approach implemented today will only be meaningful with a non-relocating garbage collector (or if no compacting garbage collection was performed between the "before" and "after" snapshots).
 
+### Selecting the Heap to Analyze
+
+Some heap snapshots contain multiple heaps. You can select the heap(s) to analyze as follows:
+* `options 'heap "managed"` selects the "managed" heap for analysis. (The exact meaning of "managed" is specific to the format of the loaded snapshot file.) A managed heap should be expected to be fully traceable due to the level of run-time type information contained in the heap.
+* `options 'heap "native"` selects the "native" heap for analysis. Due to lower run-time type information available for native objects, it may or may not be possible to infer pointers to other native objects. Due to the lack of a root set, each object may be reported as its own root.
+* `options 'heap "stitched"` selects a "stitched" heap, i.e., an integrated view across a "managed" and "native" heap. The managed heap will be considered the "primary" heap and the native heap will be considered the "secondary" heap. This means that the primary heap's root set will be used as the root set for the stitched heap, and native pointers found in reachable objects on the primary heap will be used to determine which objects on the secondary heap are reachable.
+
 ### Analysis Options
 
 Some of these analysis are configurable. To set the options for analysis, use the `options` command. To see the currently configured options, use the `context` command.
 
 * **Root set option `'rootobject`:** Only analyze the graph of objects reachable from the given object. This can be used to answer the question, "what are the objects reachable from this object" or "what is the total size of objects reachable from this object." Also, when configured with a key object responsible for managing large parts of an application's state, this can be used to reduce the problem of too many nodes "floating" to the process node when computing the dominator tree.
 * **Backtracer option `'groupstatics`:** Introduces additional, "virtual" nodes within backtraces to serve as containers for related objects/object graphs. E.g., it can be a common occurrence that objects "float" to the process node in the dominator tree that are reachable from different static variables only within a single assembly, namespace, or type, and this option allows to group such objects accordingly.
+* **Backtracer option `'fuseobjectpairs`:** Each pair of a managed and a native object that reference one another is considered to be "inseparable". Usually, other native objects pointing to the native part and other managed pointers pointing to the managed half can create graphs in which the dominating nodes for both parts could be different. With this option, all pointers to either part are considered to point to the managed object (and the managed object is the only object that points to the native object), ensuring that the objects stay together in the dominator tree.
+* **Backtracer option `'fusegchandles`:** Usually, GC handles are roots, meaning that their target objects will be near the root of the dominator tree. With this option, GC handles whose targets are objects that are also reachable from other objects will be considered just a part of the target object and can appear lower in the dominator tree.
 * **Dominator tree option: `'weakgchandles`:** Often, objects are reachable from a specific static variable in the root set as well as one or more GC handles. In this case, it can be helpful to consider only the static variable to be an "owning" reference to the object, and only report GC handles as "owning" if they are truly the only reason that a given object is live. This option allows you to do that.
 
 ## Visualization

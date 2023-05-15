@@ -3,7 +3,6 @@
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System;
 using System.Collections.Generic;
-using System.Reflection.Metadata.Ecma335;
 
 namespace MemorySnapshotAnalyzer.Analysis
 {

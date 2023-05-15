@@ -223,6 +223,6 @@ namespace MemorySnapshotAnalyzer.Commands
             DumpObjectInformation(address);
         }
 
-        public override string HelpText => "dumpobj ['livestats|'listlive ['type <type index>]|<object address or index>|'memory <object address or index> ['type <type index>]]]";
+        public override string HelpText => "dumpobj 'livestats | 'list ['type <type index>] | <object address or index> | 'memory <object address or index> ['type <type index>]";
     }
 }
