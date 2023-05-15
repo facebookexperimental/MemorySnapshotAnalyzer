@@ -4,17 +4,25 @@ using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace MemorySnapshotAnalyzer.CommandProcessing
 {
     public sealed class Repl : IDisposable
     {
+        enum NamedArgumentKind
+        {
+            PositiveFlag,
+            NegativeFlag,
+            NamedArgument
+        }
+
         readonly IConfiguration m_configuration;
         readonly IOutput m_output;
         readonly List<MemorySnapshotLoader> m_memorySnapshotLoaders;
         readonly SortedDictionary<string, Type> m_commands;
-        readonly Dictionary<Type, Dictionary<string, bool>> m_commandNamedArgumentNames;
+        readonly Dictionary<Type, Dictionary<string, NamedArgumentKind>> m_commandNamedArgumentNames;
         readonly SortedDictionary<int, Context> m_contexts;
         string? m_currentCommandLine;
         int m_currentContextId;
@@ -25,11 +33,14 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             m_output = new ConsoleOutput();
             m_memorySnapshotLoaders = new List<MemorySnapshotLoader>();
             m_commands = new SortedDictionary<string, Type>();
-            m_commandNamedArgumentNames = new Dictionary<Type, Dictionary<string, bool>>();
+            m_commandNamedArgumentNames = new Dictionary<Type, Dictionary<string, NamedArgumentKind>>();
             m_contexts = new SortedDictionary<int, Context>();
             m_contexts.Add(0, new Context(0, m_output)
             {
+                // TODO: read TraceableHeap_Kind value
                 Backtracer_GroupStatics = configuration.GetValue<bool>("GroupStatics"),
+                Backtracer_FuseObjectPairs = configuration.GetValue<bool>("FuseObjectPairs"),
+                Backtracer_FuseGCHandles = configuration.GetValue<bool>("FuseGCHandles"),
                 HeapDom_WeakGCHandles = configuration.GetValue<bool>("WeakGCHandles")
             });
             m_currentContextId = 0;
@@ -198,7 +209,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             var positionalArguments = new Dictionary<int, bool>();
             int lowestOptionalFound = int.MaxValue;
             int highestRequiredFound = -1;
-            var namedArgumentNames = new Dictionary<string, bool>();
+            var namedArgumentNames = new Dictionary<string, NamedArgumentKind>();
             foreach (FieldInfo field in typeInfo.GetRuntimeFields())
             {
                 int numberOfAttributesFound = 0;
@@ -233,7 +244,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                                 throw new ArgumentException($"command {commandType.Name} field {field.Name}: duplicate argument name {namedArgumentName}");
                             }
 
-                            namedArgumentNames.Add(namedArgumentName, true);
+                            namedArgumentNames.Add(namedArgumentName, NamedArgumentKind.NamedArgument);
                         }
 
                         if (field.FieldType != typeof(string)
@@ -254,7 +265,15 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                             throw new ArgumentException($"command {commandType.Name} field {field.Name}: duplicate argument name {flagName}");
                         }
 
-                        namedArgumentNames.Add(flagName, false);
+                        namedArgumentNames.Add(flagName, NamedArgumentKind.PositiveFlag);
+
+                        string noflagName = $"no{flagName}";
+                        if (namedArgumentNames.ContainsKey(noflagName))
+                        {
+                            throw new ArgumentException($"command {commandType.Name} field {field.Name}: duplicate argument name {noflagName}");
+                        }
+
+                        namedArgumentNames.Add(noflagName, NamedArgumentKind.NegativeFlag);
 
                         if (field.FieldType != typeof(bool) && field.FieldType != typeof(int))
                         {
@@ -287,7 +306,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         void AssignArgumentValues(Command command, CommandLine commandLine)
         {
-            var flags = new HashSet<string>();
+            var flags = new Dictionary<string, bool>();
             var namedArguments = new Dictionary<string, CommandLineArgument>();
             var positionalArguments = new List<CommandLineArgument>();
             for (int i = 0; i < commandLine.NumberOfArguments; i++)
@@ -295,20 +314,26 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 if (commandLine[i].ArgumentType == CommandLineArgumentType.Atom)
                 {
                     string atom = commandLine[i].AtomValue;
-                    if (m_commandNamedArgumentNames[command.GetType()].TryGetValue(atom, out bool takesValue))
+                    if (m_commandNamedArgumentNames[command.GetType()].TryGetValue(atom, out NamedArgumentKind kind))
                     {
-                        if (takesValue)
+                        switch (kind)
                         {
-                            if (i + 1 == commandLine.NumberOfArguments)
-                            {
-                                throw new CommandException($"missing value for named argument {atom}");
-                            }
-                            namedArguments.Add(atom, commandLine[i + 1]);
-                            i++;
-                        }
-                        else
-                        {
-                            flags.Add(atom);
+                            case NamedArgumentKind.NamedArgument:
+                                if (i + 1 == commandLine.NumberOfArguments)
+                                {
+                                    throw new CommandException($"missing value for named argument {atom}");
+                                }
+                                namedArguments.Add(atom, commandLine[i + 1]);
+                                i++;
+                                break;
+                            case NamedArgumentKind.PositiveFlag:
+                                flags.Add(atom, true);
+                                i++;
+                                break;
+                            case NamedArgumentKind.NegativeFlag:
+                                flags.Add(atom.Substring(2), false); // remove "no" prefix
+                                i++;
+                                break;
                         }
                         continue;
                     }
@@ -349,14 +374,16 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                     else if (attribute.AttributeType == typeof(FlagArgumentAttribute))
                     {
                         string flagName = (string)attribute.ConstructorArguments[0].Value!;
-                        if (field.FieldType == typeof(bool))
+                        if (flags.TryGetValue(flagName, out var value))
                         {
-                            field.SetValue(command, flags.Contains(flagName));
-                        }
-                        else if (flags.Contains(flagName))
-                        {
-                            field.SetValue(command, 1);
-                            // TODO: need to support a "noflagname" argument so we can set to 0
+                            if (field.FieldType == typeof(bool))
+                            {
+                                field.SetValue(command, value);
+                            }
+                            else
+                            {
+                                field.SetValue(command, value ? 1 : 0);
+                            }
                         }
                     }
                 }
