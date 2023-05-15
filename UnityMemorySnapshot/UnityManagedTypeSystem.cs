@@ -36,7 +36,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         public bool IsStatic;
     }
 
-    sealed class UnityManagedTypeSystem : ITypeSystem
+    sealed class UnityManagedTypeSystem : TypeSystem
     {
         readonly TypeDescription[] m_typesByIndex;
         readonly FieldDescription[] m_fieldsByIndex;
@@ -143,9 +143,9 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return false;
         }
 
-        public int PointerSize => m_virtualMachineInformation.PointerSize;
+        public override int PointerSize => m_virtualMachineInformation.PointerSize;
 
-        public int NumberOfTypeIndices => m_typesByIndex.Length;
+        public override int NumberOfTypeIndices => m_typesByIndex.Length;
 
         internal int TypeInfoAddressToIndex(NativeWord address)
         {
@@ -171,7 +171,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return -1;
         }
 
-        public string Assembly(int typeIndex)
+        public override string Assembly(int typeIndex)
         {
             return m_typesByIndex[typeIndex].Assembly!;
         }
@@ -179,45 +179,45 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         // TODO: add a method to return an "assembly group", to be used for visualization
         // (one of {mscorlib,System[.*]}/{Unity[.*],UnityEngine[.*],UnityEditor[.*]}/other)
 
-        public string QualifiedName(int typeIndex)
+        public override string QualifiedName(int typeIndex)
         {
             return m_typesByIndex[typeIndex].Name!;
         }
 
         static readonly Regex s_identifierAndDotRegex = new("[a-zA-Z_][a-zA-Z0-9_]*\\.", RegexOptions.Compiled);
 
-        public string UnqualifiedName(int typeIndex)
+        public override string UnqualifiedName(int typeIndex)
         {
             string qualifiedName = QualifiedName(typeIndex);
             return s_identifierAndDotRegex.Replace(qualifiedName, string.Empty);
         }
 
-        public int BaseOrElementTypeIndex(int typeIndex)
+        public override int BaseOrElementTypeIndex(int typeIndex)
         {
             return m_typesByIndex[typeIndex].BaseOrElementTypeIndex;
         }
 
-        public int BaseSize(int typeIndex)
+        public override int BaseSize(int typeIndex)
         {
             return m_typesByIndex[typeIndex].Size;
         }
 
-        public bool IsValueType(int typeIndex)
+        public override bool IsValueType(int typeIndex)
         {
             return (m_typesByIndex[typeIndex].Flags & TypeFlags.ValueType) != 0;
         }
 
-        public bool IsArray(int typeIndex)
+        public override bool IsArray(int typeIndex)
         {
             return (m_typesByIndex[typeIndex].Flags & TypeFlags.Array) != 0;
         }
 
-        public int Rank(int typeIndex)
+        public override int Rank(int typeIndex)
         {
             return (int)(m_typesByIndex[typeIndex].Flags & TypeFlags.ArrayRankMask) >> 16;
         }
 
-        public int NumberOfFields(int typeIndex)
+        public override int NumberOfFields(int typeIndex)
         {
             MemoryView memoryView = m_typesByIndex[typeIndex].FieldIndices;
             return (int)(memoryView.Size / Marshal.SizeOf(typeof(int)));
@@ -230,28 +230,28 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return fieldIndex;
         }
 
-        public int FieldOffset(int typeIndex, int fieldNumber, bool withHeader)
+        public override int FieldOffset(int typeIndex, int fieldNumber, bool withHeader)
         {
             return m_fieldsByIndex[GetFieldIndex(typeIndex, fieldNumber)].Offset
                 - (withHeader ? 0 : m_virtualMachineInformation.ObjectHeaderSize);
         }
 
-        public int FieldType(int typeIndex, int fieldNumber)
+        public override int FieldType(int typeIndex, int fieldNumber)
         {
             return m_fieldsByIndex[GetFieldIndex(typeIndex, fieldNumber)].TypeIndex;
         }
 
-        public string FieldName(int typeIndex, int fieldNumber)
+        public override string FieldName(int typeIndex, int fieldNumber)
         {
             return m_fieldsByIndex[GetFieldIndex(typeIndex, fieldNumber)].Name!;
         }
 
-        public bool FieldIsStatic(int typeIndex, int fieldNumber)
+        public override bool FieldIsStatic(int typeIndex, int fieldNumber)
         {
             return m_fieldsByIndex[GetFieldIndex(typeIndex, fieldNumber)].IsStatic;
         }
 
-        public MemoryView StaticFieldBytes(int typeIndex, int fieldNumber)
+        public override MemoryView StaticFieldBytes(int typeIndex, int fieldNumber)
         {
             MemoryView memoryView = m_typesByIndex[typeIndex].StaticFieldBytes;
             if (memoryView.Size == 0)
@@ -301,24 +301,24 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return (size + insignificantBits) & ~insignificantBits;
         }
 
-        public int ReadArraySize(MemoryView objectView)
+        internal int ReadArraySize(MemoryView objectView)
         {
             objectView.Read(m_virtualMachineInformation.ArraySizeOffsetInHeader, out int arraySize);
             return arraySize;
         }
 
-        public int GetArrayElementOffset(int elementTypeIndex, int elementIndex)
+        public override int GetArrayElementOffset(int elementTypeIndex, int elementIndex)
         {
             return m_virtualMachineInformation.ArrayHeaderSize + elementIndex * GetArrayElementSize(elementTypeIndex);
         }
 
-        public int GetArrayElementSize(int elementTypeIndex)
+        public override int GetArrayElementSize(int elementTypeIndex)
         {
             // TODO: round up element size appropriately?
             return GetFieldSize(elementTypeIndex);
         }
 
-        public int GetFieldSize(int typeIndex)
+        int GetFieldSize(int typeIndex)
         {
             if (IsValueType(typeIndex))
             {
@@ -330,11 +330,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             }
         }
 
-        public int SystemStringTypeIndex => m_stringTypeIndex;
+        public override int SystemStringTypeIndex => m_stringTypeIndex;
 
-        public int SystemStringLengthOffset => m_stringLengthOffset;
+        public override int SystemStringLengthOffset => m_stringLengthOffset;
 
-        public int SystemStringFirstCharOffset => m_stringFirstCharOffset;
+        public override int SystemStringFirstCharOffset => m_stringFirstCharOffset;
 
         internal bool IsUnityEngineType(int typeIndex)
         {
@@ -343,7 +343,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         internal int UnityEngineCachecPtrFieldOffset => m_unityEngineCachedPtrFieldOffset;
 
-        public IEnumerable<string> DumpStats()
+        public override IEnumerable<string> DumpStats()
         {
             yield return string.Format("Pointer size: {0}", PointerSize);
             yield return string.Format("Object header size: {0}", m_virtualMachineInformation.ObjectHeaderSize);

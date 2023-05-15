@@ -19,6 +19,9 @@ namespace MemorySnapshotAnalyzer.Commands
         [FlagArgument("groupstatics")]
         public int GroupStatics = -1;
 
+        [FlagArgument("fuseobjectpairs")]
+        public int FuseObjectPairs = -1;
+
         [FlagArgument("weakgchandles")]
         public int WeakGCHandles = -1;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
@@ -52,6 +55,11 @@ namespace MemorySnapshotAnalyzer.Commands
                 Context.Backtracer_GroupStatics = GroupStatics != 0;
             }
 
+            if (FuseObjectPairs != -1)
+            {
+                Context.Backtracer_FuseObjectPairs = FuseObjectPairs != 0;
+            }
+
             if (WeakGCHandles != -1)
             {
                 Context.HeapDom_WeakGCHandles = WeakGCHandles != 0;
@@ -61,6 +69,6 @@ namespace MemorySnapshotAnalyzer.Commands
             Context.Dump(indent: 1);
         }
 
-        public override string HelpText => "options ['rootobject <address or index>] ['groupstatics] ['weakgchandles]";
+        public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['rootobject <address or index>] ['groupstatics] ['fuseobjectpairs] ['weakgchandles]";
     }
 }

@@ -24,6 +24,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         NativeWord m_rootSet_singletonRootAddress;
         // Options for Backtracer
         bool m_backtracer_groupStatics;
+        bool m_backtracer_fuseObjectPairs;
         // Options for HeapDom
         bool m_heapDom_weakGCHandles;
 
@@ -105,21 +106,24 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
             else
             {
-                m_output.WriteLineIndented(indent, "TracedHeap: {0} live objects ({1} invalid roots, {2} invalid pointers)",
+                m_output.WriteLineIndented(indent, "TracedHeap: {0} live objects, {1} object pairs ({2} invalid roots, {3} invalid pointers)",
                     m_currentTracedHeap.NumberOfLiveObjects,
+                    m_currentTraceableHeap!.NumberOfObjectPairs,
                     m_currentTracedHeap.NumberOfInvalidRoots,
                     m_currentTracedHeap.NumberOfInvalidPointers);
             }
 
             if (m_currentBacktracer == null)
             {
-                m_output.WriteLineIndented(indent,"Backtracer[groupstatics={0}] not computed",
-                    m_backtracer_groupStatics);
+                m_output.WriteLineIndented(indent,"Backtracer[groupstatics={0}, fuseobjectpairs={1}] not computed",
+                    m_backtracer_groupStatics,
+                    m_backtracer_fuseObjectPairs);
             }
             else
             {
-                m_output.WriteLineIndented(indent, "Backtracer[groupstatics={0}]",
-                    m_backtracer_groupStatics);
+                m_output.WriteLineIndented(indent, "Backtracer[groupstatics={0}, fuseobjectpairs={1}]",
+                    m_backtracer_groupStatics,
+                    m_backtracer_fuseObjectPairs);
             }
 
             if (m_currentHeapDom == null)
@@ -275,8 +279,9 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             {
                 m_output.Write("[context {0}] tracing heap ...", m_id);
                 m_currentTracedHeap = new TracedHeap(CurrentRootSet!);
-                m_output.WriteLine(" {0} live objects ({1} invalid roots, {2} invalid pointers)",
+                m_output.WriteLine(" {0} live objects, {1} object pairs ({2} invalid roots, {3} invalid pointers)",
                     m_currentTracedHeap.NumberOfLiveObjects,
+                    m_currentTraceableHeap!.NumberOfObjectPairs,
                     m_currentTracedHeap.NumberOfInvalidRoots,
                     m_currentTracedHeap.NumberOfInvalidPointers);
             }
@@ -301,6 +306,19 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
+        public bool Backtracer_FuseObjectPairs
+        {
+            get { return m_backtracer_fuseObjectPairs; }
+            set
+            {
+                if (m_backtracer_fuseObjectPairs != value)
+                {
+                    m_backtracer_fuseObjectPairs = value;
+                    ClearBacktracer();
+                }
+            }
+        }
+
         public IBacktracer? CurrentBacktracer => m_currentBacktracer;
 
         public void EnsureBacktracer()
@@ -312,12 +330,12 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 m_output.Write("[context {0}] computing backtraces ...", m_id);
                 if (m_backtracer_groupStatics)
                 {
-                    var backtracer = new Backtracer(CurrentTracedHeap!);
+                    var backtracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseObjectPairs);
                     m_currentBacktracer = new GroupingBacktracer(backtracer);
                 }
                 else
                 {
-                    m_currentBacktracer = new Backtracer(CurrentTracedHeap!);
+                    m_currentBacktracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseObjectPairs);
                 }
                 m_output.WriteLine(" done");
             }

@@ -19,11 +19,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
             internal UnityManagedTypeSystem UnityManagedTypeSystem => m_unityManagedTypeSystem;
 
-            public override MemoryView StaticFieldBytes(int typeIndex, int fieldNumber)
-            {
-                return m_unityManagedTypeSystem.StaticFieldBytes(typeIndex, fieldNumber);
-            }
-
             public override int ReadArraySize(MemoryView objectView)
             {
                 return m_unityManagedTypeSystem.ReadArraySize(objectView);
@@ -91,18 +86,25 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return null;
         }
 
-        public override IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex, bool includeCrossHeapReferences)
+        public override IEnumerable<NativeWord> GetIntraHeapPointers(NativeWord address, int typeIndex)
+        {
+            return m_segmentedHeap.GetIntraHeapPointers(address, typeIndex);
+        }
+
+        public override IEnumerable<NativeWord> GetInterHeapPointers(NativeWord address, int typeIndex)
         {
             if (m_unityManagedTypeSystem.IsUnityEngineType(typeIndex))
             {
                 MemoryView objectView = m_segmentedHeap.GetMemoryViewForAddress(address);
                 yield return objectView.ReadPointer(m_unityManagedTypeSystem.UnityEngineCachecPtrFieldOffset, Native);
             }
-            
-            foreach (NativeWord reference in m_segmentedHeap.GetObjectPointers(address, typeIndex, includeCrossHeapReferences))
-            {
-                yield return reference;
-            }
+        }
+
+        public override int NumberOfObjectPairs => 0;
+
+        public override NativeWord GetPrimaryObjectForFusedObject(NativeWord address, NativeWord referrer)
+        {
+            return address;
         }
 
         public override bool ContainsAddress(NativeWord address)

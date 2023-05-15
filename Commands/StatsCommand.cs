@@ -35,7 +35,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpTypeSystemStatistics()
         {
-            ITypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
+            TypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
             foreach (string s in typeSystem.DumpStats())
             {
                 Output.WriteLine(s);

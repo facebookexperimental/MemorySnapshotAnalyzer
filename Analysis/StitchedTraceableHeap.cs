@@ -1,6 +1,7 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using System;
 using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.Analysis
@@ -10,6 +11,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly TraceableHeap m_primary;
         readonly TraceableHeap m_secondary;
         readonly string m_description;
+        readonly Dictionary<ulong, ulong> m_fusedObjectParent;
 
         public StitchedTraceableHeap(TraceableHeap primary, TraceableHeap secondary) :
             base(new StitchedTypeSystem(primary.TypeSystem, secondary.TypeSystem))
@@ -17,6 +19,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_primary = primary;
             m_secondary = secondary;
             m_description = $"{primary.Description} -> {secondary.Description}";
+
+            m_fusedObjectParent = new Dictionary<ulong, ulong>();
         }
 
         public override string Description => m_description;
@@ -60,22 +64,48 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_secondary.ContainsAddress(objectAddress) ? m_secondary.GetObjectName(objectAddress) : m_primary.GetObjectName(objectAddress);
         }
 
-        public override IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex, bool includeCrossHeapReferences)
+        public override IEnumerable<NativeWord> GetIntraHeapPointers(NativeWord address, int typeIndex)
         {
             if (m_secondary.ContainsAddress(address))
             {
-                foreach (NativeWord reference in m_secondary.GetObjectPointers(address, typeIndex - m_primary.TypeSystem.NumberOfTypeIndices, includeCrossHeapReferences))
+                foreach (NativeWord reference in m_secondary.GetIntraHeapPointers(address, typeIndex - m_primary.TypeSystem.NumberOfTypeIndices))
                 {
                     yield return reference;
                 }
             }
             else
             {
-                foreach (NativeWord reference in m_primary.GetObjectPointers(address, typeIndex, includeCrossHeapReferences: true))
+                foreach (NativeWord reference in m_primary.GetIntraHeapPointers(address, typeIndex))
                 {
                     yield return reference;
                 }
+
+                foreach (NativeWord reference in m_primary.GetInterHeapPointers(address, typeIndex))
+                {
+                    // We assume that managed and native objects reference one another 1:1.
+                    // We use "TryAdd" so that the data structure doesn't keep changing
+                    // if future calls discover that the assumption is not true.
+                    m_fusedObjectParent.TryAdd(reference.Value, address.Value);
+                    yield return reference;
+                }
             }
+        }
+
+        public override IEnumerable<NativeWord> GetInterHeapPointers(NativeWord address, int typeIndex)
+        {
+            return Array.Empty<NativeWord>();
+        }
+
+        public override int NumberOfObjectPairs => m_fusedObjectParent.Count;
+
+        public override NativeWord GetPrimaryObjectForFusedObject(NativeWord address, NativeWord referrer)
+        {
+            if (m_fusedObjectParent.TryGetValue(address.Value, out ulong primaryObjectAddress)
+                && primaryObjectAddress != referrer.Value)
+            {
+                return Native.From(primaryObjectAddress);
+            }
+            return address;
         }
 
         public override bool ContainsAddress(NativeWord address)

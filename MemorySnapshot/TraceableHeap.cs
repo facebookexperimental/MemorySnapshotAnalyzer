@@ -6,16 +6,16 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
     public abstract class TraceableHeap
     {
-        readonly ITypeSystem m_typeSystem;
+        readonly TypeSystem m_typeSystem;
         readonly Native m_native;
 
-        public TraceableHeap(ITypeSystem typeSystem)
+        public TraceableHeap(TypeSystem typeSystem)
         {
             m_typeSystem = typeSystem;
             m_native = new Native(typeSystem.PointerSize);
         }
 
-        public ITypeSystem TypeSystem => m_typeSystem;
+        public TypeSystem TypeSystem => m_typeSystem;
 
         public Native Native => m_native;
 
@@ -33,7 +33,15 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract string? GetObjectName(NativeWord objectAddress);
 
-        public abstract IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex, bool includeCrossHeapReferences);
+        public abstract IEnumerable<NativeWord> GetIntraHeapPointers(NativeWord address, int typeIndex);
+
+        public abstract IEnumerable<NativeWord> GetInterHeapPointers(NativeWord address, int typeIndex);
+
+        public abstract int NumberOfObjectPairs { get; }
+
+        // Only call this after GetIntraHeapPointers has been called for all live objects,
+        // or results will not be accurate.
+        public abstract NativeWord GetPrimaryObjectForFusedObject(NativeWord address, NativeWord referrer);
 
         public abstract bool ContainsAddress(NativeWord address);
 

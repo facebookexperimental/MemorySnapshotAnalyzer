@@ -88,7 +88,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return m_nativeObjectsByAddress[objectAddress.Value].Name;
         }
 
-        public override IEnumerable<NativeWord> GetObjectPointers(NativeWord address, int typeIndex, bool includeCrossHeapReferences)
+        public override IEnumerable<NativeWord> GetIntraHeapPointers(NativeWord address, int typeIndex)
         {
             int instanceId = m_nativeObjectsByAddress[address.Value].InstanceId;
             if (m_connections.TryGetValue(instanceId, out List<int>? successorInstanceIds))
@@ -98,6 +98,18 @@ namespace MemorySnapshotAnalyzer.UnityBackend
                     yield return m_nativeObjectsByInstanceId[successorInstanceId].ObjectAddress;
                 }
             }
+        }
+
+        public override IEnumerable<NativeWord> GetInterHeapPointers(NativeWord address, int typeIndex)
+        {
+            return Array.Empty<NativeWord>();
+        }
+
+        public override int NumberOfObjectPairs => 0;
+
+        public override NativeWord GetPrimaryObjectForFusedObject(NativeWord address, NativeWord referrer)
+        {
+            return address;
         }
 
         public override bool ContainsAddress(NativeWord address)

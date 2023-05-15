@@ -353,9 +353,10 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                         {
                             field.SetValue(command, flags.Contains(flagName));
                         }
-                        else
+                        else if (flags.Contains(flagName))
                         {
-                            field.SetValue(command, flags.Contains(flagName) ? 1 : 0);
+                            field.SetValue(command, 1);
+                            // TODO: need to support a "noflagname" argument so we can set to 0
                         }
                     }
                 }

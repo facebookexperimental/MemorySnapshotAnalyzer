@@ -26,11 +26,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
             m_roots = new List<RootEntry>();
             AddGCHandleRoots(traceableHeap);
-            SegmentedHeap? segmentedHeap = traceableHeap.SegmentedHeapOpt;
-            if (segmentedHeap != null)
-            {
-                AddStaticRoots(traceableHeap.TypeSystem, segmentedHeap);
-            }
+            AddStaticRoots(traceableHeap.TypeSystem);
         }
 
         void AddGCHandleRoots(TraceableHeap traceableHeap)
@@ -52,7 +48,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_roots.Add(entry);
         }
 
-        void AddStaticRoots(ITypeSystem typeSystem, SegmentedHeap segmentedHeap)
+        void AddStaticRoots(TypeSystem typeSystem)
         {
             // Enumerate all roots in static fields.
             for (int typeIndex = 0; typeIndex < typeSystem.NumberOfTypeIndices; typeIndex++)
@@ -62,13 +58,13 @@ namespace MemorySnapshotAnalyzer.Analysis
                 {
                     if (typeSystem.FieldIsStatic(typeIndex, fieldNumber))
                     {
-                        MemoryView staticFieldBytesView = segmentedHeap.StaticFieldBytes(typeIndex, fieldNumber);
+                        MemoryView staticFieldBytesView = typeSystem.StaticFieldBytes(typeIndex, fieldNumber);
 
                         // Check whether the type has been initialized.
                         if (staticFieldBytesView.IsValid)
                         {
                             int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
-                            foreach (int offset in segmentedHeap.GetFieldPointerOffsets(fieldTypeIndex, baseOffset: 0))
+                            foreach (int offset in typeSystem.GetFieldPointerOffsets(fieldTypeIndex, baseOffset: 0))
                             {
                                 AddStaticRoot(typeIndex, fieldNumber, offset, staticFieldBytesView.ReadPointer(offset, m_traceableHeap.Native));
                             }

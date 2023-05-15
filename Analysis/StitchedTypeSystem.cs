@@ -6,16 +6,16 @@ using System;
 
 namespace MemorySnapshotAnalyzer.Analysis
 {
-    public sealed class StitchedTypeSystem : ITypeSystem
+    public sealed class StitchedTypeSystem : TypeSystem
     {
         readonly int m_pointerSize;
-        readonly ITypeSystem m_first;
-        readonly ITypeSystem m_second;
+        readonly TypeSystem m_first;
+        readonly TypeSystem m_second;
         readonly int m_systemStringTypeIndex;
         readonly int m_systemStringLengthOffset;
         readonly int m_systemStringFirstCharOffset;
 
-        public StitchedTypeSystem(ITypeSystem first, ITypeSystem second)
+        public StitchedTypeSystem(TypeSystem first, TypeSystem second)
         {
             if (first.PointerSize != second.PointerSize)
             {
@@ -49,11 +49,11 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public int PointerSize => m_pointerSize;
+        public override int PointerSize => m_pointerSize;
 
-        public int NumberOfTypeIndices => m_first.NumberOfTypeIndices + m_second.NumberOfTypeIndices;
+        public override int NumberOfTypeIndices => m_first.NumberOfTypeIndices + m_second.NumberOfTypeIndices;
 
-        public string Assembly(int typeIndex)
+        public override string Assembly(int typeIndex)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
@@ -65,7 +65,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public string QualifiedName(int typeIndex)
+        public override string QualifiedName(int typeIndex)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
@@ -77,7 +77,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public string UnqualifiedName(int typeIndex)
+        public override string UnqualifiedName(int typeIndex)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
@@ -89,7 +89,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public int BaseOrElementTypeIndex(int typeIndex)
+        public override int BaseOrElementTypeIndex(int typeIndex)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
@@ -101,7 +101,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public int BaseSize(int typeIndex)
+        public override int BaseSize(int typeIndex)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
@@ -113,7 +113,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public bool IsValueType(int typeIndex)
+        public override bool IsValueType(int typeIndex)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
@@ -125,7 +125,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public bool IsArray(int typeIndex)
+        public override bool IsArray(int typeIndex)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
@@ -137,7 +137,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public int Rank(int typeIndex)
+        public override int Rank(int typeIndex)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
@@ -149,7 +149,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public int NumberOfFields(int typeIndex)
+        public override int NumberOfFields(int typeIndex)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
@@ -161,7 +161,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public int FieldOffset(int typeIndex, int fieldNumber, bool hasHeader)
+        public override int FieldOffset(int typeIndex, int fieldNumber, bool hasHeader)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
@@ -173,7 +173,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public int FieldType(int typeIndex, int fieldNumber)
+        public override int FieldType(int typeIndex, int fieldNumber)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
@@ -185,7 +185,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public string FieldName(int typeIndex, int fieldNumber)
+        public override string FieldName(int typeIndex, int fieldNumber)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
@@ -197,7 +197,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public bool FieldIsStatic(int typeIndex, int fieldNumber)
+        public override bool FieldIsStatic(int typeIndex, int fieldNumber)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
@@ -209,7 +209,19 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public int GetArrayElementOffset(int elementTypeIndex, int elementIndex)
+        public override MemoryView StaticFieldBytes(int typeIndex, int fieldNumber)
+        {
+            if (typeIndex < m_first.NumberOfTypeIndices)
+            {
+                return m_first.StaticFieldBytes(typeIndex, fieldNumber);
+            }
+            else
+            {
+                return m_second.StaticFieldBytes(typeIndex - m_first.NumberOfTypeIndices, fieldNumber);
+            }
+        }
+
+        public override int GetArrayElementOffset(int elementTypeIndex, int elementIndex)
         {
             if (elementTypeIndex < m_first.NumberOfTypeIndices)
             {
@@ -221,7 +233,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public int GetArrayElementSize(int elementTypeIndex)
+        public override int GetArrayElementSize(int elementTypeIndex)
         {
             if (elementTypeIndex < m_first.NumberOfTypeIndices)
             {
@@ -233,13 +245,13 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public int SystemStringTypeIndex => m_systemStringTypeIndex;
+        public override int SystemStringTypeIndex => m_systemStringTypeIndex;
 
-        public int SystemStringLengthOffset => m_systemStringLengthOffset;
+        public override int SystemStringLengthOffset => m_systemStringLengthOffset;
 
-        public int SystemStringFirstCharOffset => m_systemStringFirstCharOffset;
+        public override int SystemStringFirstCharOffset => m_systemStringFirstCharOffset;
 
-        public IEnumerable<string> DumpStats()
+        public override IEnumerable<string> DumpStats()
         {
             foreach (var s in m_first.DumpStats())
             {

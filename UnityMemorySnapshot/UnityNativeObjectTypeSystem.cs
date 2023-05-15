@@ -10,7 +10,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         public int BaseTypeIndex;
     }
 
-    sealed class UnityNativeObjectTypeSystem : ITypeSystem
+    sealed class UnityNativeObjectTypeSystem : TypeSystem
     {
         readonly int m_pointerSize;
         readonly NativeType[] m_nativeTypes;
@@ -21,100 +21,106 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             m_nativeTypes = nativeTypes;
         }
 
-        public int PointerSize => m_pointerSize;
+        public override int PointerSize => m_pointerSize;
 
-        public int NumberOfTypeIndices => m_nativeTypes.Length;
+        public override int NumberOfTypeIndices => m_nativeTypes.Length;
 
-        public string Assembly(int typeIndex)
+        public override string Assembly(int typeIndex)
         {
             return string.Empty;
         }
 
-        public string QualifiedName(int typeIndex)
+        public override string QualifiedName(int typeIndex)
         {
             return m_nativeTypes[typeIndex].Name!;
         }
 
-        public string UnqualifiedName(int typeIndex)
+        public override string UnqualifiedName(int typeIndex)
         {
             return m_nativeTypes[typeIndex].Name!;
         }
 
-        public int BaseOrElementTypeIndex(int typeIndex)
+        public override int BaseOrElementTypeIndex(int typeIndex)
         {
             return m_nativeTypes[typeIndex].BaseTypeIndex;
         }
 
-        public int BaseSize(int typeIndex)
+        public override int BaseSize(int typeIndex)
         {
             throw new NotImplementedException();
         }
 
-        public bool IsValueType(int typeIndex)
+        public override bool IsValueType(int typeIndex)
         {
             return false;
         }
 
-        public bool IsArray(int typeIndex)
+        public override bool IsArray(int typeIndex)
         {
             return false;
         }
 
-        public int Rank(int typeIndex)
+        public override int Rank(int typeIndex)
         {
             return 0;
         }
 
-        public int NumberOfFields(int typeIndex)
+        public override int NumberOfFields(int typeIndex)
         {
             return 0;
         }
 
-        public int FieldOffset(int typeIndex, int fieldNumber, bool hasHeader)
+        public override int FieldOffset(int typeIndex, int fieldNumber, bool hasHeader)
         {
             // Unreachable - no type has fields
             throw new NotImplementedException();
         }
 
-        public int FieldType(int typeIndex, int fieldNumber)
+        public override int FieldType(int typeIndex, int fieldNumber)
         {
             // Unreachable - no type has fields
             throw new NotImplementedException();
         }
 
-        public string FieldName(int typeIndex, int fieldNumber)
+        public override string FieldName(int typeIndex, int fieldNumber)
         {
             // Unreachable - no type has fields
             throw new NotImplementedException();
         }
 
-        public bool FieldIsStatic(int typeIndex, int fieldNumber)
+        public override bool FieldIsStatic(int typeIndex, int fieldNumber)
         {
             // Unreachable - no type has fields
             throw new NotImplementedException();
         }
 
-        public int GetArrayElementOffset(int elementTypeIndex, int elementIndex)
+        public override MemoryView StaticFieldBytes(int typeIndex, int fieldNumber)
+        {
+            // Unreachable - no type has fields
+            throw new NotImplementedException(); ;
+        }
+
+        public override int GetArrayElementOffset(int elementTypeIndex, int elementIndex)
         {
             // Unreachable - for no type does IsArray return true
             throw new NotImplementedException();
         }
 
-        public int GetArrayElementSize(int elementTypeIndex)
+        public override int GetArrayElementSize(int elementTypeIndex)
         {
             // Unreachable - for no type does IsArray return true
             throw new NotImplementedException();
         }
 
-        public int SystemStringTypeIndex => -1;
+        public override int SystemStringTypeIndex => -1;
 
         // Unreachable - no string type
-        public int SystemStringLengthOffset => throw new NotImplementedException();
+        public override int SystemStringLengthOffset => throw new NotImplementedException();
 
         // Unreachable - no string type
-        public int SystemStringFirstCharOffset => throw new NotImplementedException();
+        public override int SystemStringFirstCharOffset => throw new NotImplementedException();
 
-        public IEnumerable<string> DumpStats()
+        public override IEnumerable<string> DumpStats()
         {
             yield return string.Format("Pointer size: {0}", PointerSize);
             yield return string.Format("Number of types: {0}", NumberOfTypeIndices);

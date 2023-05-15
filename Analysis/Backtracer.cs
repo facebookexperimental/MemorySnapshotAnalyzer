@@ -13,7 +13,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly int m_rootNodeIndex;
         readonly Dictionary<int, List<int>> m_predecessors;
 
-        public Backtracer(TracedHeap tracedHeap)
+        public Backtracer(TracedHeap tracedHeap, bool fuseObjectPairs)
         {
             m_tracedHeap = tracedHeap;
             m_rootSet = m_tracedHeap.RootSet;
@@ -29,7 +29,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
             // TODO: use m_tracedHeap.GetNumberOfPredecessors for a more efficient representation
             m_predecessors = new Dictionary<int, List<int>>();
-            ComputePredecessors();
+            ComputePredecessors(fuseObjectPairs);
         }
 
         public TracedHeap TracedHeap => m_tracedHeap;
@@ -137,7 +137,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_predecessors[nodeIndex];
         }
 
-        void ComputePredecessors()
+        void ComputePredecessors(bool fuseObjectPairs)
         {
             m_predecessors.Add(m_rootNodeIndex, new List<int>());
 
@@ -145,8 +145,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 AddPredecessor(m_tracedHeap.NumberOfLiveObjects + rootIndex, m_rootNodeIndex);
 
-                NativeWord address = m_rootSet.GetRoot(rootIndex);
-                int objectIndex = m_tracedHeap.ObjectAddressToIndex(address);
+                NativeWord reference = m_rootSet.GetRoot(rootIndex);
+                NativeWord resolvedReference = fuseObjectPairs ? m_traceableHeap.GetPrimaryObjectForFusedObject(reference, default) : reference;
+
+                int objectIndex = m_tracedHeap.ObjectAddressToIndex(resolvedReference);
                 if (objectIndex != -1)
                 {
                     AddPredecessor(objectIndex, m_tracedHeap.NumberOfLiveObjects + rootIndex);
@@ -157,9 +159,11 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 NativeWord address = m_tracedHeap.ObjectAddress(parentObjectIndex);
                 int typeIndex = m_tracedHeap.ObjectTypeIndex(parentObjectIndex);
-                foreach (NativeWord reference in m_traceableHeap.GetObjectPointers(address, typeIndex, includeCrossHeapReferences: false))
+                foreach (NativeWord reference in m_traceableHeap.GetIntraHeapPointers(address, typeIndex))
                 {
-                    int childObjectIndex = m_tracedHeap.ObjectAddressToIndex(reference);
+                    NativeWord resolvedReference = fuseObjectPairs ? m_traceableHeap.GetPrimaryObjectForFusedObject(reference, address) : reference;
+
+                    int childObjectIndex = m_tracedHeap.ObjectAddressToIndex(resolvedReference);
                     if (childObjectIndex != -1)
                     {
                         AddPredecessor(childObjectIndex, parentObjectIndex);

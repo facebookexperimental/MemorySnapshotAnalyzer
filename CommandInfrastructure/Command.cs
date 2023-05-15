@@ -154,7 +154,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 }
 
                 nativeValue = memoryView.ReadNativeWord(0, CurrentMemorySnapshot.Native);
-                sb.AppendFormat("{0}: {1}", addressOfValue, nativeValue);
+                sb.AppendFormat("{0}: {1}  ", addressOfValue, nativeValue);
             }
 
             // If we have traced the heap, check whether it's a live object or a pointer to a live object.
@@ -171,7 +171,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 objectIndex = CurrentTracedHeap.ObjectAddressToIndex(nativeValue);
                 if (objectIndex != -1)
                 {
-                    sb.Append("  pointer to ");
+                    sb.Append("pointer to ");
                     DescribeObject(objectIndex, nativeValue, sb);
                     return;
                 }
@@ -186,7 +186,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             string? typeDescription = CurrentTraceableHeap.DescribeAddress(addressOfValue);
             if (typeDescription != null)
             {
-                sb.AppendFormat("  {0}", typeDescription);
+                sb.AppendFormat("{0}", typeDescription);
                 return;
             }
 
@@ -195,15 +195,15 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 HeapSegment? segment = segmentedHeap.GetSegmentForAddress(nativeValue);
                 if (segment == null)
                 {
-                    sb.Append("  not a pointer to mapped memory");
+                    sb.Append("not a pointer to mapped memory");
                 }
                 else if (segment.IsRuntimeTypeInformation)
                 {
-                    sb.AppendFormat("  pointer into rtti[segment @ {0:X016}]", segment.StartAddress);
+                    sb.AppendFormat("pointer into rtti[segment @ {0:X016}]", segment.StartAddress);
                 }
                 else
                 {
-                    sb.AppendFormat("  pointer into managed heap[segment @ {0:X016}]", segment.StartAddress);
+                    sb.AppendFormat("pointer into managed heap[segment @ {0:X016}]", segment.StartAddress);
                 }
             }
         }
@@ -248,12 +248,22 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 typeIndex);
 
             var sb = new StringBuilder();
-            foreach (NativeWord reference in CurrentTraceableHeap.GetObjectPointers(address, typeIndex, includeCrossHeapReferences: false))
+            foreach (NativeWord reference in CurrentTraceableHeap.GetIntraHeapPointers(address, typeIndex))
             {
                 DescribeAddress(reference, sb);
                 if (sb.Length > 0)
                 {
                     Output.WriteLineIndented(1, sb.ToString());
+                    sb.Clear();
+                }
+            }
+
+            foreach (NativeWord reference in CurrentTraceableHeap.GetInterHeapPointers(address, typeIndex))
+            {
+                DescribeAddress(reference, sb);
+                if (sb.Length > 0)
+                {
+                    Output.WriteLineIndented(1, "cross-heap {0}", sb.ToString());
                     sb.Clear();
                 }
             }
@@ -276,7 +286,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             // TODO: if the address is not valid, later reads into the assumed object memory range can throw
 
-            ITypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
+            TypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
             if (typeIndex == typeSystem.SystemStringTypeIndex)
             {
@@ -349,7 +359,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         protected void DumpFieldMemory(MemoryView objectView, int fieldTypeIndex, int indent)
         {
-            ITypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
+            TypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
             if (typeSystem.IsValueType(fieldTypeIndex))
             {
@@ -364,7 +374,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         protected void DumpValueTypeMemory(MemoryView objectView, int typeIndex, int indent)
         {
-            ITypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
+            TypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
             int numberOfFields = typeSystem.NumberOfFields(typeIndex);
             if (numberOfFields == 0)
