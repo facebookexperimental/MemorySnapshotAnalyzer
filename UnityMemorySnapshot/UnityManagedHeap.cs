@@ -51,6 +51,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         public override int TryGetTypeIndex(NativeWord objectAddress)
         {
             MemoryView objectView = m_segmentedHeap.GetMemoryViewForAddress(objectAddress);
+            if (!objectView.IsValid)
+            {
+                return -1;
+            }
+
             NativeWord klassPointer = objectView.ReadPointer(0, Native);
 
             // This is the representation for a heap object when running standalone.

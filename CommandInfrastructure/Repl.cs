@@ -328,11 +328,9 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                                 break;
                             case NamedArgumentKind.PositiveFlag:
                                 flags.Add(atom, true);
-                                i++;
                                 break;
                             case NamedArgumentKind.NegativeFlag:
                                 flags.Add(atom.Substring(2), false); // remove "no" prefix
-                                i++;
                                 break;
                         }
                         continue;

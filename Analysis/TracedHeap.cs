@@ -56,7 +56,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 m_rootIndexBeingMarked = rootIndex;
                 NativeWord address = rootSet.GetRoot(rootIndex);
-                Mark(address, address);
+                Mark(address, default);
             }
             m_rootIndexBeingMarked = -1;
 
