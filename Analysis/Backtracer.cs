@@ -13,7 +13,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly int m_rootNodeIndex;
         readonly Dictionary<int, List<int>> m_predecessors;
 
-        public Backtracer(TracedHeap tracedHeap, bool fuseObjectPairs)
+        public Backtracer(TracedHeap tracedHeap, bool fuseObjectPairs, bool fuseGCHandles)
         {
             m_tracedHeap = tracedHeap;
             m_rootSet = m_tracedHeap.RootSet;
@@ -29,7 +29,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
             // TODO: use m_tracedHeap.GetNumberOfPredecessors for a more efficient representation
             m_predecessors = new Dictionary<int, List<int>>();
-            ComputePredecessors(fuseObjectPairs);
+            ComputePredecessors(fuseObjectPairs, fuseGCHandles);
         }
 
         public TracedHeap TracedHeap => m_tracedHeap;
@@ -137,18 +137,35 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_predecessors[nodeIndex];
         }
 
-        void ComputePredecessors(bool fuseObjectPairs)
+        void ComputePredecessors(bool fuseObjectPairs, bool fuseGCHandles)
         {
             m_predecessors.Add(m_rootNodeIndex, new List<int>());
 
+            Dictionary<ulong, int>? fusedGCHandles;
+            if (fuseGCHandles)
+            {
+                fusedGCHandles = new Dictionary<ulong, int>();
+                for (int rootIndex = 0; rootIndex < m_rootSet.NumberOfRoots; rootIndex++)
+                {
+                    NativeWord reference = m_rootSet.GetRoot(rootIndex);
+                    fusedGCHandles[reference.Value] = m_tracedHeap.NumberOfLiveObjects + rootIndex;
+                }
+            }
+            else
+            {
+                fusedGCHandles = null;
+            }
+
             for (int rootIndex = 0; rootIndex < m_rootSet.NumberOfRoots; rootIndex++)
             {
-                AddPredecessor(m_tracedHeap.NumberOfLiveObjects + rootIndex, m_rootNodeIndex);
+                if (!fuseGCHandles)
+                {
+                    AddPredecessor(m_tracedHeap.NumberOfLiveObjects + rootIndex, m_rootNodeIndex);
+                }
 
                 NativeWord reference = m_rootSet.GetRoot(rootIndex);
-                NativeWord resolvedReference = fuseObjectPairs ? m_traceableHeap.GetPrimaryObjectForFusedObject(reference, default) : reference;
 
-                int objectIndex = m_tracedHeap.ObjectAddressToIndex(resolvedReference);
+                int objectIndex = FuseObjects(reference, default, fuseObjectPairs, null);
                 if (objectIndex != -1)
                 {
                     AddPredecessor(objectIndex, m_tracedHeap.NumberOfLiveObjects + rootIndex);
@@ -161,15 +178,23 @@ namespace MemorySnapshotAnalyzer.Analysis
                 int typeIndex = m_tracedHeap.ObjectTypeIndex(parentObjectIndex);
                 foreach (NativeWord reference in m_traceableHeap.GetIntraHeapPointers(address, typeIndex))
                 {
-                    NativeWord resolvedReference = fuseObjectPairs ? m_traceableHeap.GetPrimaryObjectForFusedObject(reference, address) : reference;
-
-                    int childObjectIndex = m_tracedHeap.ObjectAddressToIndex(resolvedReference);
+                    int childObjectIndex = FuseObjects(reference, address, fuseObjectPairs, fusedGCHandles);
                     if (childObjectIndex != -1)
                     {
                         AddPredecessor(childObjectIndex, parentObjectIndex);
                     }
                 }
             }
+        }
+
+        int FuseObjects(NativeWord reference, NativeWord referrer, bool fuseObjectPairs, Dictionary<ulong, int>? fusedGCHandles)
+        {
+            NativeWord resolvedReference = fuseObjectPairs ? m_traceableHeap.GetPrimaryObjectForFusedObject(reference, referrer) : reference;
+            if (fusedGCHandles != null && fusedGCHandles.TryGetValue(resolvedReference.Value, out int nodeIndex))
+            {
+                return nodeIndex;
+            }
+            return m_tracedHeap.ObjectAddressToIndex(resolvedReference);
         }
 
         void AddPredecessor(int childNodeIndex, int parentNodeIndex)

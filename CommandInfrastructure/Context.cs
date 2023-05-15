@@ -25,6 +25,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         // Options for Backtracer
         bool m_backtracer_groupStatics;
         bool m_backtracer_fuseObjectPairs;
+        bool m_backtracer_fuseGCHandles;
         // Options for HeapDom
         bool m_heapDom_weakGCHandles;
 
@@ -47,6 +48,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             {
                 RootSet_SingletonRootAddress = other.RootSet_SingletonRootAddress,
                 Backtracer_GroupStatics = other.Backtracer_GroupStatics,
+                Backtracer_FuseObjectPairs = other.Backtracer_FuseObjectPairs,
+                Backtracer_FuseGCHandles = other.Backtracer_FuseGCHandles,
                 HeapDom_WeakGCHandles = other.HeapDom_WeakGCHandles
             };
             return newContext;
@@ -115,15 +118,17 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
             if (m_currentBacktracer == null)
             {
-                m_output.WriteLineIndented(indent,"Backtracer[groupstatics={0}, fuseobjectpairs={1}] not computed",
+                m_output.WriteLineIndented(indent,"Backtracer[groupstatics={0}, fuseobjectpairs={1}, fusegchandles={2}] not computed",
                     m_backtracer_groupStatics,
-                    m_backtracer_fuseObjectPairs);
+                    m_backtracer_fuseObjectPairs,
+                    m_backtracer_fuseGCHandles);
             }
             else
             {
-                m_output.WriteLineIndented(indent, "Backtracer[groupstatics={0}, fuseobjectpairs={1}]",
+                m_output.WriteLineIndented(indent, "Backtracer[groupstatics={0}, fuseobjectpairs={1}, fusegchandles={2}]",
                     m_backtracer_groupStatics,
-                    m_backtracer_fuseObjectPairs);
+                    m_backtracer_fuseObjectPairs,
+                    m_backtracer_fuseGCHandles);
             }
 
             if (m_currentHeapDom == null)
@@ -319,6 +324,19 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
+        public bool Backtracer_FuseGCHandles
+        {
+            get { return m_backtracer_fuseGCHandles; }
+            set
+            {
+                if (m_backtracer_fuseGCHandles != value)
+                {
+                    m_backtracer_fuseGCHandles = value;
+                    ClearBacktracer();
+                }
+            }
+        }
+
         public IBacktracer? CurrentBacktracer => m_currentBacktracer;
 
         public void EnsureBacktracer()
@@ -330,12 +348,12 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 m_output.Write("[context {0}] computing backtraces ...", m_id);
                 if (m_backtracer_groupStatics)
                 {
-                    var backtracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseObjectPairs);
+                    var backtracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseObjectPairs, m_backtracer_fuseGCHandles);
                     m_currentBacktracer = new GroupingBacktracer(backtracer);
                 }
                 else
                 {
-                    m_currentBacktracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseObjectPairs);
+                    m_currentBacktracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseObjectPairs, m_backtracer_fuseGCHandles);
                 }
                 m_output.WriteLine(" done");
             }
