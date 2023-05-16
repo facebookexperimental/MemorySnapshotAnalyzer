@@ -13,14 +13,14 @@ namespace MemorySnapshotAnalyzer.Commands
         [NamedArgument("heap")]
         public string? HeapKind;
 
+        [FlagArgument("fuseobjectpairs")]
+        public int FuseObjectPairs = -1;
+
         [NamedArgument("rootobject")]
         public NativeWord Address;
 
         [FlagArgument("groupstatics")]
         public int GroupStatics = -1;
-
-        [FlagArgument("fuseobjectpairs")]
-        public int FuseObjectPairs = -1;
 
         [FlagArgument("fusegchandles")]
         public int FuseGCHandles = -1;
@@ -48,6 +48,11 @@ namespace MemorySnapshotAnalyzer.Commands
                 }
             }
 
+            if (FuseObjectPairs != -1)
+            {
+                Context.TraceableHeap_FuseObjectPairs = FuseObjectPairs != 0;
+            }
+
             if (Address.Size != 0)
             {
                 Context.RootSet_SingletonRootAddress = Address;
@@ -56,11 +61,6 @@ namespace MemorySnapshotAnalyzer.Commands
             if (GroupStatics != -1)
             {
                 Context.Backtracer_GroupStatics = GroupStatics != 0;
-            }
-
-            if (FuseObjectPairs != -1)
-            {
-                Context.Backtracer_FuseObjectPairs = FuseObjectPairs != 0;
             }
 
             if (FuseGCHandles != -1)
@@ -77,6 +77,6 @@ namespace MemorySnapshotAnalyzer.Commands
             Context.Dump(indent: 1);
         }
 
-        public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['rootobject <address or index>] ['groupstatics] ['fuseobjectpairs] ['fusegchandles]";
+        public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['fuseobjectpairs] ['rootobject <address or index>] ['groupstatics] ['fusegchandles]";
     }
 }

@@ -39,10 +39,6 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract int NumberOfObjectPairs { get; }
 
-        // Only call this after GetIntraHeapPointers has been called for all live objects,
-        // or results will not be accurate.
-        public abstract NativeWord GetPrimaryObjectForFusedObject(NativeWord address, NativeWord referrer);
-
         public abstract bool ContainsAddress(NativeWord address);
 
         public abstract string? DescribeAddress(NativeWord address);

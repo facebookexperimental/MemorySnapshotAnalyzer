@@ -20,11 +20,11 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         // Options for TraceableHeap
         TraceableHeapKind m_traceableHeap_kind;
+        bool m_traceableHeap_fuseObjectPairs;
         // Options for RootSet
         NativeWord m_rootSet_singletonRootAddress;
         // Options for Backtracer
         bool m_backtracer_groupStatics;
-        bool m_backtracer_fuseObjectPairs;
         bool m_backtracer_fuseGCHandles;
         // Options for HeapDom
         bool m_heapDom_weakGCHandles;
@@ -47,8 +47,9 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             var newContext = new Context(newId, other.m_output)
             {
                 RootSet_SingletonRootAddress = other.RootSet_SingletonRootAddress,
+                TraceableHeap_Kind = other.TraceableHeap_Kind,
+                TraceableHeap_FuseObjectPairs = other.TraceableHeap_FuseObjectPairs,
                 Backtracer_GroupStatics = other.Backtracer_GroupStatics,
-                Backtracer_FuseObjectPairs = other.Backtracer_FuseObjectPairs,
                 Backtracer_FuseGCHandles = other.Backtracer_FuseGCHandles,
                 HeapDom_WeakGCHandles = other.HeapDom_WeakGCHandles
             };
@@ -77,15 +78,18 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
             if (m_currentTraceableHeap == null)
             {
-                m_output.WriteLineIndented(indent, "TraceableHeap[kind={0}] not computed",
-                    m_traceableHeap_kind);
+                m_output.WriteLineIndented(indent, "TraceableHeap[kind={0}, fuseobjectpairs={1}] not computed",
+                    m_traceableHeap_kind,
+                    m_traceableHeap_fuseObjectPairs);
             }
             else
             {
-                m_output.WriteLineIndented(indent, "TraceableHeap[kind={0}] {1} ({2} type indices, {3})",
+                m_output.WriteLineIndented(indent, "TraceableHeap[kind={0}, fuseobjectpairs={1}] {2} ({3} type indices, {4} object pairs, {5})",
                     m_traceableHeap_kind,
+                    m_traceableHeap_fuseObjectPairs,
                     m_currentTraceableHeap.Description,
                     m_currentTraceableHeap.TypeSystem.NumberOfTypeIndices,
+                    m_currentTraceableHeap.NumberOfObjectPairs,
                     m_currentTraceableHeap.SegmentedHeapOpt != null ? "with memory" : "without memory");
             }
 
@@ -109,25 +113,22 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
             else
             {
-                m_output.WriteLineIndented(indent, "TracedHeap: {0} live objects, {1} object pairs ({2} invalid roots, {3} invalid pointers)",
+                m_output.WriteLineIndented(indent, "TracedHeap: {0} live objects ({1} invalid roots, {2} invalid pointers)",
                     m_currentTracedHeap.NumberOfLiveObjects,
-                    m_currentTraceableHeap!.NumberOfObjectPairs,
                     m_currentTracedHeap.NumberOfInvalidRoots,
                     m_currentTracedHeap.NumberOfInvalidPointers);
             }
 
             if (m_currentBacktracer == null)
             {
-                m_output.WriteLineIndented(indent,"Backtracer[groupstatics={0}, fuseobjectpairs={1}, fusegchandles={2}] not computed",
+                m_output.WriteLineIndented(indent,"Backtracer[groupstatics={0}, fusegchandles={1}] not computed",
                     m_backtracer_groupStatics,
-                    m_backtracer_fuseObjectPairs,
                     m_backtracer_fuseGCHandles);
             }
             else
             {
-                m_output.WriteLineIndented(indent, "Backtracer[groupstatics={0}, fuseobjectpairs={1}, fusegchandles={2}]",
+                m_output.WriteLineIndented(indent, "Backtracer[groupstatics={0}, fusegchandles={1}]",
                     m_backtracer_groupStatics,
-                    m_backtracer_fuseObjectPairs,
                     m_backtracer_fuseGCHandles);
             }
 
@@ -190,6 +191,22 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
+        public bool TraceableHeap_FuseObjectPairs
+        {
+            get { return m_traceableHeap_fuseObjectPairs; }
+            set
+            {
+                if (m_traceableHeap_fuseObjectPairs != value)
+                {
+                    m_traceableHeap_fuseObjectPairs = value;
+                    if (m_traceableHeap_kind == TraceableHeapKind.Stitched)
+                    {
+                        ClearTraceableHeap();
+                    }
+                }
+            }
+        }
+
         public TraceableHeap? CurrentTraceableHeap => m_currentTraceableHeap;
 
         public void EnsureTraceableHeap()
@@ -211,15 +228,19 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                         m_currentTraceableHeap = m_currentMemorySnapshot.NativeHeap;
                         break;
                     case TraceableHeapKind.Stitched:
-                        m_currentTraceableHeap = new StitchedTraceableHeap(m_currentMemorySnapshot.ManagedHeap, m_currentMemorySnapshot.NativeHeap);
+                        m_currentTraceableHeap = new StitchedTraceableHeap(
+                            m_currentMemorySnapshot.ManagedHeap,
+                            m_currentMemorySnapshot.NativeHeap,
+                            m_traceableHeap_fuseObjectPairs);
                         break;
                     default:
                         throw new IndexOutOfRangeException();
                 }
 
-                m_output.WriteLine(" {0} ({1} type indices, {2})",
+                m_output.WriteLine(" {0} ({1} type indices, {2} object pairs, {3})",
                     m_currentTraceableHeap.Description,
                     m_currentTraceableHeap.TypeSystem.NumberOfTypeIndices,
+                    m_currentTraceableHeap.NumberOfObjectPairs,
                     m_currentTraceableHeap.SegmentedHeapOpt != null ? "with memory" : "without memory");
             }
         }
@@ -284,9 +305,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             {
                 m_output.Write("[context {0}] tracing heap ...", m_id);
                 m_currentTracedHeap = new TracedHeap(CurrentRootSet!);
-                m_output.WriteLine(" {0} live objects, {1} object pairs ({2} invalid roots, {3} invalid pointers)",
+                m_output.WriteLine(" {0} live objects ({1} invalid roots, {2} invalid pointers)",
                     m_currentTracedHeap.NumberOfLiveObjects,
-                    m_currentTraceableHeap!.NumberOfObjectPairs,
                     m_currentTracedHeap.NumberOfInvalidRoots,
                     m_currentTracedHeap.NumberOfInvalidPointers);
             }
@@ -306,19 +326,6 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 if (m_backtracer_groupStatics != value)
                 {
                     m_backtracer_groupStatics = value;
-                    ClearBacktracer();
-                }
-            }
-        }
-
-        public bool Backtracer_FuseObjectPairs
-        {
-            get { return m_backtracer_fuseObjectPairs; }
-            set
-            {
-                if (m_backtracer_fuseObjectPairs != value)
-                {
-                    m_backtracer_fuseObjectPairs = value;
                     ClearBacktracer();
                 }
             }
@@ -348,12 +355,12 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 m_output.Write("[context {0}] computing backtraces ...", m_id);
                 if (m_backtracer_groupStatics)
                 {
-                    var backtracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseObjectPairs, m_backtracer_fuseGCHandles);
+                    var backtracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseGCHandles);
                     m_currentBacktracer = new GroupingBacktracer(backtracer);
                 }
                 else
                 {
-                    m_currentBacktracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseObjectPairs, m_backtracer_fuseGCHandles);
+                    m_currentBacktracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseGCHandles);
                 }
                 m_output.WriteLine(" done");
             }

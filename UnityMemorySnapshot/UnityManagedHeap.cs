@@ -107,11 +107,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         public override int NumberOfObjectPairs => 0;
 
-        public override NativeWord GetPrimaryObjectForFusedObject(NativeWord address, NativeWord referrer)
-        {
-            return address;
-        }
-
         public override bool ContainsAddress(NativeWord address)
         {
             return m_segmentedHeap.GetSegmentForAddress(address) != null;

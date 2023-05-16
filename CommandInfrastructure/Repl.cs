@@ -38,8 +38,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             m_contexts.Add(0, new Context(0, m_output)
             {
                 // TODO: read TraceableHeap_Kind value
+                TraceableHeap_FuseObjectPairs = configuration.GetValue<bool>("FuseObjectPairs"),
                 Backtracer_GroupStatics = configuration.GetValue<bool>("GroupStatics"),
-                Backtracer_FuseObjectPairs = configuration.GetValue<bool>("FuseObjectPairs"),
                 Backtracer_FuseGCHandles = configuration.GetValue<bool>("FuseGCHandles"),
                 HeapDom_WeakGCHandles = configuration.GetValue<bool>("WeakGCHandles")
             });

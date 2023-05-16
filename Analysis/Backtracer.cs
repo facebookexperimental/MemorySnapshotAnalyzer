@@ -13,7 +13,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly int m_rootNodeIndex;
         readonly Dictionary<int, List<int>> m_predecessors;
 
-        public Backtracer(TracedHeap tracedHeap, bool fuseObjectPairs, bool fuseGCHandles)
+        public Backtracer(TracedHeap tracedHeap, bool fuseGCHandles)
         {
             m_tracedHeap = tracedHeap;
             m_rootSet = m_tracedHeap.RootSet;
@@ -29,7 +29,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
             // TODO: use m_tracedHeap.GetNumberOfPredecessors for a more efficient representation
             m_predecessors = new Dictionary<int, List<int>>();
-            ComputePredecessors(fuseObjectPairs, fuseGCHandles);
+            ComputePredecessors(fuseGCHandles);
         }
 
         public TracedHeap TracedHeap => m_tracedHeap;
@@ -137,10 +137,11 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_predecessors[nodeIndex];
         }
 
-        void ComputePredecessors(bool fuseObjectPairs, bool fuseGCHandles)
+        void ComputePredecessors(bool fuseGCHandles)
         {
             m_predecessors.Add(m_rootNodeIndex, new List<int>());
 
+            // If fusing GCHandles with their target objects, construct the helper data structure for fusing them.
             Dictionary<ulong, int>? fusedGCHandles;
             if (fuseGCHandles)
             {
@@ -148,7 +149,11 @@ namespace MemorySnapshotAnalyzer.Analysis
                 for (int rootIndex = 0; rootIndex < m_rootSet.NumberOfRoots; rootIndex++)
                 {
                     NativeWord reference = m_rootSet.GetRoot(rootIndex);
-                    fusedGCHandles[reference.Value] = m_tracedHeap.NumberOfLiveObjects + rootIndex;
+                    int objectIndex = m_tracedHeap.ObjectAddressToIndex(reference);
+                    if (objectIndex != -1)
+                    {
+                        fusedGCHandles[reference.Value] = m_tracedHeap.NumberOfLiveObjects + rootIndex;
+                    }
                 }
             }
             else
@@ -156,52 +161,57 @@ namespace MemorySnapshotAnalyzer.Analysis
                 fusedGCHandles = null;
             }
 
+            // Each GCHandle is a predecessor for its target.
             for (int rootIndex = 0; rootIndex < m_rootSet.NumberOfRoots; rootIndex++)
             {
-                if (!fuseGCHandles)
-                {
-                    AddPredecessor(m_tracedHeap.NumberOfLiveObjects + rootIndex, m_rootNodeIndex);
-                }
-
                 NativeWord reference = m_rootSet.GetRoot(rootIndex);
-
-                int objectIndex = FuseObjects(reference, default, fuseObjectPairs, null);
+                int objectIndex = m_tracedHeap.ObjectAddressToIndex(reference);
                 if (objectIndex != -1)
                 {
                     AddPredecessor(objectIndex, m_tracedHeap.NumberOfLiveObjects + rootIndex);
                 }
             }
 
+            // For each object node, add it as a predecessor to all objects it has references to.
             for (int parentObjectIndex = 0; parentObjectIndex < m_tracedHeap.NumberOfLiveObjects; parentObjectIndex++)
             {
                 NativeWord address = m_tracedHeap.ObjectAddress(parentObjectIndex);
                 int typeIndex = m_tracedHeap.ObjectTypeIndex(parentObjectIndex);
                 foreach (NativeWord reference in m_traceableHeap.GetIntraHeapPointers(address, typeIndex))
                 {
-                    int childObjectIndex = FuseObjects(reference, address, fuseObjectPairs, fusedGCHandles);
+                    int childObjectIndex = FuseGCHandleAndObject(reference, fusedGCHandles);
                     if (childObjectIndex != -1)
                     {
                         AddPredecessor(childObjectIndex, parentObjectIndex);
                     }
                 }
             }
+
+            // Parent any GCHandles that don't yet have any predecessor to the global root node.
+            for (int rootIndex = 0; rootIndex < m_rootSet.NumberOfRoots; rootIndex++)
+            {
+                if (!m_predecessors.ContainsKey(m_tracedHeap.NumberOfLiveObjects + rootIndex))
+                {
+                    AddPredecessor(m_tracedHeap.NumberOfLiveObjects + rootIndex, m_rootNodeIndex);
+                }
+            }
         }
 
-        int FuseObjects(NativeWord reference, NativeWord referrer, bool fuseObjectPairs, Dictionary<ulong, int>? fusedGCHandles)
+        int FuseGCHandleAndObject(NativeWord reference, Dictionary<ulong, int>? fusedGCHandles)
         {
-            NativeWord resolvedReference = fuseObjectPairs ? m_traceableHeap.GetPrimaryObjectForFusedObject(reference, referrer) : reference;
-            if (fusedGCHandles != null && fusedGCHandles.TryGetValue(resolvedReference.Value, out int nodeIndex))
+            // TODO: this does not preserve reverse postorder
+            if (fusedGCHandles != null && fusedGCHandles.TryGetValue(reference.Value, out int nodeIndex))
             {
                 return nodeIndex;
             }
-            return m_tracedHeap.ObjectAddressToIndex(resolvedReference);
+            return m_tracedHeap.ObjectAddressToIndex(reference);
         }
 
         void AddPredecessor(int childNodeIndex, int parentNodeIndex)
         {
-            if (m_predecessors.TryGetValue(childNodeIndex, out List<int>? nodeIndices))
+            if (m_predecessors.TryGetValue(childNodeIndex, out List<int>? parentNodeIndices))
             {
-                nodeIndices!.Add(parentNodeIndex);
+                parentNodeIndices!.Add(parentNodeIndex);
             }
             else
             {

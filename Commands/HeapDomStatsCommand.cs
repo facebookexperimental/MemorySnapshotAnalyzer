@@ -13,33 +13,39 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            Output.WriteLine("Number of objects dominated only by root node:");
-
             int rootNodeIndex = CurrentHeapDom.RootNodeIndex;
             List<int>? children = CurrentHeapDom.GetChildren(CurrentHeapDom.RootNodeIndex);
-            if (children == null)
-            {
-                return;
-            }
 
             var stats = new Dictionary<int, Tuple<int, long>>();
-            for (int i = 0; i < children.Count; i++)
+            int totalObjectCount = 0;
+            int totalGCHandleCount = 0;
+            if (children != null)
             {
-                int nodeIndex = children[i];
-                if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
+                for (int i = 0; i < children.Count; i++)
                 {
-                    int objectIndex = CurrentBacktracer.NodeIndexToObjectIndex(nodeIndex);
-                    int typeIndex = CurrentTracedHeap.ObjectTypeIndex(objectIndex);
-                    if (stats.TryGetValue(typeIndex, out Tuple<int, long>? data))
+                    int nodeIndex = children[i];
+                    if (CurrentBacktracer.IsGCHandle(nodeIndex))
                     {
-                        stats[typeIndex] = Tuple.Create(data!.Item1 + 1, data!.Item2 + CurrentHeapDom.TreeSize(nodeIndex));
+                        totalGCHandleCount++;
                     }
-                    else
+                    else if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
                     {
-                        stats[typeIndex] = Tuple.Create(1, CurrentHeapDom.TreeSize(nodeIndex));
+                        totalObjectCount++;
+                        int objectIndex = CurrentBacktracer.NodeIndexToObjectIndex(nodeIndex);
+                        int typeIndex = CurrentTracedHeap.ObjectTypeIndex(objectIndex);
+                        if (stats.TryGetValue(typeIndex, out Tuple<int, long>? data))
+                        {
+                            stats[typeIndex] = Tuple.Create(data!.Item1 + 1, data!.Item2 + CurrentHeapDom.TreeSize(nodeIndex));
+                        }
+                        else
+                        {
+                            stats[typeIndex] = Tuple.Create(1, CurrentHeapDom.TreeSize(nodeIndex));
+                        }
                     }
                 }
             }
+
+            Output.WriteLine("Number of nodes dominated only by root node: {0} objects, {1} GC handles", totalObjectCount, totalGCHandleCount);
 
             var statsArray = stats.ToArray();
             Array.Sort(statsArray, (a, b) => b.Value.Item1.CompareTo(a.Value.Item1));

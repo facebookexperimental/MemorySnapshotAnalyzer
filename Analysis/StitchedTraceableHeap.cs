@@ -11,16 +11,24 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly TraceableHeap m_primary;
         readonly TraceableHeap m_secondary;
         readonly string m_description;
-        readonly Dictionary<ulong, ulong> m_fusedObjectParent;
+        readonly bool m_computingObjectPairs;
+        readonly Dictionary<ulong, ulong>? m_fusedObjectParent;
 
-        public StitchedTraceableHeap(TraceableHeap primary, TraceableHeap secondary) :
+        public StitchedTraceableHeap(TraceableHeap primary, TraceableHeap secondary, bool fuseObjectPairs) :
             base(new StitchedTypeSystem(primary.TypeSystem, secondary.TypeSystem))
         {
             m_primary = primary;
             m_secondary = secondary;
             m_description = $"{primary.Description} -> {secondary.Description}";
 
-            m_fusedObjectParent = new Dictionary<ulong, ulong>();
+            if (fuseObjectPairs)
+            {
+                m_computingObjectPairs = true;
+                m_fusedObjectParent = new Dictionary<ulong, ulong>();
+                // Perform heap tracing once, for the side effect of discovering all object pairs.
+                var _ = new TracedHeap(new RootSet(this));
+                m_computingObjectPairs = false;
+            }
         }
 
         public override string Description => m_description;
@@ -70,6 +78,15 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 foreach (NativeWord reference in m_secondary.GetIntraHeapPointers(address, typeIndex - m_primary.TypeSystem.NumberOfTypeIndices))
                 {
+                    if (m_fusedObjectParent != null && !m_computingObjectPairs)
+                    {
+                        if (m_fusedObjectParent.TryGetValue(reference.Value, out ulong parentAddress))
+                        {
+                            yield return Native.From(parentAddress);
+                            continue;
+                        }
+                    }
+
                     yield return reference;
                 }
             }
@@ -82,10 +99,14 @@ namespace MemorySnapshotAnalyzer.Analysis
 
                 foreach (NativeWord reference in m_primary.GetInterHeapPointers(address, typeIndex))
                 {
-                    // We assume that managed and native objects reference one another 1:1.
-                    // We use "TryAdd" so that the data structure doesn't keep changing
-                    // if future calls discover that the assumption is not true.
-                    m_fusedObjectParent.TryAdd(reference.Value, address.Value);
+                    if (m_computingObjectPairs)
+                    {
+                        // We assume that managed and native objects reference one another 1:1.
+                        // We use "TryAdd" so that the data structure doesn't keep changing
+                        // if future calls discover that the assumption is not true.
+                        m_fusedObjectParent!.TryAdd(reference.Value, address.Value);
+                    }
+
                     yield return reference;
                 }
             }
@@ -96,17 +117,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             return Array.Empty<NativeWord>();
         }
 
-        public override int NumberOfObjectPairs => m_fusedObjectParent.Count;
-
-        public override NativeWord GetPrimaryObjectForFusedObject(NativeWord address, NativeWord referrer)
-        {
-            if (m_fusedObjectParent.TryGetValue(address.Value, out ulong primaryObjectAddress)
-                && primaryObjectAddress != referrer.Value)
-            {
-                return Native.From(primaryObjectAddress);
-            }
-            return address;
-        }
+        public override int NumberOfObjectPairs => m_fusedObjectParent == null ? 0 : m_fusedObjectParent.Count;
 
         public override bool ContainsAddress(NativeWord address)
         {
