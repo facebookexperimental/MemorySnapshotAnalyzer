@@ -133,7 +133,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
             if (segmentedHeap != null && !segmentedHeap.GetMemoryViewForAddress(addressOrIndex).IsValid)
             {
-                throw new CommandException($"argument ${addressOrIndex} is neither an address in mapped memory, nor is it an object index");
+                throw new CommandException($"argument {addressOrIndex} is neither an address in mapped memory, nor is {addressOrIndex.Value} an object index");
             }
 
             throw new CommandException($"no live object at address {addressOrIndex}");
