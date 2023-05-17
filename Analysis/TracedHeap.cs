@@ -30,7 +30,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly IRootSet m_rootSet;
         readonly TraceableHeap m_traceableHeap;
         readonly Native m_native;
-        readonly List<PostorderEntry> m_postorderObjectAddresses;
+        readonly List<PostorderEntry> m_postorderObjects;
         readonly Dictionary<ulong, int> m_numberOfPredecessors;
         readonly Stack<MarkStackEntry>? m_markStack;
         readonly int m_rootIndexBeingMarked;
@@ -44,7 +44,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_traceableHeap = rootSet.TraceableHeap;
             m_native = m_traceableHeap.Native;
 
-            m_postorderObjectAddresses = new List<PostorderEntry>();
+            m_postorderObjects = new List<PostorderEntry>();
             m_numberOfPredecessors = new Dictionary<ulong, int>();
             m_markStack = new Stack<MarkStackEntry>();
 
@@ -63,10 +63,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_markStack = null;
 
             // Create a lookup structure for object indices from addresses, suitable for binary search.
-            m_objectAddressesToIndex = new ObjectAddressToIndexEntry[m_postorderObjectAddresses.Count];
-            for (int i = 0; i < m_postorderObjectAddresses.Count; i++)
+            m_objectAddressesToIndex = new ObjectAddressToIndexEntry[m_postorderObjects.Count];
+            for (int i = 0; i < m_postorderObjects.Count; i++)
             {
-                m_objectAddressesToIndex[i].Address = m_postorderObjectAddresses[i].Address;
+                m_objectAddressesToIndex[i].Address = m_postorderObjects[i].Address;
                 m_objectAddressesToIndex[i].ObjectIndex = i;
             }
             Array.Sort(m_objectAddressesToIndex, (x, y) => x.Address.CompareTo(y.Address));
@@ -98,7 +98,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         public int GetNumberOfPredecessors(int objectIndex)
         {
-            return m_numberOfPredecessors[m_postorderObjectAddresses[objectIndex].Address];
+            return m_numberOfPredecessors[m_postorderObjects[objectIndex].Address];
         }
 
         // Returns -1 if address is not the address of a live object.
@@ -131,12 +131,12 @@ namespace MemorySnapshotAnalyzer.Analysis
         // Note that this returns objects in postorder.
         public NativeWord ObjectAddress(int objectIndex)
         {
-            return m_native.From(m_postorderObjectAddresses[objectIndex].Address);
+            return m_native.From(m_postorderObjects[objectIndex].Address);
         }
 
         public int ObjectTypeIndex(int objectIndex)
         {
-            return m_postorderObjectAddresses[objectIndex].TypeIndex;
+            return m_postorderObjects[objectIndex].TypeIndex;
         }
 
         void Mark(NativeWord reference, NativeWord referrer)
@@ -190,7 +190,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                     PostorderEntry postorderEntry;
                     postorderEntry.Address = entry.Address;
                     postorderEntry.TypeIndex = entry.TypeIndex;
-                    m_postorderObjectAddresses.Add(postorderEntry);
+                    m_postorderObjects.Add(postorderEntry);
                     continue;
                 }
 

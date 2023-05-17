@@ -2,7 +2,9 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandProcessing;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace MemorySnapshotAnalyzer.Commands
@@ -17,6 +19,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("livestats")]
         public bool Statistics;
+
+        [FlagArgument("sortbysize")]
+        public bool SortBySize;
 
         [FlagArgument("list")]
         public bool ListLive;
@@ -89,25 +94,45 @@ namespace MemorySnapshotAnalyzer.Commands
         void DumpStatistics()
         {
             int numberOfLiveObjects = CurrentTracedHeap.NumberOfLiveObjects;
-            Output.WriteLine("number of live objects = {0}", numberOfLiveObjects);
-            var perTypeCounts = new SortedDictionary<string, int>();
+            long totalSize = 0;
+            var perTypeCounts = new Dictionary<int, Tuple<int, long>>();
             for (int objectIndex = 0; objectIndex < numberOfLiveObjects; objectIndex++)
             {
                 int typeIndex = CurrentTracedHeap.ObjectTypeIndex(objectIndex);
-                string typeName = CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex);
-                if (perTypeCounts.TryGetValue(typeName, out int count))
+                long size = CurrentTraceableHeap.GetObjectSize(CurrentTracedHeap.ObjectAddress(objectIndex), typeIndex, committedOnly: true);
+                totalSize += size;
+
+                if (perTypeCounts.TryGetValue(typeIndex, out Tuple<int, long>? tuple))
                 {
-                    perTypeCounts[typeName] = count + 1;
+                    perTypeCounts[typeIndex] = Tuple.Create(tuple!.Item1 + 1, tuple.Item2 + size);
                 }
                 else
                 {
-                    perTypeCounts[typeName] = 1;
+                    perTypeCounts[typeIndex] = Tuple.Create(1, size);
                 }
             }
 
-            foreach (var kvp in perTypeCounts)
+            Output.WriteLine("number of live objects = {0}, total size = {1}",
+                numberOfLiveObjects,
+                totalSize);
+
+            KeyValuePair<int, Tuple<int, long>>[] kvps = perTypeCounts.ToArray();
+            if (SortBySize)
             {
-                Output.WriteLine("{0} ({1})", kvp.Key, kvp.Value);
+                Array.Sort(kvps, (a, b) => b.Value.Item1.CompareTo(a.Value.Item2));
+            }
+            else
+            {
+                Array.Sort(kvps, (a, b) => b.Value.Item1.CompareTo(a.Value.Item1));
+            }
+
+            foreach (KeyValuePair<int, Tuple<int, long>> kvp in kvps)
+            {
+                Output.WriteLine("{0} object(s) of type {1} (type index {2}, total size {3})",
+                    kvp.Value.Item1,
+                    CurrentTraceableHeap.TypeSystem.QualifiedName(kvp.Key),
+                    kvp.Key,
+                    kvp.Value.Item2);
             }
         }
 
@@ -223,6 +248,6 @@ namespace MemorySnapshotAnalyzer.Commands
             DumpObjectInformation(address);
         }
 
-        public override string HelpText => "dumpobj 'livestats | 'list ['type <type index>] | <object address or index> | 'memory <object address or index> ['type <type index>]";
+        public override string HelpText => "dumpobj 'livestats ['sortbysize] | 'list ['type <type index>] | <object address or index> | 'memory <object address or index> ['type <type index>]";
     }
 }

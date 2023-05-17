@@ -1,6 +1,7 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using System;
 using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.Analysis
@@ -83,12 +84,19 @@ namespace MemorySnapshotAnalyzer.Analysis
                     int newIdom = -1;
                     foreach (int predIndex in Predecessors(nodeIndex))
                     {
-                        int predIdom = doms[predIndex];
-                        if (predIdom != -1)
+                        if (doms[predIndex] != -1)
                         {
-                            newIdom = newIdom == -1 ? predIndex : Intersect(predIdom, newIdom, doms);
+                            if (newIdom == -1)
+                            {
+                                newIdom = predIndex;
+                            }
+                            else
+                            {
+                                newIdom = Intersect(predIndex, newIdom, doms);
+                            }
                         }
                     }
+
                     if (doms[nodeIndex] != newIdom)
                     {
                         doms[nodeIndex] = newIdom;
