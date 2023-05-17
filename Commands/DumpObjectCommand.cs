@@ -40,7 +40,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 throw new CommandException("only one command mode can be selected");
             }
 
-            if (TypeIndex != -1 && !Memory)
+            if (TypeIndex != -1 && !(ListLive || Memory))
             {
                 throw new CommandException("can only provide a type index if dumping object memory");
             }

@@ -133,12 +133,13 @@ namespace MemorySnapshotAnalyzer.Commands
             }
             else
             {
+                var ancestors = new HashSet<int>();
                 var seen = new HashSet<int>();
-                DumpBacktraces(nodeIndex, seen, 0);
+                DumpBacktraces(nodeIndex, ancestors, seen, 0);
             }
         }
 
-        void DumpBacktraces(int nodeIndex, HashSet<int> seen, int depth)
+        void DumpBacktraces(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int depth)
         {
             if (MaxDepth > 0 && depth == MaxDepth)
             {
@@ -148,7 +149,14 @@ namespace MemorySnapshotAnalyzer.Commands
             if (seen.Contains(nodeIndex))
             {
                 // Back reference to a node that was already printed.
-                Output.WriteLineIndented(depth, "^^ {0}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+                if (ancestors.Contains(nodeIndex))
+                {
+                    Output.WriteLineIndented(depth, "^^ {0}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+                }
+                else
+                {
+                    Output.WriteLineIndented(depth, "~~ {0}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+                }
                 return;
             }
 
@@ -156,10 +164,12 @@ namespace MemorySnapshotAnalyzer.Commands
 
             Output.WriteLineIndented(depth, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
 
+            ancestors.Add(nodeIndex);
             foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
             {
-                DumpBacktraces(predIndex, seen, depth + 1);
+                DumpBacktraces(predIndex, ancestors, seen, depth + 1);
             }
+            ancestors.Remove(nodeIndex);
         }
 
         void DumpShortestPathsToRoots(int nodeIndex)
