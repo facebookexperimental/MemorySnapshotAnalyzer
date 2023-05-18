@@ -13,11 +13,18 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             // TOOD: support format argument (words/symbols)
 
-            ManagedHeapSegment? segment = CurrentMemorySnapshot.ManagedHeap.GetSegmentForAddress(Address);
+            SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
+            if (segmentedHeap == null)
+            {
+                throw new CommandException("memory contents for active heap not available");
+            }
 
+            // Try to retrieve by address.
+            HeapSegment? segment = segmentedHeap.GetSegmentForAddress(Address);
             if (segment == null && Address.Value <= int.MaxValue)
             {
-                segment = CurrentMemorySnapshot.ManagedHeap.GetSegment((int)Address.Value);
+                // Try to retrieve by index.
+                segment = segmentedHeap.GetSegment((int)Address.Value);
             }
 
             if (segment == null)

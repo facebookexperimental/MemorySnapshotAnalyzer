@@ -12,17 +12,17 @@ namespace MemorySnapshotAnalyzer.UnityBackend
     Chapter Metadata_CaptureFlags: value 0x0007
     + Chapter Metadata_VirtualMachineInformation: value of size 24
 
-    Chapter NativeTypes_Name: array of length 319, variable element size
-    Chapter NativeTypes_NativeBaseTypeArrayIndex: array of length 319, element size 4
+    + Chapter NativeTypes_Name: array of length 319, variable element size
+    + Chapter NativeTypes_NativeBaseTypeArrayIndex: array of length 319, element size 4
 
-    Chapter NativeObjects_NativeTypeArrayIndex: array of length 175046, element size 4
-    Chapter NativeObjects_HideFlags: array of length 175046, element size 4
-    Chapter NativeObjects_Flags: array of length 175046, element size 4
-    Chapter NativeObjects_InstanceId: array of length 175046, element size 4
-    Chapter NativeObjects_Name: array of length 175046, variable element size
-    Chapter NativeObjects_NativeObjectAddress: array of length 175046, element size 8
-    Chapter NativeObjects_Size: array of length 175046, element size 8
-    Chapter NativeObjects_RootReferenceId: array of length 175046, element size 8
+    + Chapter NativeObjects_NativeTypeArrayIndex: array of length 175046, element size 4
+    + Chapter NativeObjects_HideFlags: array of length 175046, element size 4
+    + Chapter NativeObjects_Flags: array of length 175046, element size 4
+    + Chapter NativeObjects_InstanceId: array of length 175046, element size 4
+    + Chapter NativeObjects_Name: array of length 175046, variable element size
+    + Chapter NativeObjects_NativeObjectAddress: array of length 175046, element size 8
+    + Chapter NativeObjects_Size: array of length 175046, element size 8
+    + Chapter NativeObjects_RootReferenceId: array of length 175046, element size 8
 
     + Chapter GCHandles_Target: array of length 149370, element size 8
 
@@ -50,10 +50,10 @@ namespace MemorySnapshotAnalyzer.UnityBackend
     + Chapter FieldDescriptions_Name: array of length 311189, variable element size
     + Chapter FieldDescriptions_IsStatic: array of length 311189, element size 1
 
-    Chapter NativeRootReferences_Id: array of length 175890, element size 8
-    Chapter NativeRootReferences_AreaName: array of length 175890, variable element size
-    Chapter NativeRootReferences_ObjectName: array of length 175890, variable element size
-    Chapter NativeRootReferences_AccumulatedSize: array of length 175890, element size 8
+    + Chapter NativeRootReferences_Id: array of length 175890, element size 8
+    + Chapter NativeRootReferences_AreaName: array of length 175890, variable element size
+    + Chapter NativeRootReferences_ObjectName: array of length 175890, variable element size
+    + Chapter NativeRootReferences_AccumulatedSize: array of length 175890, element size 8
 
     Chapter NativeAllocations_MemoryRegionIndex: array of length 1092389, element size 4
     Chapter NativeAllocations_RootReferenceId: array of length 1092389, element size 8

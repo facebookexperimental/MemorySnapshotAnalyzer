@@ -9,6 +9,21 @@
 
 <body>
     <div id="svg"></div>
+    <br />
+    <br />
+    <br />
+    <tt>
+        <p>
+            <div id="filename"></div>
+        </p>
+        <p>
+            <div id="heapDomCommandLine"></div>
+        </p>
+        <p>
+            <div id="context"></div>
+        </p>
+    </tt>
+
     <script>
         const height = 1000;
         const width = 1600;
@@ -19,6 +34,8 @@
         // TODO: move this script into a separate script file and use TypeScript
 
         // TODO: text box with a "Find" button that allow us to highlight matching nodes (and a "Reset" button, if a highlight is present)
+
+        // TODO: wire up "back" button to zoom out
 
         const DOM = (() => {
             var count = 0;
@@ -36,7 +53,7 @@
                 return "url(" + this.href + ")";
             };
 
-            return { uid : uid };
+            return { uid: uid };
         })();
 
         function shorten(name) {
@@ -58,6 +75,7 @@
             array: d3.schemePastel1[4],
             box: d3.schemePastel1[0],
             object: d3.schemePastel1[5],
+            native: d3.schemePastel2[7],
             intrinsic: d3.schemePastel1[8],
             elided: d3.schemePastel1[7],
             group: d3.schemePastel1[2]
@@ -233,6 +251,12 @@
         var svgElement = document.getElementById("svg");
         svgElement.style = "height: " + height + "px; width: " + width + "px";
         svgElement.append(svg.node());
+
+        document.getElementById("filename").innerText = data.filename;
+        document.getElementById("heapDomCommandLine").innerText = data.heapDomCommandLine;
+        var pre = document.createElement('pre');
+        document.getElementById("context").appendChild(pre);
+        pre.innerText = data.context;
     </script>
 </body>
 

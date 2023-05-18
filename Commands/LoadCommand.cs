@@ -2,7 +2,6 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandProcessing;
-using MemorySnapshotAnalyzer.UnityBackend;
 using Microsoft.Extensions.Configuration;
 using System.Windows.Forms;
 
@@ -15,6 +14,9 @@ namespace MemorySnapshotAnalyzer.Commands
 #pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value null
         [PositionalArgument(0, optional: true)]
         public string? Filename;
+
+        [FlagArgument("replace")]
+        public bool ReplaceCurrentContext;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value null
 
         public override void Run()
@@ -28,15 +30,26 @@ namespace MemorySnapshotAnalyzer.Commands
                 }
             }
 
-            MemorySnapshot memorySnapshot = Load(Filename!);
-            SetCurrentMemorySnapshot(memorySnapshot);
-            Output.WriteLine("memory snapshot loaded successfully");
-        }
+            MemorySnapshot? memorySnapshot = Repl.TryLoad(Filename!);
+            if (memorySnapshot == null)
+            {
+                throw new CommandException("unable to detect memory snapshot file format");
+            }
 
-        public static MemorySnapshot Load(string filename)
-        {
-            // TODO: support other file formats, either via auto-detection or an enum argument
-            return new UnityMemorySnapshot(filename);
+            Context context;
+            if (Context.CurrentMemorySnapshot != null && !ReplaceCurrentContext)
+            {
+                context = Repl.SwitchToNewContext();
+            }
+            else
+            {
+                context = Context;
+            }
+
+            context.CurrentMemorySnapshot = memorySnapshot;
+            Output.WriteLine($"{memorySnapshot.Format} memory snapshot loaded successfully");
+
+            Repl.DumpContexts();
         }
 
         string? SelectFileViaDialog()
@@ -56,6 +69,6 @@ namespace MemorySnapshotAnalyzer.Commands
             return null;
         }
 
-        public override string HelpText => "load <filename>";
+        public override string HelpText => "load <filename> ['replace]";
     }
 }

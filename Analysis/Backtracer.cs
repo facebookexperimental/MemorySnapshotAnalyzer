@@ -1,6 +1,8 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
+using System;
 using System.Collections.Generic;
+using System.Text;
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 
 namespace MemorySnapshotAnalyzer.Analysis
@@ -9,27 +11,24 @@ namespace MemorySnapshotAnalyzer.Analysis
     {
         readonly TracedHeap m_tracedHeap;
         readonly IRootSet m_rootSet;
-        readonly MemorySnapshot m_memorySnapshot;
+        readonly TraceableHeap m_traceableHeap;
         readonly int m_rootNodeIndex;
         readonly Dictionary<int, List<int>> m_predecessors;
 
-        public Backtracer(TracedHeap tracedHeap)
+        public Backtracer(TracedHeap tracedHeap, bool fuseGCHandles)
         {
             m_tracedHeap = tracedHeap;
             m_rootSet = m_tracedHeap.RootSet;
-            m_memorySnapshot = m_rootSet.MemorySnapshot;
+            m_traceableHeap = m_rootSet.TraceableHeap;
 
             // For the purposes of backtracing, we assign node indices as follows:
-            //   0 ... N-1 : nodes for live objects 0 ... N-1, in postorder
-            //   N ... N+M-1 : nodes for root set indices 0 ... M-1
-            //   N+M : root node - the containing process
-            int numberOfLiveObjects = tracedHeap.NumberOfLiveObjects;
-            int numberOfRoots = m_rootSet.NumberOfRoots;
-            m_rootNodeIndex = numberOfLiveObjects + numberOfRoots;
+            //   0 ... N-1 : postorder indices (for objects and root sentinels) from TracedHeap
+            //   N : root node - representing the containing process
+            m_rootNodeIndex = tracedHeap.NumberOfPostorderNodes;
 
             // TODO: use m_tracedHeap.GetNumberOfPredecessors for a more efficient representation
             m_predecessors = new Dictionary<int, List<int>>();
-            ComputePredecessors();
+            ComputePredecessors(fuseGCHandles);
         }
 
         public TracedHeap TracedHeap => m_tracedHeap;
@@ -40,32 +39,22 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         public bool IsLiveObjectNode(int nodeIndex)
         {
-            return nodeIndex < m_tracedHeap.NumberOfLiveObjects;
+            return nodeIndex < m_tracedHeap.NumberOfPostorderNodes && !m_tracedHeap.IsRootSentinel(nodeIndex);
         }
 
-        public bool IsRootSetNode(int nodeIndex)
+        public bool IsRootSentinel(int nodeIndex)
         {
-            return nodeIndex >= m_tracedHeap.NumberOfLiveObjects && nodeIndex != m_rootNodeIndex;
+            return nodeIndex < m_tracedHeap.NumberOfPostorderNodes && m_tracedHeap.IsRootSentinel(nodeIndex);
         }
 
-        public bool IsGCHandle(int nodeIndex)
+        public int NodeIndexToPostorderIndex(int nodeIndex)
         {
-            return IsRootSetNode(nodeIndex) && m_rootSet.IsGCHandle(NodeIndexToRootIndex(nodeIndex));
+            return nodeIndex < m_tracedHeap.NumberOfPostorderNodes ? nodeIndex : -1;
         }
 
-        public int NodeIndexToObjectIndex(int nodeIndex)
+        public int PostorderIndexToNodeIndex(int postorderIndex)
         {
-            return nodeIndex;
-        }
-
-        public int NodeIndexToRootIndex(int nodeIndex)
-        {
-            return nodeIndex - m_tracedHeap.NumberOfLiveObjects;
-        }
-
-        public int ObjectIndexToNodeIndex(int objectIndex)
-        {
-            return objectIndex;
+            return postorderIndex;
         }
 
         public string DescribeNodeIndex(int nodeIndex, bool fullyQualified)
@@ -74,19 +63,41 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 return "Process";
             }
-            else if (nodeIndex < m_tracedHeap.NumberOfLiveObjects)
+
+            int postorderIndex = NodeIndexToPostorderIndex(nodeIndex);
+            int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+            if (typeIndex == -1)
             {
-                int objectIndex = NodeIndexToObjectIndex(nodeIndex);
-                int typeIndex = m_tracedHeap.ObjectTypeIndex(objectIndex);
-                return string.Format("{0}#{1}",
-                    fullyQualified ?
-                        m_memorySnapshot.TypeSystem.QualifiedName(typeIndex) :
-                        m_memorySnapshot.TypeSystem.UnqualifiedName(typeIndex),
-                    nodeIndex);
+                List<int> rootIndices = m_tracedHeap.PostorderRootIndices(nodeIndex);
+                if (rootIndices.Count == 1)
+                {
+                    return m_rootSet.DescribeRoot(rootIndices[0], fullyQualified);
+                }
+                else
+                {
+                    var sb = new StringBuilder();
+                    m_tracedHeap.DescribeRootIndices(nodeIndex, sb);
+                    return sb.ToString();
+                }
+            }
+
+            string typeName = fullyQualified ?
+                m_traceableHeap.TypeSystem.QualifiedName(typeIndex) :
+                m_traceableHeap.TypeSystem.UnqualifiedName(typeIndex);
+
+            string? objectName = m_traceableHeap.GetObjectName(m_tracedHeap.PostorderAddress(postorderIndex));
+            if (objectName != null)
+            {
+                return string.Format("{0}('{1}')#{2}",
+                    typeName,
+                    objectName,
+                    postorderIndex);
             }
             else
             {
-                return m_rootSet.DescribeRoot(NodeIndexToRootIndex(nodeIndex), fullyQualified);
+                return string.Format("{0}#{1}",
+                    typeName,
+                    postorderIndex);
             }
         }
 
@@ -96,26 +107,39 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 return "root";
             }
-            else if (IsLiveObjectNode(nodeIndex))
+
+            int postorderIndex = NodeIndexToPostorderIndex(nodeIndex);
+            int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+            if (typeIndex == -1)
             {
-                int objectIndex = NodeIndexToObjectIndex(nodeIndex);
-                int typeIndex = m_tracedHeap.ObjectTypeIndex(objectIndex);
-                if (m_memorySnapshot.TypeSystem.IsArray(typeIndex))
+                List<int> rootIndices = m_tracedHeap.PostorderRootIndices(postorderIndex);
+                bool allGCHandles = true;
+                foreach (var rootIndex in rootIndices)
                 {
-                    return "array";
+                    if (!m_rootSet.IsGCHandle(rootIndex))
+                    {
+                        allGCHandles = false;
+                        break;
+                    }
                 }
-                else if (m_memorySnapshot.TypeSystem.IsValueType(typeIndex))
+
+                if (allGCHandles)
                 {
-                    return "box";
+                    return "gchandle";
                 }
-                else
-                {
-                    return "object";
-                }
+                return "static";
+            }
+            else if (m_traceableHeap.TypeSystem.IsArray(typeIndex))
+            {
+                return "array";
+            }
+            else if (m_traceableHeap.TypeSystem.IsValueType(typeIndex))
+            {
+                return "box";
             }
             else
             {
-                return m_rootSet.RootType(NodeIndexToRootIndex(nodeIndex));
+                return m_traceableHeap.GetObjectNodeType(m_tracedHeap.PostorderAddress(postorderIndex));
             }
         }
 
@@ -124,34 +148,40 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_predecessors[nodeIndex];
         }
 
-        void ComputePredecessors()
+        void ComputePredecessors(bool fuseGCHandles)
         {
             m_predecessors.Add(m_rootNodeIndex, new List<int>());
 
-            for (int rootIndex = 0; rootIndex < m_rootSet.NumberOfRoots; rootIndex++)
+            // For each postorder node, add it as a predecessor to all objects it references.
+            for (int parentPostorderIndex = 0; parentPostorderIndex < m_tracedHeap.NumberOfPostorderNodes; parentPostorderIndex++)
             {
-                AddPredecessor(m_tracedHeap.NumberOfLiveObjects + rootIndex, m_rootNodeIndex);
-
-                NativeWord address = m_rootSet.GetRoot(rootIndex);
-                int objectIndex = m_tracedHeap.ObjectAddressToIndex(address);
-                if (objectIndex != -1)
+                NativeWord address = m_tracedHeap.PostorderAddress(parentPostorderIndex);
+                int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(parentPostorderIndex);
+                if (typeIndex == -1)
                 {
-                    AddPredecessor(objectIndex, m_tracedHeap.NumberOfLiveObjects + rootIndex);
+                    int childPostorderIndex = m_tracedHeap.ObjectAddressToPostorderIndex(address);
+                    AddPredecessor(childPostorderIndex, parentPostorderIndex);
                 }
-            }
-
-            for (int parentObjectIndex = 0; parentObjectIndex < m_tracedHeap.NumberOfLiveObjects; parentObjectIndex++)
-            {
-                NativeWord address = m_tracedHeap.ObjectAddress(parentObjectIndex);
-                int typeIndex = m_tracedHeap.ObjectTypeIndex(parentObjectIndex);
-                MemoryView objectView = m_memorySnapshot.GetMemoryViewForAddress(address);
-                foreach (int offset in m_memorySnapshot.GetObjectPointerOffsets(objectView, typeIndex))
+                else
                 {
-                    NativeWord reference = objectView.ReadPointer(offset, m_memorySnapshot.Native);
-                    int childObjectIndex = m_tracedHeap.ObjectAddressToIndex(reference);
-                    if (childObjectIndex != -1)
+                    int resolvedParentPostorderIndex = parentPostorderIndex;
+                    if (fuseGCHandles)
                     {
-                        AddPredecessor(childObjectIndex, parentObjectIndex);
+                        // Redirect parentPostorderIndex to root postorder index, if available.
+                        int rootPostorderIndex = m_tracedHeap.ObjectAddressToRootPostorderIndex(address);
+                        if (rootPostorderIndex != -1)
+                        {
+                            resolvedParentPostorderIndex = rootPostorderIndex;
+                        }
+                    }
+
+                    foreach (NativeWord reference in m_traceableHeap.GetIntraHeapPointers(address, typeIndex))
+                    {
+                        int childPostorderIndex = m_tracedHeap.ObjectAddressToPostorderIndex(reference);
+                        if (childPostorderIndex != -1)
+                        {
+                            AddPredecessor(childPostorderIndex, resolvedParentPostorderIndex);
+                        }
                     }
                 }
             }
@@ -159,9 +189,9 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         void AddPredecessor(int childNodeIndex, int parentNodeIndex)
         {
-            if (m_predecessors.TryGetValue(childNodeIndex, out List<int>? nodeIndices))
+            if (m_predecessors.TryGetValue(childNodeIndex, out List<int>? parentNodeIndices))
             {
-                nodeIndices!.Add(parentNodeIndex);
+                parentNodeIndices!.Add(parentNodeIndex);
             }
             else
             {

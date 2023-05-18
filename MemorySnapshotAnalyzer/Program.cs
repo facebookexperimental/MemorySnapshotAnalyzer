@@ -2,6 +2,7 @@
 
 using MemorySnapshotAnalyzer.CommandProcessing;
 using MemorySnapshotAnalyzer.Commands;
+using MemorySnapshotAnalyzer.UnityBackend;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -16,6 +17,8 @@ static class Program
         IConfiguration configuration = host.Services.GetRequiredService<IConfiguration>();
 
         using Repl repl = new(configuration);
+
+        repl.AddMemorySnapshotLoader(new UnityMemorySnapshotLoader());
 
         repl.AddCommand(typeof(HelpCommand), "help");
         repl.AddCommand(typeof(ExitCommand), "exit");
@@ -33,7 +36,6 @@ static class Program
         repl.AddCommand(typeof(DumpAssembliesCommand), "dumpassemblies", "da");
         repl.AddCommand(typeof(DumpTypeCommand), "dumptype", "dt");
         repl.AddCommand(typeof(FindCommand), "find", "f");
-        repl.AddCommand(typeof(FindObjectCommand), "findobj", "fo");
         repl.AddCommand(typeof(DumpRootsCommand), "dumproots");
         repl.AddCommand(typeof(BacktraceCommand), "backtrace", "bt");
         repl.AddCommand(typeof(HeapDomCommand), "heapdom");

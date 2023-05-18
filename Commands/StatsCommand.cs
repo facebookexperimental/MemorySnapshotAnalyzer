@@ -35,36 +35,30 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpTypeSystemStatistics()
         {
-            ITypeSystem typeSystem = CurrentMemorySnapshot.TypeSystem;
-
-            Output.WriteLine("Pointer size: {0}", typeSystem.PointerSize);
-            Output.WriteLine("VTable offset in header: {0}", typeSystem.VTableOffsetInHeader);
-            Output.WriteLine("Object header size: {0}", typeSystem.ObjectHeaderSize);
-            Output.WriteLine("Array header size: {0}", typeSystem.ArrayHeaderSize);
-            Output.WriteLine("Array bounds offset in header: {0}", typeSystem.ArrayBoundsOffsetInHeader);
-            Output.WriteLine("Array size offset in header: {0}", typeSystem.ArraySizeOffsetInHeader);
-            Output.WriteLine("Allocation granularity: {0}", typeSystem.AllocationGranularity);
-            Output.WriteLine();
-            Output.WriteLine("Number of types: {0}", typeSystem.NumberOfTypeIndices);
-            Output.WriteLine();
-            Output.WriteLine("System.String type index: {0}", typeSystem.SystemStringTypeIndex);
-            Output.WriteLine("System.String length offset: {0}", typeSystem.SystemStringLengthOffset);
-            Output.WriteLine("System.String first char offset: {0}", typeSystem.SystemStringFirstCharOffset);
+            TypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
+            foreach (string s in typeSystem.DumpStats())
+            {
+                Output.WriteLine(s);
+            }
         }
 
         void DumpHeapStatistics()
         {
             // TODO: stats on gaps between segments/within segments
 
-            ManagedHeap managedHeap = CurrentMemorySnapshot.ManagedHeap;
+            SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
+            if (segmentedHeap == null)
+            {
+                throw new CommandException("memory contents for active heap not available");
+            }
 
             var histogram = new SortedDictionary<long, int>();
             var objectSegmentHistogram = new SortedDictionary<long, int>();
             var rttiSegmentHistogram = new SortedDictionary<long, int>();
             long totalSize = 0;
-            for (int i = 0; i < managedHeap.NumberOfSegments; i++)
+            for (int i = 0; i < segmentedHeap.NumberOfSegments; i++)
             {
-                ManagedHeapSegment segment = managedHeap.GetSegment(i);
+                HeapSegment segment = segmentedHeap.GetSegment(i);
                 totalSize += segment.Size;
 
                 Tally(histogram, segment.Size);
@@ -90,7 +84,7 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        void Tally(SortedDictionary<long, int> histogram, long size)
+        static void Tally(SortedDictionary<long, int> histogram, long size)
         {
             int count;
             if (histogram.TryGetValue(size, out count))

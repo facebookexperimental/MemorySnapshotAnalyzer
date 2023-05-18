@@ -51,8 +51,8 @@ namespace MemorySnapshotAnalyzer.Commands
                 return;
             }
 
-            int objectIndex = ResolveObjectAddressOrIndex(AddressOrIndex);
-            int nodeIndex = CurrentBacktracer.ObjectIndexToNodeIndex(objectIndex);
+            int postorderIndex = ResolveToPostorderIndex(AddressOrIndex);
+            int nodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex);
             DumpCore(nodeIndex);
         }
 
@@ -68,8 +68,8 @@ namespace MemorySnapshotAnalyzer.Commands
                     {
                         if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
                         {
-                            int objectIndex = CurrentBacktracer.NodeIndexToObjectIndex(nodeIndex);
-                            int typeIndex = CurrentTracedHeap.ObjectTypeIndex(objectIndex);
+                            int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
+                            int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
                             if (stats.TryGetValue(typeIndex, out int count))
                             {
                                 stats[typeIndex] = count + 1;
@@ -86,7 +86,7 @@ namespace MemorySnapshotAnalyzer.Commands
                     foreach (int key in keys)
                     {
                         Output.WriteLine("{0}: {1}",
-                            CurrentMemorySnapshot.TypeSystem.QualifiedName(key),
+                            CurrentTraceableHeap.TypeSystem.QualifiedName(key),
                             stats[key]);
                     }
                 }
@@ -133,12 +133,13 @@ namespace MemorySnapshotAnalyzer.Commands
             }
             else
             {
+                var ancestors = new HashSet<int>();
                 var seen = new HashSet<int>();
-                DumpBacktraces(nodeIndex, seen, 0);
+                DumpBacktraces(nodeIndex, ancestors, seen, 0);
             }
         }
 
-        void DumpBacktraces(int nodeIndex, HashSet<int> seen, int depth)
+        void DumpBacktraces(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int depth)
         {
             if (MaxDepth > 0 && depth == MaxDepth)
             {
@@ -148,7 +149,14 @@ namespace MemorySnapshotAnalyzer.Commands
             if (seen.Contains(nodeIndex))
             {
                 // Back reference to a node that was already printed.
-                Output.WriteLineIndented(depth, "^^ {0}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+                if (ancestors.Contains(nodeIndex))
+                {
+                    Output.WriteLineIndented(depth, "^^ {0}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+                }
+                else
+                {
+                    Output.WriteLineIndented(depth, "~~ {0}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+                }
                 return;
             }
 
@@ -156,10 +164,12 @@ namespace MemorySnapshotAnalyzer.Commands
 
             Output.WriteLineIndented(depth, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
 
+            ancestors.Add(nodeIndex);
             foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
             {
-                DumpBacktraces(predIndex, seen, depth + 1);
+                DumpBacktraces(predIndex, ancestors, seen, depth + 1);
             }
+            ancestors.Remove(nodeIndex);
         }
 
         void DumpShortestPathsToRoots(int nodeIndex)
@@ -189,14 +199,11 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 foreach (int rootNodeIndex in reachableRoots)
                 {
-                    if (!CurrentBacktracer.IsGCHandle(rootNodeIndex))
+                    int[] path = shortestPaths[rootNodeIndex];
+                    for (int i = path.Length - 1; i >= 0; i--)
                     {
-                        int[] path = shortestPaths[rootNodeIndex];
-                        for (int i = path.Length - 1; i >= 0; i--)
-                        {
-                            Output.WriteLineIndented(i == path.Length - 1 ? 0 : 1,
-                                CurrentBacktracer.DescribeNodeIndex(path[i], FullyQualified));
-                        }
+                        Output.WriteLineIndented(i == path.Length - 1 ? 0 : 1,
+                            CurrentBacktracer.DescribeNodeIndex(path[i], FullyQualified));
                     }
                 }
             }
@@ -210,7 +217,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 seen.Add(nodeIndex);
 
-                if (CurrentBacktracer.IsRootSetNode(nodeIndex))
+                if (CurrentBacktracer.IsRootSentinel(nodeIndex))
                 {
                     if (!shortestPaths.TryGetValue(nodeIndex, out int[]? shortestPath)
                         || shortestPath.Length > currentPath.Count)
@@ -282,7 +289,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 seen.Add(nodeIndex);
 
-                if (CurrentBacktracer.IsRootSetNode(nodeIndex))
+                if (CurrentBacktracer.IsRootSentinel(nodeIndex))
                 {
                     roots.Add(nodeIndex);
                 }
@@ -327,14 +334,17 @@ namespace MemorySnapshotAnalyzer.Commands
 
             for (int i = 0; i < reachableRoots.Count && allFromOneAssembly; i++)
             {
-                if (CurrentBacktracer.IsGCHandle(reachableRoots[i]))
+                List<int> rootIndices = CurrentTracedHeap.PostorderRootIndices(CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex));
+                foreach (int rootIndex in rootIndices)
                 {
-                    numberOfGCHandles++;
-                }
-                else
-                {
+                    if (CurrentRootSet.IsGCHandle(rootIndex))
+                    {
+                        numberOfGCHandles++;
+                        continue;
+                    }
+
                     // If roots are a mix of GCHandles and statics, ignore the GCHandles.
-                    IRootSet.StaticRootInfo info = CurrentRootSet.GetStaticRootInfo(CurrentBacktracer.NodeIndexToRootIndex(reachableRoots[i]));
+                    IRootSet.StaticRootInfo info = CurrentRootSet.GetStaticRootInfo(rootIndex);
                     if (info.AssemblyName == null)
                     {
                         allFromOneAssembly = false;

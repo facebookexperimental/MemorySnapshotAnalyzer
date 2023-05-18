@@ -3,6 +3,8 @@
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 
 namespace MemorySnapshotAnalyzer.Analysis
 {
@@ -15,82 +17,146 @@ namespace MemorySnapshotAnalyzer.Analysis
             public bool Processed;
         }
 
-        struct ObjectAddressToIndexEntry
+        struct ObjectAddressToPostorderIndexEntry
         {
             public ulong Address;
-            public int ObjectIndex;
+            public int PostorderIndex;
         }
 
         struct PostorderEntry
         {
             public ulong Address;
-            public int TypeIndex;
+
+            // A type index if this entry represents an object, or -1 if this entry represents a (set of) root nodes.
+            // The root nodes can be looked up using the address in m_objectAddressToRoots.
+            public int TypeIndexOrRootSentinel;
         }
 
-        readonly MemorySnapshot m_memorySnapshot;
         readonly IRootSet m_rootSet;
-        readonly ulong m_minHeapAddress;
-        readonly ulong m_maxHeapAddress;
+        readonly TraceableHeap m_traceableHeap;
         readonly Native m_native;
-        readonly List<PostorderEntry> m_postorderObjectAddresses;
+        readonly List<PostorderEntry> m_postorderEntries;
         readonly Dictionary<ulong, int> m_numberOfPredecessors;
+        readonly Dictionary<ulong, List<int>> m_objectAddressToRootIndices;
         readonly Stack<MarkStackEntry>? m_markStack;
-        bool m_markingRoots;
-        readonly List<ulong> m_invalidRoots;
+        readonly int m_rootIndexBeingMarked;
+        readonly List<Tuple<int, ulong>> m_invalidRoots;
         readonly List<Tuple<ulong, ulong>> m_invalidPointers;
-        readonly ObjectAddressToIndexEntry[] m_objectAddressesToIndex;
+        readonly ObjectAddressToPostorderIndexEntry[] m_objectAddressToPostorderIndex;
 
-        public TracedHeap(IRootSet rootSet)
+        public TracedHeap(IRootSet rootSet, bool weakGCHandles)
         {
-            m_memorySnapshot = rootSet.MemorySnapshot;
-            m_native = rootSet.MemorySnapshot.Native;
             m_rootSet = rootSet;
+            m_traceableHeap = rootSet.TraceableHeap;
+            m_native = m_traceableHeap.Native;
 
-            ManagedHeap managedHeap = rootSet.MemorySnapshot.ManagedHeap;
-            m_minHeapAddress = managedHeap.GetSegment(0).StartAddress.Value;
-            m_maxHeapAddress = managedHeap.GetSegment(managedHeap.NumberOfSegments - 1).EndAddress.Value;
-
-            m_postorderObjectAddresses = new List<PostorderEntry>();
+            m_postorderEntries = new List<PostorderEntry>();
             m_numberOfPredecessors = new Dictionary<ulong, int>();
             m_markStack = new Stack<MarkStackEntry>();
 
-            m_invalidRoots = new List<ulong>();
+            m_invalidRoots = new List<Tuple<int, ulong>>();
             m_invalidPointers = new List<Tuple<ulong, ulong>>();
 
-            m_markingRoots = true;
+            m_objectAddressToRootIndices = new Dictionary<ulong, List<int>>();
             for (int rootIndex = 0; rootIndex < rootSet.NumberOfRoots; rootIndex++)
             {
                 NativeWord address = rootSet.GetRoot(rootIndex);
-                Mark(address, address);
+                if (address.Value != 0)
+                {
+                    int typeIndex = m_traceableHeap.TryGetTypeIndex(address);
+                    if (typeIndex != -1)
+                    {
+                        if (m_objectAddressToRootIndices.TryGetValue(address.Value, out List<int>? rootIndices))
+                        {
+                            rootIndices!.Add(rootIndex);
+                        }
+                        else
+                        {
+                            m_objectAddressToRootIndices.Add(address.Value, new List<int>() { rootIndex });
+                        }
+                    }
+                }
             }
-            m_markingRoots = false;
+
+            if (weakGCHandles)
+            {
+                // If weakGCHandles is false, return all predecessors.
+                // Otherwise, if the only predecessors for this node are GCHandles, return those GCHandles.
+                // Otherwise, skip the GCHandles.
+                foreach (ulong address in m_objectAddressToRootIndices.Keys.ToArray())
+                {
+                    bool foundStatic = false;
+                    bool foundGCHandle = false;
+                    foreach (int rootIndex in m_objectAddressToRootIndices[address])
+                    {
+                        if (m_rootSet.IsGCHandle(rootIndex))
+                        {
+                            foundGCHandle = true;
+                        }
+                        else
+                        {
+                            foundStatic = true;
+                        }
+                    }
+
+                    if (foundStatic && foundGCHandle)
+                    {
+                        var newRootIndices = new List<int>();
+                        foreach (int rootIndex in m_objectAddressToRootIndices[address])
+                        {
+                            if (!m_rootSet.IsGCHandle(rootIndex))
+                            {
+                                newRootIndices.Add(rootIndex);
+                            }
+                        }
+
+                        m_objectAddressToRootIndices[address] = newRootIndices;
+                    }
+                }
+            }
+
+            for (int rootIndex = 0; rootIndex < rootSet.NumberOfRoots; rootIndex++)
+            {
+                m_rootIndexBeingMarked = rootIndex;
+                Mark(rootSet.GetRoot(rootIndex), default);
+            }
+            m_rootIndexBeingMarked = -1;
 
             ProcessMarkStack();
             m_markStack = null;
 
             // Create a lookup structure for object indices from addresses, suitable for binary search.
-            m_objectAddressesToIndex = new ObjectAddressToIndexEntry[m_postorderObjectAddresses.Count];
-            for (int i = 0; i < m_postorderObjectAddresses.Count; i++)
+            m_objectAddressToPostorderIndex = new ObjectAddressToPostorderIndexEntry[m_postorderEntries.Count - m_objectAddressToRootIndices.Count];
+            int lookupEntryIndex = 0;
+            for (int postorderIndex = 0; postorderIndex < m_postorderEntries.Count; postorderIndex++)
             {
-                m_objectAddressesToIndex[i].Address = m_postorderObjectAddresses[i].Address;
-                m_objectAddressesToIndex[i].ObjectIndex = i;
+                if (m_postorderEntries[postorderIndex].TypeIndexOrRootSentinel != -1)
+                {
+                    m_objectAddressToPostorderIndex[lookupEntryIndex].Address = m_postorderEntries[postorderIndex].Address;
+                    m_objectAddressToPostorderIndex[lookupEntryIndex].PostorderIndex = postorderIndex;
+                    lookupEntryIndex++;
+                }
             }
-            Array.Sort(m_objectAddressesToIndex, (x, y) => x.Address.CompareTo(y.Address));
+            Array.Sort(m_objectAddressToPostorderIndex, (x, y) => x.Address.CompareTo(y.Address));
         }
 
         public IRootSet RootSet => m_rootSet;
 
-        public int NumberOfLiveObjects => m_objectAddressesToIndex.Length;
+        public int NumberOfPostorderNodes => m_postorderEntries.Count;
+
+        public int NumberOfLiveObjects => m_objectAddressToPostorderIndex.Length;
+
+        public int NumberOfDistinctRoots => m_objectAddressToRootIndices.Count;
 
         public int NumberOfInvalidRoots => m_invalidRoots.Count;
 
         public int NumberOfInvalidPointers => m_invalidPointers.Count;
 
-        public IEnumerable<NativeWord> GetInvalidRoots()
+        public IEnumerable<Tuple<int, NativeWord>> GetInvalidRoots()
         {
-            foreach (var address in m_invalidRoots)
+            foreach (var tuple in m_invalidRoots)
             {
-                yield return m_native.From(address);
+                yield return Tuple.Create(tuple.Item1, m_native.From(tuple.Item2));
             }
         }
 
@@ -102,25 +168,26 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public int GetNumberOfPredecessors(int objectIndex)
+        public int GetNumberOfPredecessors(int postorderIndex)
         {
-            return m_numberOfPredecessors[m_postorderObjectAddresses[objectIndex].Address];
+            return m_numberOfPredecessors[m_postorderEntries[postorderIndex].Address];
         }
 
-        public int ObjectAddressToIndex(NativeWord address)
+        // Returns -1 if address is not the address of a live object.
+        public int ObjectAddressToPostorderIndex(NativeWord address)
         {
             // TODO: make this work for interior pointers. We'll need to remember object sizes for that
             ulong addressValue = address.Value;
             int min = 0;
-            int max = m_objectAddressesToIndex.Length;
+            int max = m_objectAddressToPostorderIndex.Length;
             while (min < max)
             {
                 int mid = (min + max) / 2;
-                if (m_objectAddressesToIndex[mid].Address == addressValue)
+                if (m_objectAddressToPostorderIndex[mid].Address == addressValue)
                 {
-                    return m_objectAddressesToIndex[mid].ObjectIndex;
+                    return m_objectAddressToPostorderIndex[mid].PostorderIndex;
                 }
-                else if (m_objectAddressesToIndex[mid].Address < addressValue)
+                else if (m_objectAddressToPostorderIndex[mid].Address < addressValue)
                 {
                     min = mid + 1;
                 }
@@ -133,23 +200,65 @@ namespace MemorySnapshotAnalyzer.Analysis
             return -1;
         }
 
-        // Note that this returns objects in postorder.
-        public NativeWord ObjectAddress(int objectIndex)
+        // Returns the postorder index for the node representing the roots that have the given address as a target,
+        // or -1 if the address is not the target of any roots.
+        public int ObjectAddressToRootPostorderIndex(NativeWord address)
         {
-            return m_native.From(m_postorderObjectAddresses[objectIndex].Address);
+            int postorderIndex = ObjectAddressToPostorderIndex(address);
+            if (postorderIndex != -1
+                && m_objectAddressToRootIndices.ContainsKey(m_postorderEntries[postorderIndex].Address))
+            {
+                // This relies on the knowledge that ProcessMarkStack reserves a postorder index for the root
+                // immediately following the postorder index for the target object.
+                return postorderIndex + 1;
+            }
+            else
+            {
+                return -1;
+            }
         }
 
-        public int ObjectTypeIndex(int objectIndex)
+        public bool IsRootSentinel(int postorderIndex)
         {
-            return m_postorderObjectAddresses[objectIndex].TypeIndex;
+            return m_postorderEntries[postorderIndex].TypeIndexOrRootSentinel == -1;
+        }
+
+        public NativeWord PostorderAddress(int postorderIndex)
+        {
+            return m_native.From(m_postorderEntries[postorderIndex].Address);
+        }
+
+        public int PostorderTypeIndexOrSentinel(int postorderIndex)
+        {
+            return m_postorderEntries[postorderIndex].TypeIndexOrRootSentinel;
+        }
+
+        public List<int> PostorderRootIndices(int postorderIndex)
+        {
+            return m_objectAddressToRootIndices[m_postorderEntries[postorderIndex].Address];
+        }
+
+        public void DescribeRootIndices(int postorderIndex, StringBuilder sb)
+        {
+            List<int> rootIndices = PostorderRootIndices(postorderIndex);
+            sb.AppendFormat("roots#{0}{{", postorderIndex);
+            for (int i = 0; i < rootIndices.Count; i++)
+            {
+                if (i > 0)
+                {
+                    sb.Append(", ");
+                }
+                sb.Append(m_rootSet.DescribeRoot(rootIndices[i], fullyQualified: true));
+            }
+            sb.Append('}');
         }
 
         void Mark(NativeWord reference, NativeWord referrer)
         {
             ulong address = reference.Value;
 
-            // Fast path to avoid heap segment lookup for values that are obviously outside the managed heap.
-            if (address < m_minHeapAddress || address >= m_maxHeapAddress)
+            // Fast path to avoid heap segment lookup for null pointers.
+            if (address == 0)
             {
                 return;
             }
@@ -162,14 +271,13 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
             m_numberOfPredecessors.Add(reference.Value, 1);
 
-            int typeIndex = m_memorySnapshot.TryGetTypeIndex(reference);
+            int typeIndex = m_traceableHeap.TryGetTypeIndex(reference);
             if (typeIndex == -1)
             {
-                // Not a valid object pointer; ignore.
-                // TODO: when can this happen? Often these seem to be pointers to builtin strings/objects, and Unity reports the same.
-                if (m_markingRoots)
+                // Object layout is invalid.
+                if (m_rootIndexBeingMarked != -1)
                 {
-                    m_invalidRoots.Add(address);
+                    m_invalidRoots.Add(Tuple.Create(m_rootIndexBeingMarked, address));
                 }
                 else
                 {
@@ -195,8 +303,17 @@ namespace MemorySnapshotAnalyzer.Analysis
                     // been fully marked. Add this to the postorder.
                     PostorderEntry postorderEntry;
                     postorderEntry.Address = entry.Address;
-                    postorderEntry.TypeIndex = entry.TypeIndex;
-                    m_postorderObjectAddresses.Add(postorderEntry);
+                    postorderEntry.TypeIndexOrRootSentinel = entry.TypeIndex;
+                    m_postorderEntries.Add(postorderEntry);
+
+                    if (m_objectAddressToRootIndices.ContainsKey(entry.Address))
+                    {
+                        PostorderEntry rootPostorderEntry;
+                        rootPostorderEntry.Address = entry.Address;
+                        rootPostorderEntry.TypeIndexOrRootSentinel = -1;
+                        m_postorderEntries.Add(rootPostorderEntry);
+                    }
+
                     continue;
                 }
 
@@ -207,10 +324,8 @@ namespace MemorySnapshotAnalyzer.Analysis
 
                 // Push all of the node's children that are nodes we haven't encountered previously.
                 NativeWord address = m_native.From(entry.Address);
-                MemoryView objectView = m_memorySnapshot.GetMemoryViewForAddress(address);
-                foreach (int offset in m_memorySnapshot.GetObjectPointerOffsets(objectView, entry.TypeIndex))
+                foreach (NativeWord reference in m_traceableHeap.GetIntraHeapPointers(address, entry.TypeIndex))
                 {
-                    NativeWord reference = objectView.ReadPointer(offset, m_native);
                     Mark(reference, address);
                 }
             }

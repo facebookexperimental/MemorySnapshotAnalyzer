@@ -17,7 +17,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            ITypeSystem typeSystem = CurrentMemorySnapshot.TypeSystem;
+            TypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
             var assemblies = new SortedDictionary<string, int>();
             for (int typeIndex = 0; typeIndex < typeSystem.NumberOfTypeIndices; typeIndex++)

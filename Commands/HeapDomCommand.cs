@@ -91,10 +91,10 @@ namespace MemorySnapshotAnalyzer.Commands
             if (Context.CurrentBacktracer!.IsLiveObjectNode(nodeIndex))
             {
                 // TODO: this only works with non-relocating garbage collectors.
-                int objectIndex = CurrentBacktracer.NodeIndexToObjectIndex(nodeIndex);
-                NativeWord objectAddress = CurrentTracedHeap.ObjectAddress(objectIndex);
-                int previousObjectIndex = previousContext!.CurrentTracedHeap!.ObjectAddressToIndex(objectAddress);
-                hasDiffs = previousObjectIndex == -1;
+                int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
+                NativeWord objectAddress = CurrentTracedHeap.PostorderAddress(postorderIndex);
+                int previousPostorderIndex = previousContext!.CurrentTracedHeap!.ObjectAddressToPostorderIndex(objectAddress);
+                hasDiffs = previousPostorderIndex == -1;
             }
             else
             {
@@ -151,14 +151,14 @@ namespace MemorySnapshotAnalyzer.Commands
             }
             Output.Write("{{\"name\":\"{0}\",", CurrentHeapDom.Backtracer.DescribeNodeIndex(nodeIndex, fullyQualified: true));
 
-            // TODO: include assembly group (one of {mscorlib,System[.*]}/{Unity[.*],UnityEngine[.*],UnityEditor[.*]}/other)
-
             if (nodeIndex == CurrentHeapDom.RootNodeIndex)
             {
                 Output.Write("\"filename\":{0},",
                     JsonConvert.ToString(CurrentMemorySnapshot.Filename));
                 Output.Write("\"heapDomCommandLine\":{0},",
                     JsonConvert.ToString(Repl.CurrentCommandLine));
+                Output.Write("\"context\":{0},",
+                    JsonConvert.ToString(string.Join('\n', Context.Serialize())));
             }
 
             if (NodeTypes)

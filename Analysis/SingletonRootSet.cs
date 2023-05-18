@@ -6,16 +6,16 @@ namespace MemorySnapshotAnalyzer.Analysis
 {
     public class SingletonRootSet : IRootSet
     {
-        readonly MemorySnapshot m_memorySnapshot;
+        readonly TraceableHeap m_traceableHeap;
         readonly NativeWord m_address;
 
-        public SingletonRootSet(MemorySnapshot memorySnapshot, NativeWord address)
+        public SingletonRootSet(TraceableHeap traceableHeap, NativeWord address)
         {
-            m_memorySnapshot = memorySnapshot;
+            m_traceableHeap = traceableHeap;
             m_address = address;
         }
 
-        MemorySnapshot IRootSet.MemorySnapshot => m_memorySnapshot;
+        TraceableHeap IRootSet.TraceableHeap => m_traceableHeap;
 
         int IRootSet.NumberOfRoots => 1;
 
@@ -36,11 +36,6 @@ namespace MemorySnapshotAnalyzer.Analysis
         string IRootSet.DescribeRoot(int rootIndex, bool fullyQualified)
         {
             return $"Object@{m_address}";
-        }
-
-        string IRootSet.RootType(int rootIndex)
-        {
-            return "pivot";
         }
 
         IRootSet.StaticRootInfo IRootSet.GetStaticRootInfo(int rootIndex)

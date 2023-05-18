@@ -1,6 +1,7 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using System;
 using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.Analysis
@@ -16,20 +17,18 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly IBacktracer m_backtracer;
         readonly TracedHeap m_tracedHeap;
         readonly IRootSet m_rootSet;
-        readonly MemorySnapshot m_memorySnapshot;
-        readonly bool m_weakGCHandles;
+        readonly TraceableHeap m_traceableHeap;
         readonly int m_rootNodeIndex;
         readonly Dictionary<int, List<int>> m_domTree;
         readonly int m_numberOfNonLeafNodes;
         readonly SizeEntry[] m_sizes;
 
-        public HeapDom(IBacktracer backtracer, bool weakGCHandles)
+        public HeapDom(IBacktracer backtracer)
         {
             m_backtracer = backtracer;
             m_tracedHeap = backtracer.TracedHeap;
             m_rootSet = m_tracedHeap.RootSet;
-            m_memorySnapshot = m_rootSet.MemorySnapshot;
-            m_weakGCHandles = weakGCHandles;
+            m_traceableHeap = m_rootSet.TraceableHeap;
             m_rootNodeIndex = m_backtracer.RootNodeIndex;
 
             m_domTree = BuildDomTree(out m_numberOfNonLeafNodes);
@@ -44,8 +43,6 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         public long NodeSize(int nodeIndex)
         {
-            // TODO: do we have to add native size for C# unmanaged memory?
-            // (see https://docs.unity3d.com/Manual/performance-memory-overview.html)
             return m_sizes[nodeIndex].NodeSizeExcludingDescendants;
         }
 
@@ -83,14 +80,21 @@ namespace MemorySnapshotAnalyzer.Analysis
                 for (int nodeIndex = m_rootNodeIndex - 1; nodeIndex >= 0; nodeIndex--)
                 {
                     int newIdom = -1;
-                    foreach (int predIndex in Predecessors(nodeIndex))
+                    foreach (int predIndex in m_backtracer.Predecessors(nodeIndex))
                     {
-                        int predIdom = doms[predIndex];
-                        if (predIdom != -1)
+                        if (doms[predIndex] != -1)
                         {
-                            newIdom = newIdom == -1 ? predIndex : Intersect(predIdom, newIdom, doms);
+                            if (newIdom == -1)
+                            {
+                                newIdom = predIndex;
+                            }
+                            else
+                            {
+                                newIdom = Intersect(predIndex, newIdom, doms);
+                            }
                         }
                     }
+
                     if (doms[nodeIndex] != newIdom)
                     {
                         doms[nodeIndex] = newIdom;
@@ -113,40 +117,9 @@ namespace MemorySnapshotAnalyzer.Analysis
                     domTree.Add(parentNodeIndex, new List<int>() { nodeIndex });
                     numberOfNonLeafNodes++;
                 }
-
-                // TODO: connect native objects - objects of types derived from UnityEngine.Object, with an m_cachedPtr field holding a native object address
             }
 
             return domTree;
-        }
-
-        IEnumerable<int> Predecessors(int nodeIndex)
-        {
-            List<int> predecessors = m_backtracer.Predecessors(nodeIndex);
-
-            bool foundNonGCHandle = false;
-            if (m_weakGCHandles)
-            {
-                for (int i = 0; i < predecessors.Count; i++)
-                {
-                    if (!m_backtracer.IsGCHandle(predecessors[i]))
-                    {
-                        foundNonGCHandle = true;
-                        break;
-                    }
-                }
-            }
-
-            for (int i = 0; i < predecessors.Count; i++)
-            {
-                // If m_weakGCHandles is false, return all predecessors.
-                // Otherwise, if the only predecessors for this node are GCHandles, return those GCHandles.
-                // Otherwise, skip the GCHandles.
-                if (!foundNonGCHandle || !m_backtracer.IsGCHandle(predecessors[i]))
-                {
-                    yield return predecessors[i];
-                }
-            }
         }
 
         static int Intersect(int finger1, int finger2, int[] doms)
@@ -190,9 +163,9 @@ namespace MemorySnapshotAnalyzer.Analysis
         {
             if (m_backtracer.IsLiveObjectNode(nodeIndex))
             {
-                int typeIndex = m_tracedHeap.ObjectTypeIndex(nodeIndex);
-                MemoryView objectView = m_memorySnapshot.GetMemoryViewForAddress(m_tracedHeap.ObjectAddress(nodeIndex));
-                return m_memorySnapshot.GetObjectSize(objectView, typeIndex, committedOnly: true);
+                int postorderIndex = m_backtracer.NodeIndexToPostorderIndex(nodeIndex);
+                int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+                return m_traceableHeap.GetObjectSize(m_tracedHeap.PostorderAddress(postorderIndex), typeIndex, committedOnly: true);
             }
             else
             {

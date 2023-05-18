@@ -166,20 +166,26 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             return FromInteger((ulong)-(long)IntegerValue);
         }
 
-        internal CommandLineArgument Indirect(MemorySnapshot? memorySnapshot)
+        internal CommandLineArgument Indirect(Context context)
         {
-            if (memorySnapshot == null)
+            if (context.CurrentTraceableHeap == null)
             {
-                throw new CommandException($"no active memory snapshot");
+                throw new CommandException("no active memory snapshot");
             }
 
-            NativeWord address = AsNativeWord(memorySnapshot.Native);
-            MemoryView memoryView = memorySnapshot.GetMemoryViewForAddress(address);
+            NativeWord address = AsNativeWord(context.CurrentTraceableHeap.Native);
+            SegmentedHeap? segmentedHeap = context.CurrentTraceableHeap.SegmentedHeapOpt;
+            if (segmentedHeap == null)
+            {
+                throw new CommandException("memory contents for active heap not available");
+            }
+
+            MemoryView memoryView = segmentedHeap.GetMemoryViewForAddress(address);
             if (!memoryView.IsValid)
             {
                 throw new CommandException($"cannot indirect through address {address}");
             }
-            NativeWord value = memoryView.ReadNativeWord(0, memorySnapshot.Native);
+            NativeWord value = memoryView.ReadNativeWord(0, context.CurrentTraceableHeap.Native);
             return FromInteger(value.Value);
         }
     }

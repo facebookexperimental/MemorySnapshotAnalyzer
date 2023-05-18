@@ -14,15 +14,11 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         bool IsLiveObjectNode(int nodeIndex);
 
-        bool IsRootSetNode(int nodeIndex);
+        bool IsRootSentinel(int nodeIndex);
 
-        bool IsGCHandle(int nodeIndex);
+        int NodeIndexToPostorderIndex(int nodeIndex);
 
-        int NodeIndexToObjectIndex(int nodeIndex);
-
-        int NodeIndexToRootIndex(int nodeIndex);
-
-        int ObjectIndexToNodeIndex(int objectIndex);
+        int PostorderIndexToNodeIndex(int postorderIndex);
 
         string DescribeNodeIndex(int nodeIndex, bool fullyQualified);
 

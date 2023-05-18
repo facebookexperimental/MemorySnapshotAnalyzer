@@ -9,34 +9,47 @@ namespace MemorySnapshotAnalyzer.Analysis
     {
         struct RootEntry
         {
-            public int TypeIndexOrNegativeOne;
-            public int FieldNumberOrGCHandleIndex;
+            // -1 = GCHandle, -2 = cross-heap reference
+            public int TypeIndexOrSentinel;
+
+            public int FieldNumberOrReferrerId;
             public int Offset;
             public ulong Value;
         }
 
-        readonly MemorySnapshot m_memorySnapshot;
-        readonly RootEntry[] m_roots;
+        readonly TraceableHeap m_traceableHeap;
+        readonly List<RootEntry> m_roots;
 
-        public RootSet(MemorySnapshot memorySnapshot)
+        public RootSet(TraceableHeap traceableHeap)
         {
-            m_memorySnapshot = memorySnapshot;
+            m_traceableHeap = traceableHeap;
 
-            ITypeSystem typeSystem = m_memorySnapshot.TypeSystem;
+            m_roots = new List<RootEntry>();
+            AddGCHandleRoots(traceableHeap);
+            AddStaticRoots(traceableHeap.TypeSystem);
+        }
 
-            var roots = new List<RootEntry>();
-
+        void AddGCHandleRoots(TraceableHeap traceableHeap)
+        {
             // Enumerate GCHandle targets as roots.
-            for (int gcHandleIndex = 0; gcHandleIndex < m_memorySnapshot.NumberOfGCHandles; gcHandleIndex++)
+            for (int gcHandleIndex = 0; gcHandleIndex < traceableHeap.NumberOfGCHandles; gcHandleIndex++)
             {
-                RootEntry entry;
-                entry.TypeIndexOrNegativeOne = -1;
-                entry.FieldNumberOrGCHandleIndex = gcHandleIndex;
-                entry.Value = m_memorySnapshot.GCHandleTarget(gcHandleIndex).Value;
-                entry.Offset = 0;
-                roots.Add(entry);
+                AddGCHandleRoot(gcHandleIndex, traceableHeap.GCHandleTarget(gcHandleIndex));
             }
+        }
 
+        public void AddGCHandleRoot(int gcHandleIndex, NativeWord targetAddress)
+        {
+            RootEntry entry;
+            entry.TypeIndexOrSentinel = -1;
+            entry.FieldNumberOrReferrerId = gcHandleIndex;
+            entry.Offset = 0;
+            entry.Value = targetAddress.Value;
+            m_roots.Add(entry);
+        }
+
+        void AddStaticRoots(TypeSystem typeSystem)
+        {
             // Enumerate all roots in static fields.
             for (int typeIndex = 0; typeIndex < typeSystem.NumberOfTypeIndices; typeIndex++)
             {
@@ -51,71 +64,70 @@ namespace MemorySnapshotAnalyzer.Analysis
                         if (staticFieldBytesView.IsValid)
                         {
                             int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
-                            foreach (int offset in m_memorySnapshot.GetFieldPointerOffsets(fieldTypeIndex, baseOffset: 0))
+                            foreach (int offset in typeSystem.GetFieldPointerOffsets(fieldTypeIndex, baseOffset: 0))
                             {
-                                RootEntry entry;
-                                entry.TypeIndexOrNegativeOne = typeIndex;
-                                entry.FieldNumberOrGCHandleIndex = fieldNumber;
-                                entry.Offset = offset;
-                                entry.Value = staticFieldBytesView.ReadPointer(offset, m_memorySnapshot.Native).Value;
-                                roots.Add(entry);
+                                AddStaticRoot(typeIndex, fieldNumber, offset, staticFieldBytesView.ReadPointer(offset, m_traceableHeap.Native));
                             }
                         }
                     }
                 }
             }
-
-            m_roots = roots.ToArray();
         }
 
-        MemorySnapshot IRootSet.MemorySnapshot => m_memorySnapshot;
+        public void AddStaticRoot(int typeIndex, int fieldNumber, int offset, NativeWord reference)
+        {
+            RootEntry entry;
+            entry.TypeIndexOrSentinel = typeIndex;
+            entry.FieldNumberOrReferrerId = fieldNumber;
+            entry.Offset = offset;
+            entry.Value = reference.Value;
+            m_roots.Add(entry);
+        }
 
-        public int NumberOfRoots => m_roots.Length;
+        public void AddForeignHeapReference(int referrerId, NativeWord reference)
+        {
+            RootEntry entry;
+            entry.TypeIndexOrSentinel = -2;
+            entry.FieldNumberOrReferrerId = referrerId;
+            entry.Offset = 0;
+            entry.Value = reference.Value;
+            m_roots.Add(entry);
+        }
 
-        public int NumberOfGCHandles => m_memorySnapshot.NumberOfGCHandles;
+        TraceableHeap IRootSet.TraceableHeap => m_traceableHeap;
+
+        public int NumberOfRoots => m_roots.Count;
+
+        public int NumberOfGCHandles => m_traceableHeap.NumberOfGCHandles;
 
         public int NumberOfStaticRoots => NumberOfRoots - NumberOfGCHandles;
 
         NativeWord IRootSet.GetRoot(int rootIndex)
         {
-            return m_memorySnapshot.Native.From(m_roots[rootIndex].Value);
+            return m_traceableHeap.Native.From(m_roots[rootIndex].Value);
         }
 
         bool IRootSet.IsGCHandle(int rootIndex)
         {
             RootEntry entry = m_roots[rootIndex];
-            int typeIndex = entry.TypeIndexOrNegativeOne;
+            int typeIndex = entry.TypeIndexOrSentinel;
             return typeIndex == -1;
         }
 
         string IRootSet.DescribeRoot(int rootIndex, bool fullyQualified)
         {
             RootEntry entry = m_roots[rootIndex];
-            int typeIndex = entry.TypeIndexOrNegativeOne;
+            int typeIndex = entry.TypeIndexOrSentinel;
             if (typeIndex == -1)
             {
-                return $"GCHandle#{entry.FieldNumberOrGCHandleIndex}";
+                return $"GCHandle#{entry.FieldNumberOrReferrerId}";
             }
             else
             {
                 return string.Format("{0}.{1}+0x{2:X}",
-                    m_memorySnapshot.TypeSystem.UnqualifiedName(typeIndex),
-                    m_memorySnapshot.TypeSystem.FieldName(typeIndex, entry.FieldNumberOrGCHandleIndex),
+                    m_traceableHeap.TypeSystem.UnqualifiedName(typeIndex),
+                    m_traceableHeap.TypeSystem.FieldName(typeIndex, entry.FieldNumberOrReferrerId),
                     entry.Offset);
-            }
-        }
-
-        string IRootSet.RootType(int rootIndex)
-        {
-            RootEntry entry = m_roots[rootIndex];
-            int typeIndex = entry.TypeIndexOrNegativeOne;
-            if (typeIndex == -1)
-            {
-                return "gchandle";
-            }
-            else
-            {
-                return "static";
             }
         }
 
@@ -139,16 +151,16 @@ namespace MemorySnapshotAnalyzer.Analysis
         IRootSet.StaticRootInfo IRootSet.GetStaticRootInfo(int rootIndex)
         {
             RootEntry entry = m_roots[rootIndex];
-            int typeIndex = entry.TypeIndexOrNegativeOne;
+            int typeIndex = entry.TypeIndexOrSentinel;
             if (typeIndex == -1)
             {
                 return default;
             }
 
             IRootSet.StaticRootInfo info;
-            info.AssemblyName = m_memorySnapshot.TypeSystem.Assembly(typeIndex);
+            info.AssemblyName = m_traceableHeap.TypeSystem.Assembly(typeIndex);
 
-            string qualifiedName = m_memorySnapshot.TypeSystem.QualifiedName(typeIndex);
+            string qualifiedName = m_traceableHeap.TypeSystem.QualifiedName(typeIndex);
             int indexOfDot = IndexOfLastNamespaceDot(qualifiedName);
             if (indexOfDot == -1)
             {

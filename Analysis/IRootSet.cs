@@ -13,7 +13,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             public string ClassName;
         };
 
-        MemorySnapshot MemorySnapshot { get; }
+        TraceableHeap TraceableHeap { get; }
 
         int NumberOfRoots { get; }
 
@@ -26,8 +26,6 @@ namespace MemorySnapshotAnalyzer.Analysis
         bool IsGCHandle(int rootIndex);
 
         string DescribeRoot(int rootIndex, bool fullyQualified);
-
-        string RootType(int rootIndex);
 
         StaticRootInfo GetStaticRootInfo(int rootIndex);
     }
