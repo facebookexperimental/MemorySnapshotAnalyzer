@@ -9,6 +9,21 @@
 
 <body>
     <div id="svg"></div>
+    <br />
+    <br />
+    <br />
+    <tt>
+        <p>
+            <div id="filename"></div>
+        </p>
+        <p>
+            <div id="heapDomCommandLine"></div>
+        </p>
+        <p>
+            <div id="context"></div>
+        </p>
+    </tt>
+
     <script>
         const height = 1000;
         const width = 1600;
@@ -38,7 +53,7 @@
                 return "url(" + this.href + ")";
             };
 
-            return { uid : uid };
+            return { uid: uid };
         })();
 
         function shorten(name) {
@@ -236,6 +251,12 @@
         var svgElement = document.getElementById("svg");
         svgElement.style = "height: " + height + "px; width: " + width + "px";
         svgElement.append(svg.node());
+
+        document.getElementById("filename").innerText = data.filename;
+        document.getElementById("heapDomCommandLine").innerText = data.heapDomCommandLine;
+        var pre = document.createElement('pre');
+        document.getElementById("context").appendChild(pre);
+        pre.innerText = data.context;
     </script>
 </body>
 

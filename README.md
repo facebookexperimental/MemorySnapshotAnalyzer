@@ -25,7 +25,7 @@ The syntax for command lines is, admittedly, a bit idiosyncratic; see `CommandPr
 
 Note that some commands take indices of different kinds (as well as addresses). Make sure to not confuse these indices with one another:
 * The type system assigns a type index to each type.
-* Heap tracing assigns an object index to each live object.
+* Heap tracing assigns an index to each live object an to each group of roots with the same target, in postorder.
 * Indices can be specific to the context (see below) and can change with different analysis options (e.g., heap stitching).
 * (Only of interest to developers working on the analyzer itself: Internally, the root set also assigns a root index to each root, and backtracing assigns a node index to each node that can be part of a backtrace - or of the dominator tree.)
 
@@ -54,7 +54,7 @@ MemorySnapshotAnalyzer allows analysis of what's in a heap snapshot at different
   * Use `dumproots 'invalid` to get information about roots that do not seem to point to valid objects. This can be useful to find inconsistencies in the heap (though this can also just be a built-in or preallocated object).
   * Use `options 'rootobject 0x12345678` to ignore the root set and instead consider the given object address as the single root. This allows to get analysis results restricted to the graph of objects reachable from the specified object. The address does not need to be that of an object that is reachable using the snapshot's root set, which can be useful to look at "garbage" as if it was still live.
 * **Traced heap:**
-  * Use `dumpobj 'list` to dump the objects that are currently considered "live" for the purpose of the garbage collector. This causes the entire heap to be traced, starting from the root set and following all managed pointers within reachable objects. Use `dumpobj 'list 'type` to list objects of specific types on the heap, or `dumpobj` with an object index or address to dump the given object.
+  * Use `dumpobj 'list` to dump the objects that are currently considered "live" for the purpose of the garbage collector. This causes the entire heap to be traced, starting from the root set and following all managed pointers within reachable objects. Use `dumpobj 'list 'type` to list objects of specific types on the heap, or `dumpobj` with a postorder index or address to dump the given object.
   * Use `dumpinvalidrefs` to dump references that are no valid (e.g., do not point into the managed heap or to a managed object). This can be useful to find inconsistencies in the heap.
 * **Backtracer:**
   * Use `backtrace` to dump "backtraces" that indicate how a given object is reachable on the heap. This causes the predecessor set to be computed for each object in the object graph. This can be useful to determine why an object is still alive, e.g., when all references to it had been expected to be released and the object was expected to be reclaimed by the garbage collector.

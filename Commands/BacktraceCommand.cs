@@ -51,8 +51,8 @@ namespace MemorySnapshotAnalyzer.Commands
                 return;
             }
 
-            int objectIndex = ResolveToObjectIndex(AddressOrIndex);
-            int nodeIndex = CurrentBacktracer.ObjectIndexToNodeIndex(objectIndex);
+            int postorderIndex = ResolveToPostorderIndex(AddressOrIndex);
+            int nodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex);
             DumpCore(nodeIndex);
         }
 
@@ -68,8 +68,8 @@ namespace MemorySnapshotAnalyzer.Commands
                     {
                         if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
                         {
-                            int objectIndex = CurrentBacktracer.NodeIndexToObjectIndex(nodeIndex);
-                            int typeIndex = CurrentTracedHeap.ObjectTypeIndex(objectIndex);
+                            int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
+                            int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
                             if (stats.TryGetValue(typeIndex, out int count))
                             {
                                 stats[typeIndex] = count + 1;
@@ -199,14 +199,11 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 foreach (int rootNodeIndex in reachableRoots)
                 {
-                    if (!CurrentBacktracer.IsGCHandle(rootNodeIndex))
+                    int[] path = shortestPaths[rootNodeIndex];
+                    for (int i = path.Length - 1; i >= 0; i--)
                     {
-                        int[] path = shortestPaths[rootNodeIndex];
-                        for (int i = path.Length - 1; i >= 0; i--)
-                        {
-                            Output.WriteLineIndented(i == path.Length - 1 ? 0 : 1,
-                                CurrentBacktracer.DescribeNodeIndex(path[i], FullyQualified));
-                        }
+                        Output.WriteLineIndented(i == path.Length - 1 ? 0 : 1,
+                            CurrentBacktracer.DescribeNodeIndex(path[i], FullyQualified));
                     }
                 }
             }
@@ -220,7 +217,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 seen.Add(nodeIndex);
 
-                if (CurrentBacktracer.IsRootSetNode(nodeIndex))
+                if (CurrentBacktracer.IsRootSentinel(nodeIndex))
                 {
                     if (!shortestPaths.TryGetValue(nodeIndex, out int[]? shortestPath)
                         || shortestPath.Length > currentPath.Count)
@@ -292,7 +289,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 seen.Add(nodeIndex);
 
-                if (CurrentBacktracer.IsRootSetNode(nodeIndex))
+                if (CurrentBacktracer.IsRootSentinel(nodeIndex))
                 {
                     roots.Add(nodeIndex);
                 }
@@ -337,14 +334,17 @@ namespace MemorySnapshotAnalyzer.Commands
 
             for (int i = 0; i < reachableRoots.Count && allFromOneAssembly; i++)
             {
-                if (CurrentBacktracer.IsGCHandle(reachableRoots[i]))
+                List<int> rootIndices = CurrentTracedHeap.PostorderRootIndices(CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex));
+                foreach (int rootIndex in rootIndices)
                 {
-                    numberOfGCHandles++;
-                }
-                else
-                {
+                    if (CurrentRootSet.IsGCHandle(rootIndex))
+                    {
+                        numberOfGCHandles++;
+                        continue;
+                    }
+
                     // If roots are a mix of GCHandles and statics, ignore the GCHandles.
-                    IRootSet.StaticRootInfo info = CurrentRootSet.GetStaticRootInfo(CurrentBacktracer.NodeIndexToRootIndex(reachableRoots[i]));
+                    IRootSet.StaticRootInfo info = CurrentRootSet.GetStaticRootInfo(rootIndex);
                     if (info.AssemblyName == null)
                     {
                         allFromOneAssembly = false;

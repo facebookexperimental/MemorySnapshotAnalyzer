@@ -38,11 +38,6 @@ namespace MemorySnapshotAnalyzer.Analysis
             return $"Object@{m_address}";
         }
 
-        string IRootSet.RootType(int rootIndex)
-        {
-            return "pivot";
-        }
-
         IRootSet.StaticRootInfo IRootSet.GetStaticRootInfo(int rootIndex)
         {
             return default;

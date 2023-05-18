@@ -131,20 +131,6 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        string IRootSet.RootType(int rootIndex)
-        {
-            RootEntry entry = m_roots[rootIndex];
-            int typeIndex = entry.TypeIndexOrSentinel;
-            if (typeIndex == -1)
-            {
-                return "gchandle";
-            }
-            else
-            {
-                return "static";
-            }
-        }
-
         static int IndexOfLastNamespaceDot(string qualifiedName)
         {
             int indexOfLastDot = -1;

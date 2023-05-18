@@ -19,6 +19,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly List<int>[] m_namespacePredecessors;
         readonly List<int>[] m_classPredecessors;
         readonly List<int>[] m_rootPredecessors;
+        readonly Dictionary<int, List<int>> m_postorderRootPredecessors;
 
         sealed class TupleIntStringComparer : IEqualityComparer<Tuple<int, string>>
         {
@@ -56,8 +57,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_classNames = new List<string>();
             var classToIndex = new Dictionary<Tuple<int, string>, int>(comparer);
             var classIndexToNamespaceIndex = new List<int>();
-            var rootIndexToClassIndex = new int[TracedHeap.RootSet.NumberOfRoots];
-            for (int rootIndex = 0; rootIndex < rootIndexToClassIndex.Length; rootIndex++)
+            for (int rootIndex = 0; rootIndex < TracedHeap.RootSet.NumberOfRoots; rootIndex++)
             {
                 if (!TracedHeap.RootSet.IsGCHandle(rootIndex))
                 {
@@ -108,6 +108,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 m_classPredecessors[i] = new List<int>() { m_firstNamespaceIndex + classIndexToNamespaceIndex[i] };
             }
+
+            m_postorderRootPredecessors = new Dictionary<int, List<int>>();
         }
 
         public TracedHeap TracedHeap => m_parentBacktracer.TracedHeap;
@@ -121,29 +123,19 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_parentBacktracer.IsLiveObjectNode(nodeIndex);
         }
 
-        bool IBacktracer.IsRootSetNode(int nodeIndex)
+        bool IBacktracer.IsRootSentinel(int nodeIndex)
         {
-            return m_parentBacktracer.IsRootSetNode(nodeIndex);
+            return m_parentBacktracer.IsRootSentinel(nodeIndex);
         }
 
-        bool IBacktracer.IsGCHandle(int nodeIndex)
+        int IBacktracer.NodeIndexToPostorderIndex(int nodeIndex)
         {
-            return nodeIndex < m_firstClassIndex && m_parentBacktracer.IsGCHandle(nodeIndex);
+            return m_parentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
         }
 
-        int IBacktracer.NodeIndexToObjectIndex(int nodeIndex)
+        int IBacktracer.PostorderIndexToNodeIndex(int postorderIndex)
         {
-            return m_parentBacktracer.NodeIndexToObjectIndex(nodeIndex);
-        }
-
-        int IBacktracer.NodeIndexToRootIndex(int nodeIndex)
-        {
-            return m_parentBacktracer.NodeIndexToRootIndex(nodeIndex);
-        }
-
-        int IBacktracer.ObjectIndexToNodeIndex(int objectIndex)
-        {
-            return m_parentBacktracer.ObjectIndexToNodeIndex(objectIndex);
+            return m_parentBacktracer.PostorderIndexToNodeIndex(postorderIndex);
         }
 
         string IBacktracer.DescribeNodeIndex(int nodeIndex, bool fullyQualified)
@@ -208,19 +200,41 @@ namespace MemorySnapshotAnalyzer.Analysis
                 int classIndex = nodeIndex - m_firstClassIndex;
                 return m_classPredecessors[classIndex];
             }
-            else if (m_parentBacktracer.IsGCHandle(nodeIndex))
+            else if (m_parentBacktracer.IsRootSentinel(nodeIndex))
             {
-                return m_assemblyPredecessors;
-            }
-            else if (m_parentBacktracer.IsRootSetNode(nodeIndex))
-            {
-                int rootIndex = m_parentBacktracer.NodeIndexToRootIndex(nodeIndex);
-                return m_rootPredecessors[rootIndex];
+                int postorderIndex = m_parentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
+                if (m_postorderRootPredecessors.TryGetValue(postorderIndex, out List<int>? predecessors))
+                {
+                    return predecessors!;
+                }
+
+                List<int> newPredecessors = ComputePostorderRootPredecessors(postorderIndex);
+                m_postorderRootPredecessors.Add(postorderIndex, newPredecessors);
+                return newPredecessors;
             }
             else
             {
                 return m_parentBacktracer.Predecessors(nodeIndex);
             }
+        }
+
+        List<int> ComputePostorderRootPredecessors(int postorderIndex)
+        {
+            List<int> rootIndices = m_parentBacktracer.TracedHeap.PostorderRootIndices(postorderIndex);
+            if (rootIndices.Count == 1)
+            {
+                return m_rootPredecessors[rootIndices[0]] ?? m_assemblyPredecessors;
+            }
+
+            var predecessors = new List<int>();
+            foreach (int rootIndex in rootIndices)
+            {
+                foreach (int predIndex in m_rootPredecessors[rootIndex] ?? m_assemblyPredecessors)
+                {
+                    predecessors.Add(predIndex);
+                }
+            }
+            return predecessors;
         }
     }
 }

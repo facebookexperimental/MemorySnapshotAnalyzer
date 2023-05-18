@@ -3,6 +3,7 @@
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.Analysis;
 using System;
+using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.CommandProcessing
 {
@@ -23,11 +24,11 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         bool m_traceableHeap_fuseObjectPairs;
         // Options for RootSet
         NativeWord m_rootSet_singletonRootAddress;
+        // Options for TracedHeap
+        bool m_tracedHeap_weakGCHandles;
         // Options for Backtracer
         bool m_backtracer_groupStatics;
         bool m_backtracer_fuseGCHandles;
-        // Options for HeapDom
-        bool m_heapDom_weakGCHandles;
 
         MemorySnapshot? m_currentMemorySnapshot;
         TraceableHeap? m_currentTraceableHeap;
@@ -46,12 +47,12 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             var newContext = new Context(newId, other.m_output)
             {
+                TracedHeap_WeakGCHandles = other.TracedHeap_WeakGCHandles,
                 RootSet_SingletonRootAddress = other.RootSet_SingletonRootAddress,
                 TraceableHeap_Kind = other.TraceableHeap_Kind,
                 TraceableHeap_FuseObjectPairs = other.TraceableHeap_FuseObjectPairs,
                 Backtracer_GroupStatics = other.Backtracer_GroupStatics,
-                Backtracer_FuseGCHandles = other.Backtracer_FuseGCHandles,
-                HeapDom_WeakGCHandles = other.HeapDom_WeakGCHandles
+                Backtracer_FuseGCHandles = other.Backtracer_FuseGCHandles
             };
             return newContext;
         }
@@ -65,26 +66,34 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         public void Dump(int indent)
         {
+            foreach (string s in Serialize())
+            {
+                m_output.WriteLineIndented(indent, s);
+            }
+        }
+
+        public IEnumerable<string> Serialize()
+        {
             if (m_currentMemorySnapshot == null)
             {
-                m_output.WriteLineIndented(indent, "no heap snapshot loaded");
+                yield return "no heap snapshot loaded";
             }
             else
             {
-                m_output.WriteLineIndented(indent, "{0} ({1})",
+                yield return string.Format("{0} ({1})",
                     m_currentMemorySnapshot.Filename,
                     m_currentMemorySnapshot.Format);
             }
 
             if (m_currentTraceableHeap == null)
             {
-                m_output.WriteLineIndented(indent, "TraceableHeap[kind={0}, fuseobjectpairs={1}] not computed",
+                yield return string.Format("TraceableHeap[kind={0}, fuseobjectpairs={1}] not computed",
                     m_traceableHeap_kind,
                     m_traceableHeap_fuseObjectPairs);
             }
             else
             {
-                m_output.WriteLineIndented(indent, "TraceableHeap[kind={0}, fuseobjectpairs={1}] {2} ({3} type indices, {4} object pairs, {5})",
+                yield return string.Format("TraceableHeap[kind={0}, fuseobjectpairs={1}] {2} ({3} type indices, {4} object pairs, {5})",
                     m_traceableHeap_kind,
                     m_traceableHeap_fuseObjectPairs,
                     m_currentTraceableHeap.Description,
@@ -95,12 +104,12 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
             if (m_currentRootSet == null)
             {
-                m_output.WriteLineIndented(indent, "RootSet[rootobject={0}] not computed",
+                yield return string.Format("RootSet[rootobject={0}] not computed",
                     m_rootSet_singletonRootAddress);
             }
             else
             {
-                m_output.WriteLineIndented(indent, "RootSet[rootobject={0}]: {1} roots ({2} GCHandles, {3} statics)",
+                yield return string.Format("RootSet[rootobject={0}]: {1} roots ({2} GCHandles, {3} statics)",
                     m_rootSet_singletonRootAddress,
                     m_currentRootSet.NumberOfRoots,
                     m_currentRootSet.NumberOfGCHandles,
@@ -109,38 +118,39 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
             if (m_currentTracedHeap == null)
             {
-                m_output.WriteLineIndented(indent, "TracedHeap not computed");
+                yield return string.Format("TracedHeap[weakgchandles={0}] not computed",
+                    m_tracedHeap_weakGCHandles);
             }
             else
             {
-                m_output.WriteLineIndented(indent, "TracedHeap: {0} live objects ({1} invalid roots, {2} invalid pointers)",
+                yield return string.Format("TracedHeap[weakgchandles={0}]: {1} live objects and {2} distinct roots ({3} invalid roots, {4} invalid pointers)",
+                    m_tracedHeap_weakGCHandles,
                     m_currentTracedHeap.NumberOfLiveObjects,
+                    m_currentTracedHeap.NumberOfDistinctRoots,
                     m_currentTracedHeap.NumberOfInvalidRoots,
                     m_currentTracedHeap.NumberOfInvalidPointers);
             }
 
             if (m_currentBacktracer == null)
             {
-                m_output.WriteLineIndented(indent,"Backtracer[groupstatics={0}, fusegchandles={1}] not computed",
+                yield return string.Format("Backtracer[groupstatics={0}, fusegchandles={1}] not computed",
                     m_backtracer_groupStatics,
                     m_backtracer_fuseGCHandles);
             }
             else
             {
-                m_output.WriteLineIndented(indent, "Backtracer[groupstatics={0}, fusegchandles={1}]",
+                yield return string.Format("Backtracer[groupstatics={0}, fusegchandles={1}]",
                     m_backtracer_groupStatics,
                     m_backtracer_fuseGCHandles);
             }
 
             if (m_currentHeapDom == null)
             {
-                m_output.WriteLineIndented(indent, "HeapDom[weakgchandles={0}] not computed",
-                    m_heapDom_weakGCHandles);
+                yield return "HeapDom not computed";
             }
             else
             {
-                m_output.WriteLineIndented(indent, "HeapDom[weakgchandles={0}]: {1} non-leaf nodes found",
-                    m_heapDom_weakGCHandles,
+                yield return string.Format("HeapDom: {0} non-leaf nodes found",
                     m_currentHeapDom.NumberOfNonLeafNodes);
             }
         }
@@ -295,6 +305,19 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             ClearTracedHeap();
         }
 
+        public bool TracedHeap_WeakGCHandles
+        {
+            get { return m_tracedHeap_weakGCHandles; }
+            set
+            {
+                if (m_tracedHeap_weakGCHandles != value)
+                {
+                    m_tracedHeap_weakGCHandles = value;
+                    ClearTracedHeap();
+                }
+            }
+        }
+
         public TracedHeap? CurrentTracedHeap => m_currentTracedHeap;
 
         public void EnsureTracedHeap()
@@ -304,9 +327,10 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             if (m_currentTracedHeap == null)
             {
                 m_output.Write("[context {0}] tracing heap ...", m_id);
-                m_currentTracedHeap = new TracedHeap(CurrentRootSet!);
-                m_output.WriteLine(" {0} live objects ({1} invalid roots, {2} invalid pointers)",
+                m_currentTracedHeap = new TracedHeap(CurrentRootSet!, TracedHeap_WeakGCHandles);
+                m_output.WriteLine(" {0} live objects and {1} distinct roots ({2} invalid roots, {3} invalid pointers)",
                     m_currentTracedHeap.NumberOfLiveObjects,
+                    m_currentTracedHeap.NumberOfDistinctRoots,
                     m_currentTracedHeap.NumberOfInvalidRoots,
                     m_currentTracedHeap.NumberOfInvalidPointers);
             }
@@ -353,15 +377,12 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             if (m_currentHeapDom == null)
             {
                 m_output.Write("[context {0}] computing backtraces ...", m_id);
+                IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseGCHandles);
                 if (m_backtracer_groupStatics)
                 {
-                    var backtracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseGCHandles);
-                    m_currentBacktracer = new GroupingBacktracer(backtracer);
+                    backtracer = new GroupingBacktracer(backtracer);
                 }
-                else
-                {
-                    m_currentBacktracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseGCHandles);
-                }
+                m_currentBacktracer = backtracer;
                 m_output.WriteLine(" done");
             }
         }
@@ -370,19 +391,6 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             m_currentBacktracer = null;
             ClearHeapDom();
-        }
-
-        public bool HeapDom_WeakGCHandles
-        {
-            get { return m_heapDom_weakGCHandles; }
-            set
-            {
-                if (m_heapDom_weakGCHandles != value)
-                {
-                    m_heapDom_weakGCHandles = value;
-                    ClearHeapDom();
-                }
-            }
         }
 
         public HeapDom? CurrentHeapDom => m_currentHeapDom;
@@ -394,7 +402,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             if (m_currentHeapDom == null)
             {
                 m_output.Write("[context {0}] computing dominator tree ...", m_id);
-                m_currentHeapDom = new HeapDom(CurrentBacktracer!, weakGCHandles: HeapDom_WeakGCHandles);
+                m_currentHeapDom = new HeapDom(CurrentBacktracer!);
                 m_output.WriteLine(" {0} non-leaf nodes found", m_currentHeapDom.NumberOfNonLeafNodes);
             }
         }

@@ -76,10 +76,11 @@ namespace MemorySnapshotAnalyzer.Commands
 
             if (Objects)
             {
+                // Dump information about the objects that contain fields with invalid pointers.
                 foreach (Tuple<NativeWord, NativeWord> tuple in pointers)
                 {
-                    int objectIndex = CurrentTracedHeap.ObjectAddressToIndex(tuple.Item2);
-                    int typeIndex = CurrentTracedHeap.ObjectTypeIndex(objectIndex);
+                    int postorderIndex = CurrentTracedHeap.ObjectAddressToPostorderIndex(tuple.Item2);
+                    int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
                     Output.WriteLine("Object at {0} contains {1} reference {2} (type {3} with index {4})",
                         tuple.Item2,
                         kind,

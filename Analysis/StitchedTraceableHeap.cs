@@ -26,7 +26,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                 m_computingObjectPairs = true;
                 m_fusedObjectParent = new Dictionary<ulong, ulong>();
                 // Perform heap tracing once, for the side effect of discovering all object pairs.
-                var _ = new TracedHeap(new RootSet(this));
+                var _ = new TracedHeap(new RootSet(this), weakGCHandles: false);
                 m_computingObjectPairs = false;
             }
         }

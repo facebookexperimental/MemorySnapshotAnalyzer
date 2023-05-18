@@ -16,17 +16,18 @@ namespace MemorySnapshotAnalyzer.Commands
         [FlagArgument("fuseobjectpairs")]
         public int FuseObjectPairs = -1;
 
+        [FlagArgument("weakgchandles")]
+        public int WeakGCHandles = -1;
+
         [NamedArgument("rootobject")]
-        public NativeWord Address;
+        public NativeWord RootObjectAddress;
 
         [FlagArgument("groupstatics")]
         public int GroupStatics = -1;
 
+        // TODO: this is not a great name anymore, as it fuses all roots with their targets
         [FlagArgument("fusegchandles")]
         public int FuseGCHandles = -1;
-
-        [FlagArgument("weakgchandles")]
-        public int WeakGCHandles = -1;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
@@ -53,9 +54,14 @@ namespace MemorySnapshotAnalyzer.Commands
                 Context.TraceableHeap_FuseObjectPairs = FuseObjectPairs != 0;
             }
 
-            if (Address.Size != 0)
+            if (WeakGCHandles != -1)
             {
-                Context.RootSet_SingletonRootAddress = Address;
+                Context.TracedHeap_WeakGCHandles = WeakGCHandles != 0;
+            }
+
+            if (RootObjectAddress.Size != 0)
+            {
+                Context.RootSet_SingletonRootAddress = RootObjectAddress;
             }
 
             if (GroupStatics != -1)
@@ -68,15 +74,10 @@ namespace MemorySnapshotAnalyzer.Commands
                 Context.Backtracer_FuseGCHandles = FuseGCHandles != 0;
             }
 
-            if (WeakGCHandles != -1)
-            {
-                Context.HeapDom_WeakGCHandles = WeakGCHandles != 0;
-            }
-
             Output.WriteLine("* [{0}]", Context.Id);
             Context.Dump(indent: 1);
         }
 
-        public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['fuseobjectpairs] ['rootobject <address or index>] ['groupstatics] ['fusegchandles]";
+        public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['fuseobjectpairs] ['weakgchandles] ['rootobject <address or index>] ['groupstatics] ['fusegchandles]";
     }
 }

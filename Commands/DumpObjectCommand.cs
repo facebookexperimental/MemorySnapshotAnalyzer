@@ -93,14 +93,21 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpStatistics()
         {
-            int numberOfLiveObjects = CurrentTracedHeap.NumberOfLiveObjects;
+            int numberOfPostorderNodes = CurrentTracedHeap.NumberOfPostorderNodes;
             long totalSize = 0;
+            int numberOfLiveObjects = 0;
             var perTypeCounts = new Dictionary<int, Tuple<int, long>>();
-            for (int objectIndex = 0; objectIndex < numberOfLiveObjects; objectIndex++)
+            for (int postorderIndex = 0; postorderIndex < numberOfPostorderNodes; postorderIndex++)
             {
-                int typeIndex = CurrentTracedHeap.ObjectTypeIndex(objectIndex);
-                long size = CurrentTraceableHeap.GetObjectSize(CurrentTracedHeap.ObjectAddress(objectIndex), typeIndex, committedOnly: true);
+                int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+                if (typeIndex == -1)
+                {
+                    continue;
+                }
+
+                long size = CurrentTraceableHeap.GetObjectSize(CurrentTracedHeap.PostorderAddress(postorderIndex), typeIndex, committedOnly: true);
                 totalSize += size;
+                numberOfLiveObjects++;
 
                 if (perTypeCounts.TryGetValue(typeIndex, out Tuple<int, long>? tuple))
                 {
@@ -140,40 +147,40 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             // TODO: also support listing objects of types derived from the given type index?
 
-            int numberOfLiveObjects = CurrentTracedHeap.NumberOfLiveObjects;
+            int numberOfPostorderNodes = CurrentTracedHeap.NumberOfPostorderNodes;
+
+            int numberOfObjectsFound = 0;
+            for (int postorderIndex = 0; postorderIndex < numberOfPostorderNodes; postorderIndex++)
+            {
+                int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+                if (TypeIndex != -1 && typeIndex == TypeIndex || TypeIndex == -1 && typeIndex != -1)
+                {
+                    numberOfObjectsFound++;
+                }
+            }
 
             if (TypeIndex != -1)
             {
-                int numberOfObjectsFound = 0;
-                for (int objectIndex = 0; objectIndex < numberOfLiveObjects; objectIndex++)
-                {
-                    if (CurrentTracedHeap.ObjectTypeIndex(objectIndex) == TypeIndex)
-                    {
-                        numberOfObjectsFound++;
-                    }
-                }
-
                 Output.WriteLine("found {0} object(s) of type {1}",
                     numberOfObjectsFound,
                     CurrentTraceableHeap.TypeSystem.QualifiedName(TypeIndex));
             }
             else
             {
-                Output.WriteLine("found {0} object(s)", numberOfLiveObjects);
+                Output.WriteLine("found {0} object(s)", numberOfObjectsFound);
             }
 
             var sb = new StringBuilder();
-            for (int objectIndex = 0; objectIndex < numberOfLiveObjects; objectIndex++)
+            for (int postorderIndex = 0; postorderIndex < numberOfPostorderNodes; postorderIndex++)
             {
-                if (TypeIndex != -1 && CurrentTracedHeap.ObjectTypeIndex(objectIndex) != TypeIndex)
+                int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+                if (TypeIndex != -1 && typeIndex == TypeIndex || TypeIndex == -1 && typeIndex != -1)
                 {
-                    continue;
+                    NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
+                    DescribeAddress(address, sb);
+                    Output.WriteLine(sb.ToString());
+                    sb.Clear();
                 }
-
-                NativeWord address = CurrentTracedHeap.ObjectAddress(objectIndex);
-                DescribeAddress(address, sb);
-                Output.WriteLine(sb.ToString());
-                sb.Clear();
             }
         }
 
@@ -186,22 +193,22 @@ namespace MemorySnapshotAnalyzer.Commands
             }
 
             NativeWord address = default;
-            int objectIndex = -1;
+            int postorderIndex = -1;
 
-            // Try to see what we're asked to operate on - an address or a live object index.
+            // Try to see what we're asked to operate on - an address or a postorder index.
             MemoryView objectView = segmentedHeap.GetMemoryViewForAddress(AddressOrIndex);
             if (objectView.IsValid)
             {
                 address = AddressOrIndex;
                 if (Context.CurrentTracedHeap != null)
                 {
-                    objectIndex = CurrentTracedHeap.ObjectAddressToIndex(AddressOrIndex);
+                    postorderIndex = CurrentTracedHeap.ObjectAddressToPostorderIndex(AddressOrIndex);
                 }
             }
-            else if (Context.CurrentTracedHeap != null && AddressOrIndex.Value < (ulong)CurrentTracedHeap.NumberOfLiveObjects)
+            else if (Context.CurrentTracedHeap != null && AddressOrIndex.Value < (ulong)CurrentTracedHeap.NumberOfPostorderNodes)
             {
-                objectIndex = (int)AddressOrIndex.Value;
-                address = CurrentTracedHeap.ObjectAddress(objectIndex);
+                postorderIndex = (int)AddressOrIndex.Value;
+                address = CurrentTracedHeap.PostorderAddress(postorderIndex);
             }
 
             // Report what target we found, if any.
@@ -209,9 +216,9 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 throw new CommandException($"address {AddressOrIndex} is not in mapped memory");
             }
-            else if (objectIndex != -1)
+            else if (postorderIndex != -1)
             {
-                Output.WriteLine("live object with index {0} at address {1}", objectIndex, address);
+                Output.WriteLine("live object with index {0} at address {1}", postorderIndex, address);
             }
             else
             {
@@ -242,9 +249,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpObjectInformation()
         {
-            int objectIndex = ResolveToObjectIndex(AddressOrIndex);
-            NativeWord address = CurrentTracedHeap.ObjectAddress(objectIndex);
-            Output.WriteLine("live object with index {0} at address {1}", objectIndex, address);
+            int postorderIndex = ResolveToPostorderIndex(AddressOrIndex);
+            NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
+            Output.WriteLine("live object with index {0} at address {1}", postorderIndex, address);
             DumpObjectInformation(address);
         }
 

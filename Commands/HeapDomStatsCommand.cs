@@ -18,21 +18,18 @@ namespace MemorySnapshotAnalyzer.Commands
 
             var stats = new Dictionary<int, Tuple<int, long>>();
             int totalObjectCount = 0;
-            int totalGCHandleCount = 0;
+            int totalToplevelCount = 0;
             if (children != null)
             {
+                totalToplevelCount = children.Count;
                 for (int i = 0; i < children.Count; i++)
                 {
                     int nodeIndex = children[i];
-                    if (CurrentBacktracer.IsGCHandle(nodeIndex))
-                    {
-                        totalGCHandleCount++;
-                    }
-                    else if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
+                    if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
                     {
                         totalObjectCount++;
-                        int objectIndex = CurrentBacktracer.NodeIndexToObjectIndex(nodeIndex);
-                        int typeIndex = CurrentTracedHeap.ObjectTypeIndex(objectIndex);
+                        int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
+                        int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
                         if (stats.TryGetValue(typeIndex, out Tuple<int, long>? data))
                         {
                             stats[typeIndex] = Tuple.Create(data!.Item1 + 1, data!.Item2 + CurrentHeapDom.TreeSize(nodeIndex));
@@ -45,7 +42,9 @@ namespace MemorySnapshotAnalyzer.Commands
                 }
             }
 
-            Output.WriteLine("Number of nodes dominated only by root node: {0} objects, {1} GC handles", totalObjectCount, totalGCHandleCount);
+            Output.WriteLine("Number of nodes dominated only by root node: {0} objects out of {1} toplevel nodes",
+                totalObjectCount,
+                totalToplevelCount);
 
             var statsArray = stats.ToArray();
             Array.Sort(statsArray, (a, b) => b.Value.Item1.CompareTo(a.Value.Item1));

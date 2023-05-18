@@ -117,15 +117,15 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public int ResolveToObjectIndex(NativeWord addressOrIndex)
+        public int ResolveToPostorderIndex(NativeWord addressOrIndex)
         {
-            int objectIndex = CurrentTracedHeap.ObjectAddressToIndex(addressOrIndex);
-            if (objectIndex != -1)
+            int postorderIndex = CurrentTracedHeap.ObjectAddressToPostorderIndex(addressOrIndex);
+            if (postorderIndex != -1)
             {
-                return objectIndex;
+                return postorderIndex;
             }
 
-            if (addressOrIndex.Value < (ulong)CurrentTracedHeap.NumberOfLiveObjects)
+            if (addressOrIndex.Value < (ulong)CurrentTracedHeap.NumberOfPostorderNodes)
             {
                 return (int)addressOrIndex.Value;
             }
@@ -133,7 +133,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
             if (segmentedHeap != null && !segmentedHeap.GetMemoryViewForAddress(addressOrIndex).IsValid)
             {
-                throw new CommandException($"argument {addressOrIndex} is neither an address in mapped memory, nor is {addressOrIndex.Value} an object index");
+                throw new CommandException($"argument {addressOrIndex} is neither an address in mapped memory, nor is {addressOrIndex.Value} a valid index");
             }
 
             throw new CommandException($"no live object at address {addressOrIndex}");
@@ -161,18 +161,18 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             if (m_context.CurrentTracedHeap != null)
             {
                 // TODO: also support interior pointers, and if found, print field name if found
-                int objectIndex = CurrentTracedHeap.ObjectAddressToIndex(addressOfValue);
-                if (objectIndex != -1)
+                int postorderIndex = CurrentTracedHeap.ObjectAddressToPostorderIndex(addressOfValue);
+                if (postorderIndex != -1)
                 {
-                    DescribeObject(objectIndex, addressOfValue, sb);
+                    DescribeObject(postorderIndex, addressOfValue, sb);
                     return;
                 }
 
-                objectIndex = CurrentTracedHeap.ObjectAddressToIndex(nativeValue);
-                if (objectIndex != -1)
+                postorderIndex = CurrentTracedHeap.ObjectAddressToPostorderIndex(nativeValue);
+                if (postorderIndex != -1)
                 {
                     sb.Append("pointer to ");
-                    DescribeObject(objectIndex, nativeValue, sb);
+                    DescribeObject(postorderIndex, nativeValue, sb);
                     return;
                 }
             }
@@ -209,11 +209,16 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         }
 
         // Append a one-line description about the object to the given string builder.
-        void DescribeObject(int objectIndex, NativeWord objectAddress, StringBuilder sb)
+        void DescribeObject(int postorderIndex, NativeWord objectAddress, StringBuilder sb)
         {
             int typeIndex = CurrentTraceableHeap.TryGetTypeIndex(objectAddress);
+            if (typeIndex == -1)
+            {
+                CurrentTracedHeap.DescribeRootIndices(postorderIndex, sb);
+                return;
+            }
 
-            sb.AppendFormat("live object[object index {0}", objectIndex);
+            sb.AppendFormat("live object[index {0}", postorderIndex);
 
             string? name = CurrentTraceableHeap.GetObjectName(objectAddress);
             if (name != null)

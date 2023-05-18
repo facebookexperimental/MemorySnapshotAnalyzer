@@ -27,8 +27,6 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         string DescribeRoot(int rootIndex, bool fullyQualified);
 
-        string RootType(int rootIndex);
-
         StaticRootInfo GetStaticRootInfo(int rootIndex);
     }
 }
