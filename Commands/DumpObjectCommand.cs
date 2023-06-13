@@ -45,9 +45,16 @@ namespace MemorySnapshotAnalyzer.Commands
                 throw new CommandException("only one command mode can be selected");
             }
 
-            if (TypeIndex != -1 && !(ListLive || Memory))
+            if (TypeIndex != -1)
             {
-                throw new CommandException("can only provide a type index if dumping object memory");
+                if (!(ListLive || Memory))
+                {
+                    throw new CommandException("can only provide a type index if dumping object memory");
+                }
+                else if (TypeIndex >= CurrentTraceableHeap.TypeSystem.NumberOfTypeIndices)
+                {
+                    throw new CommandException($"{TypeIndex} is not a valid type index");
+                }
             }
 
             if (Statistics)
