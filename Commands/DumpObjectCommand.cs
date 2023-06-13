@@ -220,7 +220,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 Output.WriteLine("live object with index {0} at address {1}", postorderIndex, address);
             }
-            else
+            else if (Context.CurrentTracedHeap != null)
             {
                 Output.WriteLine("address {0} is not a live object", address);
             }
@@ -229,6 +229,7 @@ namespace MemorySnapshotAnalyzer.Commands
             if (TypeIndex == -1)
             {
                 DumpObjectMemory(address, objectView);
+                return;
             }
 
             // If a type index is given, dump memory as if it was an object of that type.
