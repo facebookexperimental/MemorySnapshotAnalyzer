@@ -39,21 +39,21 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        void Dump(IEnumerable<Tuple<int, NativeWord>> roots, IEnumerable<Tuple<NativeWord, NativeWord>> pointers, string kind)
+        void Dump(IEnumerable<(int, NativeWord)> roots, IEnumerable<(NativeWord, NativeWord)> pointers, string kind)
         {
             var references = new HashSet<ulong>();
             int numberOfRoots = 0;
-            foreach (Tuple<int, NativeWord> tuple in roots)
+            foreach ((int _, NativeWord reference) in roots)
             {
-                references.Add(tuple.Item2.Value);
+                references.Add(reference.Value);
                 numberOfRoots++;
             }
 
             var objects = new HashSet<ulong>();
-            foreach (Tuple<NativeWord, NativeWord> tuple in pointers)
+            foreach ((NativeWord reference, NativeWord objectAddress) in pointers)
             {
-                references.Add(tuple.Item1.Value);
-                objects.Add(tuple.Item2.Value);
+                references.Add(reference.Value);
+                objects.Add(objectAddress.Value);
             }
 
             Output.WriteLine("Found {0} {1} targets referenced from {2} roots and {3} separate objects",
@@ -64,27 +64,27 @@ namespace MemorySnapshotAnalyzer.Commands
 
             if (Roots)
             {
-                foreach (Tuple<int, NativeWord> tuple in roots)
+                foreach ((int rootIndex, NativeWord reference) in roots)
                 {
                     Output.WriteLine("Root with index {0} ({1}) contains {2} reference {3}",
-                        tuple.Item1,
-                        CurrentRootSet.DescribeRoot(tuple.Item1, fullyQualified: true),
+                        rootIndex,
+                        CurrentRootSet.DescribeRoot(rootIndex, fullyQualified: true),
                         kind,
-                        tuple.Item2);
+                        reference);
                 }
             }
 
             if (Objects)
             {
                 // Dump information about the objects that contain fields with invalid pointers.
-                foreach (Tuple<NativeWord, NativeWord> tuple in pointers)
+                foreach ((NativeWord reference, NativeWord objectAddress) in pointers)
                 {
-                    int postorderIndex = CurrentTracedHeap.ObjectAddressToPostorderIndex(tuple.Item2);
+                    int postorderIndex = CurrentTracedHeap.ObjectAddressToPostorderIndex(objectAddress);
                     int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
                     Output.WriteLine("Object at {0} contains {1} reference {2} (type {3} with index {4})",
-                        tuple.Item2,
+                        objectAddress,
                         kind,
-                        tuple.Item1,
+                        reference,
                         CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
                         typeIndex);
                 }

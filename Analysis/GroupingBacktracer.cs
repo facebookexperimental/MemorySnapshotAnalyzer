@@ -21,14 +21,14 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly List<int>[] m_rootPredecessors;
         readonly Dictionary<int, List<int>> m_postorderRootPredecessors;
 
-        sealed class TupleIntStringComparer : IEqualityComparer<Tuple<int, string>>
+        sealed class ValueTupleIntStringComparer : IEqualityComparer<(int, string)>
         {
-            bool IEqualityComparer<Tuple<int, string>>.Equals(Tuple<int, string>? x, Tuple<int, string>? y)
+            bool IEqualityComparer<(int, string)>.Equals((int, string) x, (int, string) y)
             {
-                return x!.Item1 == y!.Item1 && x.Item2 == y.Item2;
+                return x.Item1 == y.Item1 && x.Item2 == y.Item2;
             }
 
-            int IEqualityComparer<Tuple<int, string>>.GetHashCode(Tuple<int, string> obj)
+            int IEqualityComparer<(int, string)>.GetHashCode((int, string) obj)
             {
                 return HashCode.Combine(obj.Item1, obj.Item2.GetHashCode());
             }
@@ -48,14 +48,14 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_firstClassIndex = m_parentBacktracer.RootNodeIndex;
             m_rootPredecessors = new List<int>[TracedHeap.RootSet.NumberOfRoots];
 
-            var comparer = new TupleIntStringComparer();
+            var comparer = new ValueTupleIntStringComparer();
             m_assemblyNames = new List<string>();
             var assemblyToIndex = new Dictionary<string, int>();
             m_namespaceNames = new List<string>();
-            var namespaceToIndex = new Dictionary<Tuple<int, string>, int>(comparer);
+            var namespaceToIndex = new Dictionary<ValueTuple<int, string>, int>(comparer);
             var namespaceIndexToAssemblyIndex = new List<int>();
             m_classNames = new List<string>();
-            var classToIndex = new Dictionary<Tuple<int, string>, int>(comparer);
+            var classToIndex = new Dictionary<ValueTuple<int, string>, int>(comparer);
             var classIndexToNamespaceIndex = new List<int>();
             for (int rootIndex = 0; rootIndex < TracedHeap.RootSet.NumberOfRoots; rootIndex++)
             {
@@ -69,7 +69,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                         assemblyToIndex.Add(info.AssemblyName, assemblyIndex);
                     }
 
-                    var namespaceKey = Tuple.Create(assemblyIndex, info.NamespaceName);
+                    var namespaceKey = (assemblyIndex, info.NamespaceName);
                     if (!namespaceToIndex.TryGetValue(namespaceKey, out int namespaceIndex))
                     {
                         namespaceIndex = m_namespaceNames.Count;
@@ -78,7 +78,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                         namespaceToIndex.Add(namespaceKey, namespaceIndex);
                     }
 
-                    var classKey = Tuple.Create(namespaceIndex, info.ClassName);
+                    var classKey = (namespaceIndex, info.ClassName);
                     if (!classToIndex.TryGetValue(classKey, out int classIndex))
                     {
                         classIndex = m_classNames.Count;

@@ -40,8 +40,8 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly Dictionary<ulong, List<int>> m_objectAddressToRootIndices;
         readonly Stack<MarkStackEntry>? m_markStack;
         readonly int m_rootIndexBeingMarked;
-        readonly List<Tuple<int, ulong>> m_invalidRoots;
-        readonly List<Tuple<ulong, ulong>> m_invalidPointers;
+        readonly List<(int, ulong)> m_invalidRoots;
+        readonly List<(ulong, ulong)> m_invalidPointers;
         readonly ObjectAddressToPostorderIndexEntry[] m_objectAddressToPostorderIndex;
 
         public TracedHeap(IRootSet rootSet, bool weakGCHandles)
@@ -54,8 +54,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_numberOfPredecessors = new Dictionary<ulong, int>();
             m_markStack = new Stack<MarkStackEntry>();
 
-            m_invalidRoots = new List<Tuple<int, ulong>>();
-            m_invalidPointers = new List<Tuple<ulong, ulong>>();
+            m_invalidRoots = new List<(int, ulong)>();
+            m_invalidPointers = new List<(ulong, ulong)>();
 
             m_objectAddressToRootIndices = new Dictionary<ulong, List<int>>();
             for (int rootIndex = 0; rootIndex < rootSet.NumberOfRoots; rootIndex++)
@@ -152,19 +152,19 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         public int NumberOfInvalidPointers => m_invalidPointers.Count;
 
-        public IEnumerable<Tuple<int, NativeWord>> GetInvalidRoots()
+        public IEnumerable<(int, NativeWord)> GetInvalidRoots()
         {
-            foreach (var tuple in m_invalidRoots)
+            foreach ((int rootIndex, ulong reference) in m_invalidRoots)
             {
-                yield return Tuple.Create(tuple.Item1, m_native.From(tuple.Item2));
+                yield return (rootIndex, m_native.From(reference));
             }
         }
 
-        public IEnumerable<Tuple<NativeWord, NativeWord>> GetInvalidPointers()
+        public IEnumerable<(NativeWord, NativeWord)> GetInvalidPointers()
         {
-            foreach (var tuple in m_invalidPointers)
+            foreach ((ulong reference, ulong objectAddress) in m_invalidPointers)
             {
-                yield return Tuple.Create(m_native.From(tuple.Item1), m_native.From(tuple.Item2));
+                yield return (m_native.From(reference), m_native.From(objectAddress));
             }
         }
 
@@ -277,11 +277,11 @@ namespace MemorySnapshotAnalyzer.Analysis
                 // Object layout is invalid.
                 if (m_rootIndexBeingMarked != -1)
                 {
-                    m_invalidRoots.Add(Tuple.Create(m_rootIndexBeingMarked, address));
+                    m_invalidRoots.Add((m_rootIndexBeingMarked, address));
                 }
                 else
                 {
-                    m_invalidPointers.Add(Tuple.Create(address, referrer.Value));
+                    m_invalidPointers.Add((address, referrer.Value));
                 }
                 return;
             }

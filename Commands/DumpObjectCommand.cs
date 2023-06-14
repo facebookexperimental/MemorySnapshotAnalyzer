@@ -103,7 +103,7 @@ namespace MemorySnapshotAnalyzer.Commands
             int numberOfPostorderNodes = CurrentTracedHeap.NumberOfPostorderNodes;
             long totalSize = 0;
             int numberOfLiveObjects = 0;
-            var perTypeCounts = new Dictionary<int, Tuple<int, long>>();
+            var perTypeCounts = new Dictionary<int, (int Count, long Size)>();
             for (int postorderIndex = 0; postorderIndex < numberOfPostorderNodes; postorderIndex++)
             {
                 int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
@@ -116,13 +116,13 @@ namespace MemorySnapshotAnalyzer.Commands
                 totalSize += size;
                 numberOfLiveObjects++;
 
-                if (perTypeCounts.TryGetValue(typeIndex, out Tuple<int, long>? tuple))
+                if (perTypeCounts.TryGetValue(typeIndex, out (int Count, long Size) data))
                 {
-                    perTypeCounts[typeIndex] = Tuple.Create(tuple!.Item1 + 1, tuple.Item2 + size);
+                    perTypeCounts[typeIndex] = (data.Count + 1, data.Size + size);
                 }
                 else
                 {
-                    perTypeCounts[typeIndex] = Tuple.Create(1, size);
+                    perTypeCounts[typeIndex] = (1, size);
                 }
             }
 
@@ -130,23 +130,23 @@ namespace MemorySnapshotAnalyzer.Commands
                 numberOfLiveObjects,
                 totalSize);
 
-            KeyValuePair<int, Tuple<int, long>>[] kvps = perTypeCounts.ToArray();
+            KeyValuePair<int, (int Count, long Size)>[] kvps = perTypeCounts.ToArray();
             if (SortBySize)
             {
-                Array.Sort(kvps, (a, b) => b.Value.Item1.CompareTo(a.Value.Item2));
+                Array.Sort(kvps, (a, b) => b.Value.Size.CompareTo(a.Value.Size));
             }
             else
             {
-                Array.Sort(kvps, (a, b) => b.Value.Item1.CompareTo(a.Value.Item1));
+                Array.Sort(kvps, (a, b) => b.Value.Count.CompareTo(a.Value.Count));
             }
 
-            foreach (KeyValuePair<int, Tuple<int, long>> kvp in kvps)
+            foreach (KeyValuePair<int, (int Count, long Size)> kvp in kvps)
             {
                 Output.WriteLine("{0} object(s) of type {1} (type index {2}, total size {3})",
-                    kvp.Value.Item1,
+                    kvp.Value.Count,
                     CurrentTraceableHeap.TypeSystem.QualifiedName(kvp.Key),
                     kvp.Key,
-                    kvp.Value.Item2);
+                    kvp.Value.Size);
             }
         }
 
