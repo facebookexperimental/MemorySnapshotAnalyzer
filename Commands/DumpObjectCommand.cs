@@ -216,6 +216,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 postorderIndex = (int)AddressOrIndex.Value;
                 address = CurrentTracedHeap.PostorderAddress(postorderIndex);
+                objectView = segmentedHeap.GetMemoryViewForAddress(address);
             }
 
             // Report what target we found, if any.
