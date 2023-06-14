@@ -8,11 +8,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
     {
         readonly UnityMemorySnapshotFile m_unityMemorySnapshotFile;
 
-        internal UnityMemorySnapshot(
-            UnityMemorySnapshotFile unityMemorySnapshotFile,
-            TraceableHeap managedHeap,
-            TraceableHeap nativeHeap) :
-            base(managedHeap, nativeHeap)
+        internal UnityMemorySnapshot(UnityMemorySnapshotFile unityMemorySnapshotFile)
         {
             m_unityMemorySnapshotFile = unityMemorySnapshotFile;
         }
@@ -28,5 +24,14 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         public override Native Native => m_unityMemorySnapshotFile.Native;
 
+        public override TraceableHeap ManagedHeap(ReferenceClassifierFactory referenceClassifierFactory)
+        {
+            return m_unityMemorySnapshotFile.ManagedHeap(referenceClassifierFactory);
+        }
+
+        public override TraceableHeap NativeHeap(ReferenceClassifierFactory referenceClassifierFactory)
+        {
+            return m_unityMemorySnapshotFile.NativeHeap(referenceClassifierFactory);
+        }
     }
 }

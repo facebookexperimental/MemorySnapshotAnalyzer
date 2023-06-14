@@ -49,7 +49,12 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         readonly TypeDescription[] m_typesByAddress;
 
-        internal UnityManagedTypeSystem(TypeDescription[] types, FieldDescription[] fields, VirtualMachineInformation virtualMachineInformation)
+        internal UnityManagedTypeSystem(
+            TypeDescription[] types,
+            FieldDescription[] fields,
+            VirtualMachineInformation virtualMachineInformation,
+            ReferenceClassifierFactory referenceClassifierFactory)
+            : base(referenceClassifierFactory)
         {
             m_typesByIndex = types;
             m_fieldsByIndex = fields;

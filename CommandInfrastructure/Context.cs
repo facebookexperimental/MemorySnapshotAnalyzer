@@ -228,19 +228,22 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
             if (m_currentTraceableHeap == null)
             {
+                // TODO: configurable
+                var referenceClassifierFactory = new ReferenceClassifierFactory();
+
                 m_output.Write("[context {0}] selecting traceable heap {1} ...", m_id, m_traceableHeap_kind);
                 switch (m_traceableHeap_kind)
                 {
                     case TraceableHeapKind.Managed:
-                        m_currentTraceableHeap = m_currentMemorySnapshot.ManagedHeap;
+                        m_currentTraceableHeap = m_currentMemorySnapshot.ManagedHeap(referenceClassifierFactory);
                         break;
                     case TraceableHeapKind.Native:
-                        m_currentTraceableHeap = m_currentMemorySnapshot.NativeHeap;
+                        m_currentTraceableHeap = m_currentMemorySnapshot.NativeHeap(referenceClassifierFactory);
                         break;
                     case TraceableHeapKind.Stitched:
                         m_currentTraceableHeap = new StitchedTraceableHeap(
-                            m_currentMemorySnapshot.ManagedHeap,
-                            m_currentMemorySnapshot.NativeHeap,
+                            m_currentMemorySnapshot.ManagedHeap(referenceClassifierFactory),
+                            m_currentMemorySnapshot.NativeHeap(referenceClassifierFactory),
                             m_traceableHeap_fuseObjectPairs);
                         break;
                     default:

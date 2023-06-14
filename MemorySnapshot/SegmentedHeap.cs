@@ -37,7 +37,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 int arraySize = ReadArraySize(objectView);
                 for (int i = 0; i < arraySize; i++)
                 {
-                    foreach (int offset in m_typeSystem.GetFieldPointerOffsets(elementTypeIndex, m_typeSystem.GetArrayElementOffset(elementTypeIndex, i)))
+                    foreach ((int offset, bool isOwningReference) in m_typeSystem.GetFieldPointerOffsets(elementTypeIndex, m_typeSystem.GetArrayElementOffset(elementTypeIndex, i)))
                     {
                         // We can find arrays whose backing store has not been fully committed.
                         if (offset + m_typeSystem.PointerSize > objectView.Size)
@@ -51,7 +51,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
             else
             {
-                foreach (int offset in m_typeSystem.GetPointerOffsets(typeIndex, m_typeSystem.ObjectHeaderSize(typeIndex)))
+                foreach ((int offset, bool isOwningReference) in m_typeSystem.GetPointerOffsets(typeIndex, m_typeSystem.ObjectHeaderSize(typeIndex)))
                 {
                     yield return objectView.ReadPointer(offset, m_native);
                 }

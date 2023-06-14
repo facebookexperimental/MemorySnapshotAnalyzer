@@ -16,6 +16,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly int m_systemStringFirstCharOffset;
 
         public StitchedTypeSystem(TypeSystem first, TypeSystem second)
+            : base(new ReferenceClassifierFactory())
         {
             if (first.PointerSize != second.PointerSize)
             {

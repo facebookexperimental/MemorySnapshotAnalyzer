@@ -7,11 +7,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
     public abstract class TypeSystem
     {
+        readonly ReferenceClassifierFactory.ReferenceClassifier m_referenceClassifier;
         readonly List<int> m_offsets;
         readonly Dictionary<int, (int, int)> m_typeIndexToIndexAndCount;
 
-        protected TypeSystem()
+        protected TypeSystem(ReferenceClassifierFactory referenceClassifierFactory)
         {
+            m_referenceClassifier = referenceClassifierFactory.Build(this);
             m_offsets = new List<int>();
             m_typeIndexToIndexAndCount = new Dictionary<int, (int, int)>();
         }
@@ -104,36 +106,49 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     }
                     else
                     {
-                        m_offsets.Add(baseOffset + fieldOffset);
+                        if (m_referenceClassifier.IsOwningReference(typeIndex, fieldNumber))
+                        {
+                            m_offsets.Add(-(baseOffset + fieldOffset));
+                        }
+                        else
+                        {
+                            m_offsets.Add(baseOffset + fieldOffset);
+                        }
                     }
                 }
             }
         }
 
-        public IEnumerable<int> GetPointerOffsets(int typeIndex, int baseOffset)
+        public IEnumerable<(int Offset, bool IsOwningReference)> GetPointerOffsets(int typeIndex, int baseOffset)
         {
             (int start, int end) = EnsurePointerOffsets(typeIndex);
 
             for (int i = start; i < end; i++)
             {
-                yield return m_offsets[i] + baseOffset;
+                int offset = m_offsets[i];
+                if (offset < 0)
+                {
+                    yield return (-offset + baseOffset, true);
+                }
+                else
+                {
+                    yield return (offset + baseOffset, false);
+                }
             }
         }
 
-        public IEnumerable<int> GetFieldPointerOffsets(int typeIndex, int baseOffset)
+        public IEnumerable<(int Offset, bool IsOwningReference)> GetFieldPointerOffsets(int typeIndex, int baseOffset)
         {
             if (IsValueType(typeIndex))
             {
-                (int start, int end) = EnsurePointerOffsets(typeIndex);
-
-                for (int i = start; i < end; i++)
+                foreach ((int, bool) pair in GetPointerOffsets(typeIndex, baseOffset))
                 {
-                    yield return m_offsets[i] + baseOffset;
+                    yield return pair;
                 }
             }
             else
             {
-                yield return baseOffset;
+                yield return (baseOffset, false);
             }
         }
     }

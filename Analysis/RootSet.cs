@@ -64,7 +64,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                         if (staticFieldBytesView.IsValid)
                         {
                             int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
-                            foreach (int offset in typeSystem.GetFieldPointerOffsets(fieldTypeIndex, baseOffset: 0))
+                            foreach ((int offset, bool isOwningReference) in typeSystem.GetFieldPointerOffsets(fieldTypeIndex, baseOffset: 0))
                             {
                                 AddStaticRoot(typeIndex, fieldNumber, offset, staticFieldBytesView.ReadPointer(offset, m_traceableHeap.Native));
                             }
