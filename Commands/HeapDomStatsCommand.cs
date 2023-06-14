@@ -16,7 +16,7 @@ namespace MemorySnapshotAnalyzer.Commands
             int rootNodeIndex = CurrentHeapDom.RootNodeIndex;
             List<int>? children = CurrentHeapDom.GetChildren(CurrentHeapDom.RootNodeIndex);
 
-            var stats = new Dictionary<int, Tuple<int, long>>();
+            var stats = new Dictionary<int, (int Count, long Size)>();
             int totalObjectCount = 0;
             int totalToplevelCount = 0;
             if (children != null)
@@ -30,13 +30,13 @@ namespace MemorySnapshotAnalyzer.Commands
                         totalObjectCount++;
                         int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
                         int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-                        if (stats.TryGetValue(typeIndex, out Tuple<int, long>? data))
+                        if (stats.TryGetValue(typeIndex, out (int Count, long Size) data))
                         {
-                            stats[typeIndex] = Tuple.Create(data!.Item1 + 1, data!.Item2 + CurrentHeapDom.TreeSize(nodeIndex));
+                            stats[typeIndex] = (data.Count + 1, data.Size + CurrentHeapDom.TreeSize(nodeIndex));
                         }
                         else
                         {
-                            stats[typeIndex] = Tuple.Create(1, CurrentHeapDom.TreeSize(nodeIndex));
+                            stats[typeIndex] = (1, CurrentHeapDom.TreeSize(nodeIndex));
                         }
                     }
                 }
@@ -46,14 +46,14 @@ namespace MemorySnapshotAnalyzer.Commands
                 totalObjectCount,
                 totalToplevelCount);
 
-            var statsArray = stats.ToArray();
-            Array.Sort(statsArray, (a, b) => b.Value.Item1.CompareTo(a.Value.Item1));
+            KeyValuePair<int, (int Count, long Size)>[] statsArray = stats.ToArray();
+            Array.Sort(statsArray, (a, b) => b.Value.Count.CompareTo(a.Value.Count));
 
             foreach (var kvp in statsArray)
             {
                 int typeIndex = kvp.Key;
-                int count = kvp.Value.Item1;
-                long totalSize = kvp.Value.Item2;
+                int count = kvp.Value.Count;
+                long totalSize = kvp.Value.Size;
                 Output.WriteLine("Type {0} (index {1}): {2} instances, total {3} bytes",
                     CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
                     typeIndex,

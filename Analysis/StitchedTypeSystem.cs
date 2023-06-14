@@ -101,6 +101,18 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
+        public override int ObjectHeaderSize(int typeIndex)
+        {
+            if (typeIndex < m_first.NumberOfTypeIndices)
+            {
+                return m_first.ObjectHeaderSize(typeIndex);
+            }
+            else
+            {
+                return m_second.ObjectHeaderSize(typeIndex - m_first.NumberOfTypeIndices);
+            }
+        }
+
         public override int BaseSize(int typeIndex)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
@@ -161,15 +173,15 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public override int FieldOffset(int typeIndex, int fieldNumber, bool hasHeader)
+        public override int FieldOffset(int typeIndex, int fieldNumber, bool withHeader)
         {
             if (typeIndex < m_first.NumberOfTypeIndices)
             {
-                return m_first.FieldOffset(typeIndex, fieldNumber, hasHeader);
+                return m_first.FieldOffset(typeIndex, fieldNumber, withHeader);
             }
             else
             {
-                return m_second.FieldOffset(typeIndex - m_first.NumberOfTypeIndices, fieldNumber, hasHeader);
+                return m_second.FieldOffset(typeIndex - m_first.NumberOfTypeIndices, fieldNumber, withHeader);
             }
         }
 
