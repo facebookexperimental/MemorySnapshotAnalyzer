@@ -51,7 +51,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
             else
             {
-                foreach (int offset in m_typeSystem.GetPointerOffsets(typeIndex, baseOffset: 0, hasHeader: true))
+                foreach (int offset in m_typeSystem.GetPointerOffsets(typeIndex, m_typeSystem.ObjectHeaderSize(typeIndex)))
                 {
                     yield return objectView.ReadPointer(offset, m_native);
                 }

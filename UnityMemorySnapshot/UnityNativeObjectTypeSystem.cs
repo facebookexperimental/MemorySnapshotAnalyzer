@@ -45,6 +45,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return m_nativeTypes[typeIndex].BaseTypeIndex;
         }
 
+        public override int ObjectHeaderSize(int typeIndex)
+        {
+            throw new NotImplementedException();
+        }
+
         public override int BaseSize(int typeIndex)
         {
             throw new NotImplementedException();
@@ -70,7 +75,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return 0;
         }
 
-        public override int FieldOffset(int typeIndex, int fieldNumber, bool hasHeader)
+        public override int FieldOffset(int typeIndex, int fieldNumber, bool withHeader)
         {
             // Unreachable - no type has fields
             throw new NotImplementedException();

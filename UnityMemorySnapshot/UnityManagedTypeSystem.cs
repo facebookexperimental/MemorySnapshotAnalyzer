@@ -197,6 +197,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return m_typesByIndex[typeIndex].BaseOrElementTypeIndex;
         }
 
+        public override int ObjectHeaderSize(int typeIndex)
+        {
+            return m_virtualMachineInformation.ObjectHeaderSize;
+        }
+
         public override int BaseSize(int typeIndex)
         {
             return m_typesByIndex[typeIndex].Size;

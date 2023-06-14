@@ -1,11 +1,21 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
+using System;
 using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
     public abstract class TypeSystem
     {
+        readonly List<int> m_offsets;
+        readonly Dictionary<int, (int, int)> m_typeIndexToIndexAndCount;
+
+        protected TypeSystem()
+        {
+            m_offsets = new List<int>();
+            m_typeIndexToIndexAndCount = new Dictionary<int, (int, int)>();
+        }
+
         public abstract int PointerSize { get; }
 
         public abstract int NumberOfTypeIndices { get; }
@@ -17,6 +27,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         public abstract string UnqualifiedName(int typeIndex);
 
         public abstract int BaseOrElementTypeIndex(int typeIndex);
+
+        public abstract int ObjectHeaderSize(int typeIndex);
 
         public abstract int BaseSize(int typeIndex);
 
@@ -50,50 +62,78 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract IEnumerable<string> DumpStats();
 
-        public IEnumerable<int> GetFieldPointerOffsets(int typeIndex, int baseOffset)
+        ValueTuple<int, int> EnsurePointerOffsets(int typeIndex)
         {
-            if (IsValueType(typeIndex))
+            if (m_typeIndexToIndexAndCount.TryGetValue(typeIndex, out (int, int) pair))
             {
-                foreach (int offset in GetPointerOffsets(typeIndex, baseOffset, hasHeader: false))
-                {
-                    yield return offset;
-                }
+                return pair;
             }
             else
             {
-                yield return baseOffset;
+                int start = m_offsets.Count;
+                ComputePointerOffsets(typeIndex, baseOffset: 0);
+                int end = m_offsets.Count;
+                m_typeIndexToIndexAndCount.Add(typeIndex, (start, end));
+                return (start, end);
             }
         }
 
-        public IEnumerable<int> GetPointerOffsets(int typeIndex, int baseOffset, bool hasHeader)
+        void ComputePointerOffsets(int typeIndex, int baseOffset)
         {
+            int baseOrElementTypeIndex = BaseOrElementTypeIndex(typeIndex);
+            if (baseOrElementTypeIndex >= 0)
+            {
+                ComputePointerOffsets(baseOrElementTypeIndex, baseOffset);
+            }
+
             int numberOfFields = NumberOfFields(typeIndex);
             for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
             {
                 if (!FieldIsStatic(typeIndex, fieldNumber))
                 {
                     int fieldTypeIndex = FieldType(typeIndex, fieldNumber);
-                    int fieldOffset = FieldOffset(typeIndex, fieldNumber, withHeader: hasHeader);
-                    if (!hasHeader && fieldTypeIndex == typeIndex)
+                    int fieldOffset = FieldOffset(typeIndex, fieldNumber, withHeader: false);
+
+                    if (IsValueType(fieldTypeIndex))
                     {
                         // Avoid infinite recursion due to the way that primitive types (such as System.Int32) are defined.
-                        continue;
+                        if (fieldTypeIndex != typeIndex)
+                        {
+                            ComputePointerOffsets(fieldTypeIndex, baseOffset + fieldOffset);
+                        }
                     }
-
-                    foreach (int offset in GetFieldPointerOffsets(fieldTypeIndex, baseOffset + fieldOffset))
+                    else
                     {
-                        yield return offset;
+                        m_offsets.Add(baseOffset + fieldOffset);
                     }
                 }
             }
+        }
 
-            int baseOrElementTypeIndex = BaseOrElementTypeIndex(typeIndex);
-            if (baseOrElementTypeIndex >= 0)
+        public IEnumerable<int> GetPointerOffsets(int typeIndex, int baseOffset)
+        {
+            (int start, int end) = EnsurePointerOffsets(typeIndex);
+
+            for (int i = start; i < end; i++)
             {
-                foreach (int offset in GetPointerOffsets(baseOrElementTypeIndex, baseOffset, hasHeader))
+                yield return m_offsets[i] + baseOffset;
+            }
+        }
+
+        public IEnumerable<int> GetFieldPointerOffsets(int typeIndex, int baseOffset)
+        {
+            if (IsValueType(typeIndex))
+            {
+                (int start, int end) = EnsurePointerOffsets(typeIndex);
+
+                for (int i = start; i < end; i++)
                 {
-                    yield return offset;
+                    yield return m_offsets[i] + baseOffset;
                 }
+            }
+            else
+            {
+                yield return baseOffset;
             }
         }
     }
