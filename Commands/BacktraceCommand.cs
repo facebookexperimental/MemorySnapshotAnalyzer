@@ -141,7 +141,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpBacktraces(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int depth)
         {
-            if (MaxDepth > 0 && depth == MaxDepth)
+            if (MaxDepth > 0 && depth > MaxDepth)
             {
                 return;
             }

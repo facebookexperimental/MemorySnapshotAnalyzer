@@ -82,7 +82,15 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 m_indents[indent] = indentString;
             }
             Console.Write(indentString);
-            Console.WriteLine(format, args);
+            if (args.Length > 0)
+            {
+                Console.WriteLine(format, args);
+            }
+            else
+            {
+                // Do not interpret format string.
+                Console.WriteLine(format);
+            }
             CompleteLine();
         }
 

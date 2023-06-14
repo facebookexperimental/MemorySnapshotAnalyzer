@@ -40,7 +40,12 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         IRootSet.StaticRootInfo IRootSet.GetStaticRootInfo(int rootIndex)
         {
-            return default;
+            return new IRootSet.StaticRootInfo
+            {
+                AssemblyName = "",
+                NamespaceName = "",
+                ClassName = ""
+            };
         }
     }
 }

@@ -45,9 +45,16 @@ namespace MemorySnapshotAnalyzer.Commands
                 throw new CommandException("only one command mode can be selected");
             }
 
-            if (TypeIndex != -1 && !(ListLive || Memory))
+            if (TypeIndex != -1)
             {
-                throw new CommandException("can only provide a type index if dumping object memory");
+                if (!(ListLive || Memory))
+                {
+                    throw new CommandException("can only provide a type index if dumping object memory");
+                }
+                else if (TypeIndex >= CurrentTraceableHeap.TypeSystem.NumberOfTypeIndices)
+                {
+                    throw new CommandException($"{TypeIndex} is not a valid type index");
+                }
             }
 
             if (Statistics)
@@ -220,7 +227,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 Output.WriteLine("live object with index {0} at address {1}", postorderIndex, address);
             }
-            else
+            else if (Context.CurrentTracedHeap != null)
             {
                 Output.WriteLine("address {0} is not a live object", address);
             }
@@ -229,6 +236,7 @@ namespace MemorySnapshotAnalyzer.Commands
             if (TypeIndex == -1)
             {
                 DumpObjectMemory(address, objectView);
+                return;
             }
 
             // If a type index is given, dump memory as if it was an object of that type.
