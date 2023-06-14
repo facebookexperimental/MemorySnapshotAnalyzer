@@ -7,13 +7,15 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
     public abstract class TypeSystem
     {
-        readonly ReferenceClassifierFactory.ReferenceClassifier m_referenceClassifier;
+        readonly ReferenceClassifierFactory m_referenceClassifierFactory;
         readonly List<int> m_offsets;
         readonly Dictionary<int, (int, int)> m_typeIndexToIndexAndCount;
 
+        ReferenceClassifierFactory.ReferenceClassifier? m_referenceClassifier;
+
         protected TypeSystem(ReferenceClassifierFactory referenceClassifierFactory)
         {
-            m_referenceClassifier = referenceClassifierFactory.Build(this);
+            m_referenceClassifierFactory = referenceClassifierFactory;
             m_offsets = new List<int>();
             m_typeIndexToIndexAndCount = new Dictionary<int, (int, int)>();
         }
@@ -106,6 +108,11 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     }
                     else
                     {
+                        if (m_referenceClassifier == null)
+                        {
+                            m_referenceClassifier = m_referenceClassifierFactory.Build(this);
+                        }
+
                         if (m_referenceClassifier.IsOwningReference(typeIndex, fieldNumber))
                         {
                             m_offsets.Add(-(baseOffset + fieldOffset));

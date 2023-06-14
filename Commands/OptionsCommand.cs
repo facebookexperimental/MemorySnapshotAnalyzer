@@ -1,7 +1,11 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandProcessing;
+using System;
+using System.Collections.Generic;
+using System.IO;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -15,6 +19,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("fuseobjectpairs")]
         public int FuseObjectPairs = -1;
+
+        [NamedArgument("referenceclassifier")]
+        public string? ReferenceClassifier;
 
         [FlagArgument("weakgchandles")]
         public int WeakGCHandles = -1;
@@ -54,6 +61,11 @@ namespace MemorySnapshotAnalyzer.Commands
                 Context.TraceableHeap_FuseObjectPairs = FuseObjectPairs != 0;
             }
 
+            if (ReferenceClassifier != null)
+            {
+                Context.TraceableHeap_ReferenceClassifier = LoadReferenceClassifierConfiguration();
+            }
+
             if (WeakGCHandles != -1)
             {
                 Context.TracedHeap_WeakGCHandles = WeakGCHandles != 0;
@@ -76,6 +88,42 @@ namespace MemorySnapshotAnalyzer.Commands
 
             Output.WriteLine("* [{0}]", Context.Id);
             Context.Dump(indent: 1);
+        }
+
+        ConfigurableReferenceClassifierFactory LoadReferenceClassifierConfiguration()
+        {
+            try
+            {
+                var configurationEntries = new List<ConfigurableReferenceClassifierFactory.ConfigurationEntry>();
+                int lineNumber = 1;
+                foreach (string line in File.ReadAllLines(ReferenceClassifier!))
+                {
+                    string lineTrimmed = line.Trim();
+                    if (lineTrimmed.Length > 0 && !lineTrimmed.StartsWith("#", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string[] pieces = lineTrimmed.Split(',');
+                        if (pieces.Length != 3)
+                        {
+                            throw new CommandException($"invalid syntax on line {lineNumber}");
+                        }
+
+                        configurationEntries.Add(new ConfigurableReferenceClassifierFactory.ConfigurationEntry
+                        {
+                            Assembly = pieces[0].Trim(),
+                            ClassName = pieces[1].Trim(),
+                            FieldPattern = pieces[2].Trim()
+                        });
+                    }
+
+                    lineNumber++;
+                }
+
+                return new ConfigurableReferenceClassifierFactory(ReferenceClassifier!, configurationEntries);
+            }
+            catch (IOException ex)
+            {
+                throw new CommandException(ex.Message);
+            }
         }
 
         public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['fuseobjectpairs] ['weakgchandles] ['rootobject <address or index>] ['groupstatics] ['fusegchandles]";

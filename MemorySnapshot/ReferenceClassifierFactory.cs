@@ -16,5 +16,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         {
             return new ReferenceClassifier();
         }
+
+        public virtual string Description => "not set";
     }
 }

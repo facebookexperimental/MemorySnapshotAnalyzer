@@ -107,7 +107,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                     {
                         if (fieldPattern.EndsWith("*", StringComparison.Ordinal))
                         {
-                            isOwningReference = fieldName.AsSpan().Equals(fieldPattern.AsSpan()[..(fieldPattern.Length - 1)], StringComparison.Ordinal);
+                            isOwningReference = fieldName.AsSpan().StartsWith(fieldPattern.AsSpan()[..(fieldPattern.Length - 1)], StringComparison.Ordinal);
                         }
                         else
                         {
@@ -133,10 +133,12 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
+        readonly string m_description;
         readonly List<ConfigurationEntry> m_configurationEntries;
 
-        public ConfigurableReferenceClassifierFactory(List<ConfigurationEntry> configurationEntries)
+        public ConfigurableReferenceClassifierFactory(string description, List<ConfigurationEntry> configurationEntries)
         {
+            m_description = description;
             m_configurationEntries = configurationEntries;
         }
 
@@ -144,5 +146,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         {
             return new ConfigurableReferenceClassifier(typeSystem, m_configurationEntries);
         }
+
+        public override string Description => m_description;
     }
 }
