@@ -253,12 +253,19 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 typeIndex);
 
             var sb = new StringBuilder();
-            foreach (NativeWord reference in CurrentTraceableHeap.GetIntraHeapPointers(address, typeIndex))
+            foreach ((NativeWord reference, bool isOwningReference) in CurrentTraceableHeap.GetIntraHeapPointers(address, typeIndex))
             {
                 DescribeAddress(reference, sb);
                 if (sb.Length > 0)
                 {
-                    Output.WriteLineIndented(1, sb.ToString());
+                    if (isOwningReference)
+                    {
+                        Output.WriteLineIndented(1, "{0} (owning reference)", sb);
+                    }
+                    else
+                    {
+                        Output.WriteLineIndented(1, sb.ToString());
+                    }
                     sb.Clear();
                 }
             }

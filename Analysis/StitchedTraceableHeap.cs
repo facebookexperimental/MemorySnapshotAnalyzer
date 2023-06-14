@@ -72,29 +72,29 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_secondary.ContainsAddress(objectAddress) ? m_secondary.GetObjectName(objectAddress) : m_primary.GetObjectName(objectAddress);
         }
 
-        public override IEnumerable<NativeWord> GetIntraHeapPointers(NativeWord address, int typeIndex)
+        public override IEnumerable<(NativeWord reference, bool isOwningReference)> GetIntraHeapPointers(NativeWord address, int typeIndex)
         {
             if (m_secondary.ContainsAddress(address))
             {
-                foreach (NativeWord reference in m_secondary.GetIntraHeapPointers(address, typeIndex - m_primary.TypeSystem.NumberOfTypeIndices))
+                foreach ((NativeWord Reference, bool IsOwningReference) pair in m_secondary.GetIntraHeapPointers(address, typeIndex - m_primary.TypeSystem.NumberOfTypeIndices))
                 {
                     if (m_fusedObjectParent != null && !m_computingObjectPairs)
                     {
-                        if (m_fusedObjectParent.TryGetValue(reference.Value, out ulong parentAddress))
+                        if (m_fusedObjectParent.TryGetValue(pair.Reference.Value, out ulong parentAddress))
                         {
-                            yield return Native.From(parentAddress);
+                            yield return (Native.From(parentAddress), pair.IsOwningReference);
                             continue;
                         }
                     }
 
-                    yield return reference;
+                    yield return pair;
                 }
             }
             else
             {
-                foreach (NativeWord reference in m_primary.GetIntraHeapPointers(address, typeIndex))
+                foreach ((NativeWord Reference, bool IsOwningReference) pair in m_primary.GetIntraHeapPointers(address, typeIndex))
                 {
-                    yield return reference;
+                    yield return pair;
                 }
 
                 foreach (NativeWord reference in m_primary.GetInterHeapPointers(address, typeIndex))
@@ -107,7 +107,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                         m_fusedObjectParent!.TryAdd(reference.Value, address.Value);
                     }
 
-                    yield return reference;
+                    yield return (reference, false);
                 }
             }
         }

@@ -28,7 +28,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         }
 
         // This method provides an implementation for TraceableHeap.GetIntraHeapPointers, for heaps whose memory we have access to.
-        public IEnumerable<NativeWord> GetIntraHeapPointers(NativeWord address, int typeIndex)
+        public IEnumerable<(NativeWord reference, bool isOwningReference)> GetIntraHeapPointers(NativeWord address, int typeIndex)
         {
             MemoryView objectView = GetMemoryViewForAddress(address);
             if (m_typeSystem.IsArray(typeIndex))
@@ -45,7 +45,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                             break;
                         }
 
-                        yield return objectView.ReadPointer(offset, m_native);
+                        yield return (objectView.ReadPointer(offset, m_native), isOwningReference);
                     }
                 }
             }
@@ -53,7 +53,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             {
                 foreach ((int offset, bool isOwningReference) in m_typeSystem.GetPointerOffsets(typeIndex, m_typeSystem.ObjectHeaderSize(typeIndex)))
                 {
-                    yield return objectView.ReadPointer(offset, m_native);
+                    yield return (objectView.ReadPointer(offset, m_native), isOwningReference);
                 }
             }
         }
