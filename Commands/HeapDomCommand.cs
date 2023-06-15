@@ -6,6 +6,7 @@ using MemorySnapshotAnalyzer.CommandProcessing;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -74,12 +75,19 @@ namespace MemorySnapshotAnalyzer.Commands
             }
 
             m_numberOfNodesWritten = 0;
-            using (var fileOutput = new FileOutput(OutputFilename!))
+            try
             {
-                RedirectOutputToFilename(fileOutput);
-                Output.Write("data=");
-                DumpTree();
-                UnredirectOutput();
+                using (var fileOutput = new FileOutput(OutputFilename!))
+                {
+                    RedirectOutputToFilename(fileOutput);
+                    Output.Write("data=");
+                    DumpTree();
+                    UnredirectOutput();
+                }
+            }
+            catch (IOException ex)
+            {
+                throw new CommandException(ex.Message);
             }
 
             Output.WriteLine("wrote {0} nodes", m_numberOfNodesWritten);
