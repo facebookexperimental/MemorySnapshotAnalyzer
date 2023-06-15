@@ -101,17 +101,18 @@ namespace MemorySnapshotAnalyzer.Commands
                     string lineTrimmed = line.Trim();
                     if (lineTrimmed.Length > 0 && !lineTrimmed.StartsWith("#", StringComparison.OrdinalIgnoreCase))
                     {
-                        string[] pieces = lineTrimmed.Split(',');
-                        if (pieces.Length != 3)
+                        int firstComma = lineTrimmed.IndexOf(',');
+                        int lastComma = lineTrimmed.LastIndexOf(',');
+                        if (firstComma < 0 || lastComma < 0 || firstComma == lastComma)
                         {
                             throw new CommandException($"invalid syntax on line {lineNumber}");
                         }
 
                         configurationEntries.Add(new ConfigurableReferenceClassifierFactory.ConfigurationEntry
                         {
-                            Assembly = pieces[0].Trim(),
-                            ClassName = pieces[1].Trim(),
-                            FieldPattern = pieces[2].Trim()
+                            Assembly = lineTrimmed[..firstComma].Trim(),
+                            ClassName = lineTrimmed[(firstComma + 1)..lastComma].Trim(),
+                            FieldPattern = lineTrimmed[(lastComma + 1)..].Trim()
                         });
                     }
 
