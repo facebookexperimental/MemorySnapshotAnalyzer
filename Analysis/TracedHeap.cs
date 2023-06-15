@@ -57,49 +57,42 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_invalidRoots = new List<(int, ulong)>();
             m_invalidPointers = new List<(ulong, ulong)>();
 
+            // Group all the roots that reference each individual target objects into a single node.
             m_objectAddressToRootIndices = new Dictionary<ulong, List<int>>();
             for (int rootIndex = 0; rootIndex < rootSet.NumberOfRoots; rootIndex++)
             {
                 NativeWord address = rootSet.GetRoot(rootIndex);
-                if (address.Value != 0)
+                if (address.Value != 0 && m_traceableHeap.TryGetTypeIndex(address) != -1)
                 {
-                    int typeIndex = m_traceableHeap.TryGetTypeIndex(address);
-                    if (typeIndex != -1)
+                    if (m_objectAddressToRootIndices.TryGetValue(address.Value, out List<int>? rootIndices))
                     {
-                        if (m_objectAddressToRootIndices.TryGetValue(address.Value, out List<int>? rootIndices))
-                        {
-                            rootIndices!.Add(rootIndex);
-                        }
-                        else
-                        {
-                            m_objectAddressToRootIndices.Add(address.Value, new List<int>() { rootIndex });
-                        }
+                        rootIndices!.Add(rootIndex);
+                    }
+                    else
+                    {
+                        m_objectAddressToRootIndices.Add(address.Value, new List<int>() { rootIndex });
                     }
                 }
             }
 
             if (weakGCHandles)
             {
-                // If weakGCHandles is false, return all predecessors.
-                // Otherwise, if the only predecessors for this node are GCHandles, return those GCHandles.
-                // Otherwise, skip the GCHandles.
+                // If weakGCHandles is false, we are done with grouping roots.
+                // Otherwise, if all roots in any given root group are GCHandles, keep the root group as-is.
+                // Otherwise, remove the GCHandles from that root group.
                 foreach (ulong address in m_objectAddressToRootIndices.Keys.ToArray())
                 {
-                    bool foundStatic = false;
-                    bool foundGCHandle = false;
+                    bool allRootsAreGCHandles = true;
                     foreach (int rootIndex in m_objectAddressToRootIndices[address])
                     {
-                        if (m_rootSet.IsGCHandle(rootIndex))
+                        if (!m_rootSet.IsGCHandle(rootIndex))
                         {
-                            foundGCHandle = true;
-                        }
-                        else
-                        {
-                            foundStatic = true;
+                            allRootsAreGCHandles = false;
+                            break;
                         }
                     }
 
-                    if (foundStatic && foundGCHandle)
+                    if (!allRootsAreGCHandles)
                     {
                         var newRootIndices = new List<int>();
                         foreach (int rootIndex in m_objectAddressToRootIndices[address])
