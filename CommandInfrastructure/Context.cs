@@ -392,7 +392,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             if (m_currentHeapDom == null)
             {
                 m_output.Write("[context {0}] computing backtraces ...", m_id);
-                IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseGCHandles);
+                IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseGCHandles, m_tracedHeap_weakGCHandles);
                 if (m_backtracer_groupStatics)
                 {
                     backtracer = new GroupingBacktracer(backtracer);
