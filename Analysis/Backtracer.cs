@@ -1,6 +1,5 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
-using System;
 using System.Collections.Generic;
 using System.Text;
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
@@ -15,8 +14,9 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly int m_rootNodeIndex;
         readonly Dictionary<int, List<int>> m_predecessors;
         readonly HashSet<int> m_ownedNodes;
+        readonly HashSet<int> m_nonGCHandleNodes;
 
-        public Backtracer(TracedHeap tracedHeap, bool fuseGCHandles)
+        public Backtracer(TracedHeap tracedHeap, bool fuseGCHandles, bool weakGCHandles)
         {
             m_tracedHeap = tracedHeap;
             m_rootSet = m_tracedHeap.RootSet;
@@ -30,7 +30,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             // TODO: use m_tracedHeap.GetNumberOfPredecessors for a more efficient representation
             m_predecessors = new Dictionary<int, List<int>>();
             m_ownedNodes = new HashSet<int>();
-            ComputePredecessors(fuseGCHandles);
+            m_nonGCHandleNodes = new HashSet<int>();
+            ComputePredecessors(fuseGCHandles, weakGCHandles);
         }
 
         public TracedHeap TracedHeap => m_tracedHeap;
@@ -150,7 +151,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_predecessors[nodeIndex];
         }
 
-        void ComputePredecessors(bool fuseGCHandles)
+        void ComputePredecessors(bool fuseGCHandles, bool weakGCHandles)
         {
             m_predecessors.Add(m_rootNodeIndex, new List<int>());
 
@@ -161,9 +162,25 @@ namespace MemorySnapshotAnalyzer.Analysis
                 int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(parentPostorderIndex);
                 if (typeIndex == -1)
                 {
+                    bool isGCHandle = false;
+                    if (weakGCHandles)
+                    {
+                        // Check whether all of the roots are GCHandles. If so, treat this parent as weak.
+                        List<int> rootIndices = m_tracedHeap.PostorderRootIndices(parentPostorderIndex);
+                        isGCHandle = true;
+                        foreach (int rootIndex in rootIndices)
+                        {
+                            if (!m_rootSet.IsGCHandle(rootIndex))
+                            {
+                                isGCHandle = false;
+                                break;
+                            }
+                        }
+                    }
+
                     // If this parent index represents a (set of) root nodes, PostOrderAddress above returned the target.
                     int childPostorderIndex = m_tracedHeap.ObjectAddressToPostorderIndex(address);
-                    AddPredecessor(childPostorderIndex, parentPostorderIndex, isOwningReference: false);
+                    AddPredecessor(childPostorderIndex, parentPostorderIndex, isOwningReference: false, isGCHandle: isGCHandle);
                 }
                 else
                 {
@@ -183,27 +200,35 @@ namespace MemorySnapshotAnalyzer.Analysis
                         int childPostorderIndex = m_tracedHeap.ObjectAddressToPostorderIndex(reference);
                         if (childPostorderIndex != -1)
                         {
-                            AddPredecessor(childPostorderIndex, resolvedParentPostorderIndex, isOwningReference);
+                            AddPredecessor(childPostorderIndex, resolvedParentPostorderIndex, isOwningReference, isGCHandle: false);
                         }
                     }
                 }
             }
         }
 
-        void AddPredecessor(int childNodeIndex, int parentNodeIndex, bool isOwningReference)
+        void AddPredecessor(int childNodeIndex, int parentNodeIndex, bool isOwningReference, bool isGCHandle)
         {
+            if (isGCHandle && m_nonGCHandleNodes.Contains(childNodeIndex))
+            {
+                return;
+            }
+
+            if (!isOwningReference && m_ownedNodes.Contains(childNodeIndex))
+            {
+                return;
+            }
+
+            bool isFirstNonGCHandleReferenceToThisChild = !isGCHandle && m_nonGCHandleNodes.Add(childNodeIndex);
             bool isFirstOwningReferenceToThisChild = isOwningReference && m_ownedNodes.Add(childNodeIndex);
             if (m_predecessors.TryGetValue(childNodeIndex, out List<int>? parentNodeIndices))
             {
-                if (isFirstOwningReferenceToThisChild)
+                if (isFirstNonGCHandleReferenceToThisChild || isFirstOwningReferenceToThisChild)
                 {
                     parentNodeIndices!.Clear();
                 }
 
-                if (isOwningReference || !m_ownedNodes.Contains(childNodeIndex))
-                {
-                    parentNodeIndices!.Add(parentNodeIndex);
-                }
+                parentNodeIndices!.Add(parentNodeIndex);
             }
             else
             {
