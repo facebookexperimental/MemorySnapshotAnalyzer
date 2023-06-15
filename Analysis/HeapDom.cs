@@ -19,6 +19,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly IRootSet m_rootSet;
         readonly TraceableHeap m_traceableHeap;
         readonly int m_rootNodeIndex;
+        readonly int[] m_doms;
         readonly Dictionary<int, List<int>> m_domTree;
         readonly int m_numberOfNonLeafNodes;
         readonly SizeEntry[] m_sizes;
@@ -31,6 +32,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_traceableHeap = m_rootSet.TraceableHeap;
             m_rootNodeIndex = m_backtracer.RootNodeIndex;
 
+            m_doms = ComputeDominators();
             m_domTree = BuildDomTree(out m_numberOfNonLeafNodes);
 
             m_sizes = new SizeEntry[m_rootNodeIndex + 1];
@@ -53,13 +55,18 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         public int NumberOfNonLeafNodes => m_numberOfNonLeafNodes;
 
+        public int GetDominator(int nodeIndex)
+        {
+            return m_doms[nodeIndex];
+        }
+
         public List<int>? GetChildren(int nodeIndex)
         {
             m_domTree.TryGetValue(nodeIndex, out List<int>? children);
             return children;
         }
 
-        Dictionary<int, List<int>> BuildDomTree(out int numberOfNonLeafNodes)
+        int[] ComputeDominators()
         {
             // Engineered algorithm from https://www.cs.rice.edu/~keith/EMBED/dom.pdf
 
@@ -103,11 +110,16 @@ namespace MemorySnapshotAnalyzer.Analysis
                 }
             }
 
+            return doms;
+        }
+
+        Dictionary<int, List<int>> BuildDomTree(out int numberOfNonLeafNodes)
+        {
             var domTree = new Dictionary<int, List<int>>();
             numberOfNonLeafNodes = 0;
             for (int nodeIndex = 0; nodeIndex < m_rootNodeIndex; nodeIndex++)
             {
-                int parentNodeIndex = doms[nodeIndex];
+                int parentNodeIndex = m_doms[nodeIndex];
                 if (domTree.TryGetValue(parentNodeIndex, out List<int>? children))
                 {
                     children!.Add(nodeIndex);
