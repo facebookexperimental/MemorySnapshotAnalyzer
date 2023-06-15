@@ -95,6 +95,8 @@ The `'referenceclassifier` option takes the name of a configuration file with th
   * The second field is a type name. This needs to match exactly the name that is output by, say, the `dumptype` command.
   * The third field is a field pattern. This can either be a single field name, which needs to match exactly, or an asterisk (`'*'`), indicating all fields of the type.
 
+To help identify where configuring more owning references could be useful, you can use the `heapdomstats` command. When run without arguments, this provides statistics on the most frequent types of objects that have floated all the way to the top of the dominator tree. When run with `'list` (and, optionally, `'type` and a type index), this lists the specific object instances that have floated to the top. Then use `backtrace 'depth 1` on some of the given object indices to see whether one of the references in the backtrace clearly should be considered the "owning" reference, and add the referring field to the configuration file. Reissuing the `options 'referenceclassifier` command on the updated file and running `heapdomstats` again can be used to verify the effectiveness of the expanded configuration.
+
 ## Visualization
 
 The output of the `heapdom` command is written to a JavaScript file representing the dominator tree as a JSON data structure.
