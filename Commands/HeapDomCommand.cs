@@ -36,8 +36,9 @@ namespace MemorySnapshotAnalyzer.Commands
         [NamedArgument("relativeto")]
         public int OtherContextId = -1;
 
+        // In Chrome, we get an error if the data structure is too deep.
         [NamedArgument("depth")]
-        public int MaxDepth;
+        public int MaxDepth = 128;
 
         [NamedArgument("width")]
         public int MaxWidth;
