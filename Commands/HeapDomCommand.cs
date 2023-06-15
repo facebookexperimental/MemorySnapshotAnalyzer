@@ -6,6 +6,7 @@ using MemorySnapshotAnalyzer.CommandProcessing;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -35,8 +36,9 @@ namespace MemorySnapshotAnalyzer.Commands
         [NamedArgument("relativeto")]
         public int OtherContextId = -1;
 
+        // In Chrome, we get an error if the data structure is too deep.
         [NamedArgument("depth")]
-        public int MaxDepth;
+        public int MaxDepth = 128;
 
         [NamedArgument("width")]
         public int MaxWidth;
@@ -74,12 +76,19 @@ namespace MemorySnapshotAnalyzer.Commands
             }
 
             m_numberOfNodesWritten = 0;
-            using (var fileOutput = new FileOutput(OutputFilename!))
+            try
             {
-                RedirectOutputToFilename(fileOutput);
-                Output.Write("data=");
-                DumpTree();
-                UnredirectOutput();
+                using (var fileOutput = new FileOutput(OutputFilename!))
+                {
+                    RedirectOutputToFilename(fileOutput);
+                    Output.Write("data=");
+                    DumpTree();
+                    UnredirectOutput();
+                }
+            }
+            catch (IOException ex)
+            {
+                throw new CommandException(ex.Message);
             }
 
             Output.WriteLine("wrote {0} nodes", m_numberOfNodesWritten);

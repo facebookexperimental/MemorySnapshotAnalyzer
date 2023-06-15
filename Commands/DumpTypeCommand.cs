@@ -2,6 +2,7 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandProcessing;
+using System;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -18,9 +19,6 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("recursive")]
         public bool Recursive;
-
-        [FlagArgument("exact")]
-        public bool ExactMatch;
 
         [FlagArgument("verbose")]
         public bool Verbose;
@@ -58,6 +56,8 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 // Dump by name.
                 string value = IndexOrSubstring.StringValue;
+                bool anchoredAtStart = value.StartsWith(@"\<");
+                bool anchoredAtEnd = value.EndsWith(@"\>");
 
                 for (int typeIndex = 0; typeIndex < typeSystem.NumberOfTypeIndices; typeIndex++)
                 {
@@ -69,14 +69,30 @@ namespace MemorySnapshotAnalyzer.Commands
                         }
                     }
 
-                    if (ExactMatch)
+                    string qualifiedName = typeSystem.QualifiedName(typeIndex);
+
+                    bool matches;
+                    if (anchoredAtStart)
                     {
-                        if (typeSystem.QualifiedName(typeIndex) == value)
+                        if (anchoredAtEnd)
                         {
-                            DumpType(typeIndex, 0);
+                            matches = qualifiedName.Equals(value[2..^2], StringComparison.Ordinal);
+                        }
+                        else
+                        {
+                            matches = qualifiedName.StartsWith(value[2..], StringComparison.Ordinal);
                         }
                     }
-                    else if (typeSystem.QualifiedName(typeIndex).Contains(value))
+                    else if (anchoredAtEnd)
+                    {
+                        matches = qualifiedName.EndsWith(value[..^2], StringComparison.Ordinal);
+                    }
+                    else
+                    {
+                        matches = qualifiedName.Contains(value, StringComparison.Ordinal);
+                    }
+
+                    if (matches)
                     {
                         DumpType(typeIndex, 0);
                     }
