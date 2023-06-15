@@ -15,7 +15,8 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         readonly int m_pointerSize;
         readonly NativeType[] m_nativeTypes;
 
-        internal UnityNativeObjectTypeSystem(int pointerSize, NativeType[] nativeTypes)
+        internal UnityNativeObjectTypeSystem(int pointerSize, NativeType[] nativeTypes, ReferenceClassifierFactory referenceClassifierFactory)
+            : base(referenceClassifierFactory)
         {
             m_pointerSize = pointerSize;
             m_nativeTypes = nativeTypes;

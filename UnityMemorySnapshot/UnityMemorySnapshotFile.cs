@@ -16,6 +16,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         ChapterObject[]? m_chapters;
         VirtualMachineInformation m_virtualMachineInformation;
+        TypeDescription[]? m_typeDescriptions;
+        FieldDescription[]? m_fieldDescriptions;
+        HeapSegment[]? m_managedHeapSegments;
+        NativeType[]? m_nativeTypes;
+        ulong[]? m_gcHandleTargets;
 
         internal UnityMemorySnapshotFile(string filename, FileStream fileStream)
         {
@@ -49,13 +54,25 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             m_chapters = ParseChapters();
             m_virtualMachineInformation = ParseVirtualMachineInformation();
 
-            var typeSystem = new UnityManagedTypeSystem(ParseTypeDescriptions(), ParseFieldDescriptions(), m_virtualMachineInformation);
-            UnityManagedHeap managedHeap = ParseManagedHeap(typeSystem);
+            m_typeDescriptions = ParseTypeDescriptions();
+            m_fieldDescriptions = ParseFieldDescriptions();
+            m_managedHeapSegments = ParseManagedHeapSegments();
+            m_gcHandleTargets = ParseGCHandleTargets();
+            m_nativeTypes = ParseNativeTypes();
 
-            var nativeObjectTypeSystem = new UnityNativeObjectTypeSystem(m_virtualMachineInformation.PointerSize, ParseNativeTypes());
-            UnityNativeObjectHeap nativeObjectHeap = ParseNativeObjectHeap(nativeObjectTypeSystem);
+            return new UnityMemorySnapshot(this);
+        }
 
-            return new UnityMemorySnapshot(this, managedHeap, nativeObjectHeap);
+        public UnityManagedHeap ManagedHeap(ReferenceClassifierFactory referenceClassifierFactory)
+        {
+            var typeSystem = new UnityManagedTypeSystem(m_typeDescriptions!, m_fieldDescriptions!, m_virtualMachineInformation, referenceClassifierFactory);
+            return new UnityManagedHeap(typeSystem, m_managedHeapSegments!, m_gcHandleTargets!);
+        }
+
+        public UnityNativeObjectHeap NativeHeap(ReferenceClassifierFactory referenceClassifierFactory)
+        {
+            var nativeObjectTypeSystem = new UnityNativeObjectTypeSystem(m_virtualMachineInformation.PointerSize, m_nativeTypes!, referenceClassifierFactory);
+            return ParseNativeObjectHeap(nativeObjectTypeSystem);
         }
 
         ChapterObject[] ParseChapters()
@@ -149,7 +166,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return virtualMachineInformation;
         }
 
-        UnityManagedHeap ParseManagedHeap(UnityManagedTypeSystem typeSystem)
+        HeapSegment[] ParseManagedHeapSegments()
         {
             var startAddresses = GetChapter<ChapterArrayOfConstantSizeElements>(ChapterType.ManagedHeapSections_StartAddress);
             var contents = GetArrayOfVariableSizeElementsChapter(ChapterType.ManagedHeapSections_Bytes, (int)startAddresses.Length);
@@ -164,8 +181,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             // Unity memory profiler does not dump memory segments sorted by start address.
             Array.Sort(segments, (segment1, segment2) => segment1.StartAddress.Value.CompareTo(segment2.StartAddress.Value));
 
-            var gcHandleTargets = ParseGCHandleTargets();
-            return new UnityManagedHeap(typeSystem, segments, gcHandleTargets);
+            return segments;
         }
 
         TypeDescription[] ParseTypeDescriptions()

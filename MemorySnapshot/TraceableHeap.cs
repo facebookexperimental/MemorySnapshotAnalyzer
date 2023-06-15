@@ -33,7 +33,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract string? GetObjectName(NativeWord objectAddress);
 
-        public abstract IEnumerable<NativeWord> GetIntraHeapPointers(NativeWord address, int typeIndex);
+        public abstract IEnumerable<(NativeWord reference, bool isOwningReference)> GetIntraHeapPointers(NativeWord address, int typeIndex);
 
         public abstract IEnumerable<NativeWord> GetInterHeapPointers(NativeWord address, int typeIndex);
 

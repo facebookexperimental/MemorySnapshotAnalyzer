@@ -22,6 +22,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         // Options for TraceableHeap
         TraceableHeapKind m_traceableHeap_kind;
         bool m_traceableHeap_fuseObjectPairs;
+        ReferenceClassifierFactory m_traceableHeap_referenceClassifier;
         // Options for RootSet
         NativeWord m_rootSet_singletonRootAddress;
         // Options for TracedHeap
@@ -41,6 +42,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             m_id = id;
             m_output = output;
+            m_traceableHeap_referenceClassifier = new ReferenceClassifierFactory();
         }
 
         public static Context WithSameOptionsAs(Context other, int newId)
@@ -51,6 +53,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 RootSet_SingletonRootAddress = other.RootSet_SingletonRootAddress,
                 TraceableHeap_Kind = other.TraceableHeap_Kind,
                 TraceableHeap_FuseObjectPairs = other.TraceableHeap_FuseObjectPairs,
+                TraceableHeap_ReferenceClassifier = other.TraceableHeap_ReferenceClassifier,
                 Backtracer_GroupStatics = other.Backtracer_GroupStatics,
                 Backtracer_FuseGCHandles = other.Backtracer_FuseGCHandles
             };
@@ -87,15 +90,17 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
             if (m_currentTraceableHeap == null)
             {
-                yield return string.Format("TraceableHeap[kind={0}, fuseobjectpairs={1}] not computed",
+                yield return string.Format("TraceableHeap[kind={0}, fuseobjectpairs={1}, referenceclassifier={2}] not computed",
                     m_traceableHeap_kind,
-                    m_traceableHeap_fuseObjectPairs);
+                    m_traceableHeap_fuseObjectPairs,
+                    m_traceableHeap_referenceClassifier.Description);
             }
             else
             {
-                yield return string.Format("TraceableHeap[kind={0}, fuseobjectpairs={1}] {2} ({3} type indices, {4} object pairs, {5})",
+                yield return string.Format("TraceableHeap[kind={0}, fuseobjectpairs={1}, referenceclassifier={2}] {3} ({4} type indices, {5} object pairs, {6})",
                     m_traceableHeap_kind,
                     m_traceableHeap_fuseObjectPairs,
+                    m_traceableHeap_referenceClassifier.Description,
                     m_currentTraceableHeap.Description,
                     m_currentTraceableHeap.TypeSystem.NumberOfTypeIndices,
                     m_currentTraceableHeap.NumberOfObjectPairs,
@@ -217,6 +222,16 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
+        public ReferenceClassifierFactory TraceableHeap_ReferenceClassifier
+        {
+            get { return m_traceableHeap_referenceClassifier; }
+            set
+            {
+                m_traceableHeap_referenceClassifier = value;
+                ClearTraceableHeap();
+            }
+        }
+
         public TraceableHeap? CurrentTraceableHeap => m_currentTraceableHeap;
 
         public void EnsureTraceableHeap()
@@ -232,15 +247,15 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 switch (m_traceableHeap_kind)
                 {
                     case TraceableHeapKind.Managed:
-                        m_currentTraceableHeap = m_currentMemorySnapshot.ManagedHeap;
+                        m_currentTraceableHeap = m_currentMemorySnapshot.ManagedHeap(m_traceableHeap_referenceClassifier);
                         break;
                     case TraceableHeapKind.Native:
-                        m_currentTraceableHeap = m_currentMemorySnapshot.NativeHeap;
+                        m_currentTraceableHeap = m_currentMemorySnapshot.NativeHeap(m_traceableHeap_referenceClassifier);
                         break;
                     case TraceableHeapKind.Stitched:
                         m_currentTraceableHeap = new StitchedTraceableHeap(
-                            m_currentMemorySnapshot.ManagedHeap,
-                            m_currentMemorySnapshot.NativeHeap,
+                            m_currentMemorySnapshot.ManagedHeap(m_traceableHeap_referenceClassifier),
+                            m_currentMemorySnapshot.NativeHeap(m_traceableHeap_referenceClassifier),
                             m_traceableHeap_fuseObjectPairs);
                         break;
                     default:

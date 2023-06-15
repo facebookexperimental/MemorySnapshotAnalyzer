@@ -324,7 +324,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
                 // Push all of the node's children that are nodes we haven't encountered previously.
                 NativeWord address = m_native.From(entry.Address);
-                foreach (NativeWord reference in m_traceableHeap.GetIntraHeapPointers(address, entry.TypeIndex))
+                foreach ((NativeWord reference, bool isOwningReference) in m_traceableHeap.GetIntraHeapPointers(address, entry.TypeIndex))
                 {
                     Mark(reference, address);
                 }
