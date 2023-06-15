@@ -79,9 +79,21 @@ Some of these analysis are configurable. To set the options for analysis, use th
 
 * **Heap stitching option `'fuseobjectpairs`:** Each pair of a managed and a native object that reference one another is considered to be "inseparable". Usually, other native objects pointing to the native part and other managed pointers pointing to the managed half can create graphs in which the dominating nodes for both parts could be different. With this option, all pointers to either part are considered to point to the managed object (and the managed object is the only object that points to the native object), ensuring that the objects stay together in the dominator tree.
 * **Root set option `'rootobject`:** Only analyze the graph of objects reachable from the given object. This can be used to answer the question, "what are the objects reachable from this object" or "what is the total size of objects reachable from this object." Also, when configured with a key object responsible for managing large parts of an application's state, this can be used to reduce the problem of too many nodes "floating" to the process node when computing the dominator tree.
+* **Backtracer option `'referenceclassifier`:** In many scenarios, the same object can be referenced from several other objects (such as caches or parent pointers) in addition to the object that is the primary "owner". This can make for cluttered backtraces, and - worse - make many objects float all the way up to the top of the dominator tree. With this option, you can provide a configuration file that marks certain object fields as "owning" references. If an object is found to be referenced by both owning and non-owning references, the non-owning references are discarded from the backtrace. See below for the configuration file format.
 * **Backtracer option `'groupstatics`:** Introduces additional, "virtual" nodes within backtraces to serve as containers for related objects/object graphs. E.g., it can be a common occurrence that objects "float" to the process node in the dominator tree that are reachable from different static variables only within a single assembly, namespace, or type, and this option allows to group such objects accordingly.
 * **Backtracer option `'fusegchandles`:** Usually, GC handles are roots, meaning that their target objects will be near the root of the dominator tree. With this option, GC handles whose targets are objects that are also reachable from other objects will be considered just a part of the target object and can appear lower in the dominator tree.
 * **Dominator tree option: `'weakgchandles`:** Often, objects are reachable from a specific static variable in the root set as well as one or more GC handles. In this case, it can be helpful to consider only the static variable to be an "owning" reference to the object, and only report GC handles as "owning" if they are truly the only reason that a given object is live. This option allows you to do that.
+
+### Reference Classifier Configuration
+
+The `'referenceclassifier` option takes the name of a configuration file with the following format:
+
+* Lines starting with a hash ('`#`') symbol are treated as comment lines and are ignored.
+* Blank lines are ignored.
+* All remaining lines must consist of the following three comma-separated fields:
+  * The first field is an assembly name. This can be given with or without a `.dll` extension, and is matched case-insensitively.
+  * The second field is a type name. This needs to match exactly the name that is output by, say, the `dumptype` command.
+  * The third field is a field pattern. This can either be a single field name, which needs to match exactly, or an asterisk (`'*'`), indicating all fields of the type.
 
 ## Visualization
 
