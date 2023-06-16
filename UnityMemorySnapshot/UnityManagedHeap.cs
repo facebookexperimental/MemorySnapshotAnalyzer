@@ -91,7 +91,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return null;
         }
 
-        public override IEnumerable<(NativeWord reference, bool isOwningReference)> GetIntraHeapPointers(NativeWord address, int typeIndex)
+        public override IEnumerable<(NativeWord reference, PointerFlags pointerFlags)> GetIntraHeapPointers(NativeWord address, int typeIndex)
         {
             return m_segmentedHeap.GetIntraHeapPointers(address, typeIndex);
         }

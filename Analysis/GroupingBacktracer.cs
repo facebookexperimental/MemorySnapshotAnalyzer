@@ -220,7 +220,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         List<int> ComputePostorderRootPredecessors(int postorderIndex)
         {
-            List<int> rootIndices = m_parentBacktracer.TracedHeap.PostorderRootIndices(postorderIndex);
+            (List<int> rootIndices, _) = m_parentBacktracer.TracedHeap.PostorderRootIndices(postorderIndex);
             if (rootIndices.Count == 1)
             {
                 return m_rootPredecessors[rootIndices[0]] ?? m_assemblyPredecessors;

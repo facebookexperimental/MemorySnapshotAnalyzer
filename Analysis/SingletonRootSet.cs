@@ -4,7 +4,7 @@ using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 
 namespace MemorySnapshotAnalyzer.Analysis
 {
-    public class SingletonRootSet : IRootSet
+    public sealed class SingletonRootSet : IRootSet
     {
         readonly TraceableHeap m_traceableHeap;
         readonly NativeWord m_address;
@@ -23,9 +23,9 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         int IRootSet.NumberOfGCHandles => 0;
 
-        NativeWord IRootSet.GetRoot(int rootIndex)
+        (NativeWord, PointerFlags) IRootSet.GetRoot(int rootIndex)
         {
-            return m_address;
+            return (m_address, PointerFlags.None);
         }
 
         bool IRootSet.IsGCHandle(int rootIndex)

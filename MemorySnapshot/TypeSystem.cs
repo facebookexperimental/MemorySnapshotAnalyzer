@@ -8,7 +8,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
     public abstract class TypeSystem
     {
         readonly ReferenceClassifierFactory m_referenceClassifierFactory;
-        readonly List<int> m_offsets;
+        readonly List<(int, PointerFlags)> m_offsets;
         readonly Dictionary<int, (int, int)> m_typeIndexToIndexAndCount;
 
         ReferenceClassifierFactory.ReferenceClassifier? m_referenceClassifier;
@@ -16,7 +16,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         protected TypeSystem(ReferenceClassifierFactory referenceClassifierFactory)
         {
             m_referenceClassifierFactory = referenceClassifierFactory;
-            m_offsets = new List<int>();
+            m_offsets = new List<(int, PointerFlags)>();
             m_typeIndexToIndexAndCount = new Dictionary<int, (int, int)>();
         }
 
@@ -108,54 +108,74 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     }
                     else
                     {
-                        if (m_referenceClassifier == null)
-                        {
-                            m_referenceClassifier = m_referenceClassifierFactory.Build(this);
-                        }
-
-                        if (m_referenceClassifier.IsOwningReference(typeIndex, fieldNumber))
-                        {
-                            m_offsets.Add(-(baseOffset + fieldOffset));
-                        }
-                        else
-                        {
-                            m_offsets.Add(baseOffset + fieldOffset);
-                        }
+                        PointerFlags pointerFlags = ClassifyField(typeIndex, fieldNumber);
+                        m_offsets.Add((baseOffset + fieldOffset, pointerFlags));
                     }
                 }
             }
         }
 
-        public IEnumerable<(int Offset, bool IsOwningReference)> GetPointerOffsets(int typeIndex, int baseOffset)
+        PointerFlags ClassifyField(int typeIndex, int fieldNumber)
+        {
+            if (m_referenceClassifier == null)
+            {
+                m_referenceClassifier = m_referenceClassifierFactory.Build(this);
+            }
+
+            PointerFlags pointerFlags = PointerFlags.None;
+            if (m_referenceClassifier.IsOwningReference(typeIndex, fieldNumber))
+            {
+                pointerFlags |= PointerFlags.IsOwningReference;
+            }
+
+            if (m_referenceClassifier.IsConditionalOwningReference(typeIndex, fieldNumber))
+            {
+                pointerFlags |= PointerFlags.IsConditionalOwningReference;
+            }
+
+            return pointerFlags;
+        }
+
+        public IEnumerable<(int offset, PointerFlags pointerFlags)> GetPointerOffsets(int typeIndex, int baseOffset)
         {
             (int start, int end) = EnsurePointerOffsets(typeIndex);
 
             for (int i = start; i < end; i++)
             {
-                int offset = m_offsets[i];
-                if (offset < 0)
-                {
-                    yield return (-offset + baseOffset, true);
-                }
-                else
-                {
-                    yield return (offset + baseOffset, false);
-                }
+                (int offset, PointerFlags pointerFlags) = m_offsets[i];
+                yield return (offset + baseOffset, pointerFlags);
             }
         }
 
-        public IEnumerable<(int Offset, bool IsOwningReference)> GetFieldPointerOffsets(int typeIndex, int baseOffset)
+        public IEnumerable<(int offset, PointerFlags pointerFlags)> GetStaticFieldPointerOffsets(int typeIndex, int fieldNumber, int fieldTypeIndex, int baseOffset)
         {
-            if (IsValueType(typeIndex))
+            if (IsValueType(fieldTypeIndex))
             {
-                foreach ((int, bool) pair in GetPointerOffsets(typeIndex, baseOffset))
+                foreach ((int offset, PointerFlags pointerFlags) pair in GetPointerOffsets(fieldTypeIndex, baseOffset))
                 {
                     yield return pair;
                 }
             }
             else
             {
-                yield return (baseOffset, false);
+                PointerFlags pointerFlags = ClassifyField(typeIndex, fieldNumber);
+                yield return (baseOffset, pointerFlags);
+            }
+        }
+
+        public IEnumerable<(int offset, PointerFlags pointerFlags)> GetArrayElementPointerOffsets(int typeIndex, int baseOffset)
+        {
+            if (IsValueType(typeIndex))
+            {
+                foreach ((int offset, PointerFlags pointerFlags) pair in GetPointerOffsets(typeIndex, baseOffset))
+                {
+                    yield return pair;
+                }
+            }
+            else
+            {
+                // TODO (reference classification): support PointerFlags for array elements of reference type
+                yield return (baseOffset, PointerFlags.None);
             }
         }
     }

@@ -94,7 +94,7 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             try
             {
-                var configurationEntries = new List<ConfigurableReferenceClassifierFactory.ConfigurationEntry>();
+                var configurationEntries = new List<ConfigurableReferenceClassifierFactory.Rule>();
                 int lineNumber = 1;
                 foreach (string line in File.ReadAllLines(ReferenceClassifier!))
                 {
@@ -108,10 +108,13 @@ namespace MemorySnapshotAnalyzer.Commands
                             throw new CommandException($"invalid syntax on line {lineNumber}");
                         }
 
-                        configurationEntries.Add(new ConfigurableReferenceClassifierFactory.ConfigurationEntry
+                        configurationEntries.Add(new ConfigurableReferenceClassifierFactory.Rule
                         {
-                            Assembly = lineTrimmed[..firstComma].Trim(),
-                            ClassName = lineTrimmed[(firstComma + 1)..lastComma].Trim(),
+                            Spec = new ConfigurableReferenceClassifierFactory.ClassSpec
+                            {
+                                Assembly = lineTrimmed[..firstComma].Trim(),
+                                ClassName = lineTrimmed[(firstComma + 1)..lastComma].Trim()
+                            },
                             FieldPattern = lineTrimmed[(lastComma + 1)..].Trim()
                         });
                     }

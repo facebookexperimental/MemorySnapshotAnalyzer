@@ -341,7 +341,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
             for (int i = 0; i < reachableRoots.Count && allFromOneAssembly; i++)
             {
-                List<int> rootIndices = CurrentTracedHeap.PostorderRootIndices(CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex));
+                (List<int> rootIndices, _) = CurrentTracedHeap.PostorderRootIndices(CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex));
                 foreach (int rootIndex in rootIndices)
                 {
                     if (CurrentRootSet.IsGCHandle(rootIndex))
