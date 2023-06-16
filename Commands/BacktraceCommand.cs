@@ -27,11 +27,14 @@ namespace MemorySnapshotAnalyzer.Commands
         [FlagArgument("shortestpaths")]
         public bool ShortestPaths;
 
+        [FlagArgument("mostspecificroots")]
+        public bool MostSpecificRoots;
+
         [FlagArgument("allroots")]
         public bool RootsOnly;
 
-        [FlagArgument("mostspecificroots")]
-        public bool MostSpecificRoots;
+        [FlagArgument("dom")]
+        public bool Dominators;
 
         [FlagArgument("stats")]
         public bool Statistics;
@@ -117,6 +120,10 @@ namespace MemorySnapshotAnalyzer.Commands
                 {
                     Output.WriteLineIndented(1, CurrentBacktracer.DescribeNodeIndex(rootIndex, FullyQualified));
                 }
+            }
+            else if (Dominators)
+            {
+                DumpDominators(nodeIndex);
             }
             else if (OutputDotFilename != null)
             {
@@ -407,6 +414,20 @@ namespace MemorySnapshotAnalyzer.Commands
             return result;
         }
 
-        public override string HelpText => "backtrace [<object address or index> [<output dot filename>] ['depth <max depth>]|['stats]] ['shortestpaths ['stats]|'mostspecificroots|'allroots]] ['fullyqualified]";
+        void DumpDominators(int nodeIndex)
+        {
+            int currentNodeIndex = nodeIndex;
+            do
+            {
+                Output.WriteLine("{0} - exclusive size {1}, inclusive size {2}",
+                    CurrentHeapDom.Backtracer.DescribeNodeIndex(currentNodeIndex, FullyQualified),
+                    CurrentHeapDom.NodeSize(currentNodeIndex),
+                    CurrentHeapDom.TreeSize(currentNodeIndex));
+                currentNodeIndex = CurrentHeapDom.GetDominator(currentNodeIndex);
+            }
+            while (currentNodeIndex != CurrentHeapDom.RootNodeIndex);
+        }
+
+        public override string HelpText => "backtrace [<object address or index> [<output dot filename>] ['depth <max depth>]|['stats]] ['shortestpaths ['stats]|'mostspecificroots|'allroots|'dom]] ['fullyqualified]";
     }
 }

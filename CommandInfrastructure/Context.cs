@@ -389,7 +389,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             EnsureTracedHeap();
 
-            if (m_currentHeapDom == null)
+            if (m_currentBacktracer == null)
             {
                 m_output.Write("[context {0}] computing backtraces ...", m_id);
                 IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseGCHandles, m_tracedHeap_weakGCHandles);
