@@ -93,7 +93,10 @@ The `'referenceclassifier` option takes the name of a configuration file with th
 * All remaining lines must consist of the following three comma-separated fields:
   * The first field is an assembly name. This can be given with or without a `.dll` extension, and is matched case-insensitively.
   * The second field is a type name. This needs to match exactly the name that is output by, say, the `dumptype` command.
-  * The third field is a field pattern. This can either be a single field name, which needs to match exactly, or an asterisk (`'*'`), indicating all fields of the type.
+  * The third field is a field pattern. This can be one of:
+    * a single field name, which needs to match exactly, or
+    * an asterisk (`'*'`), indicating all fields of the type,
+    * a path indicating a sequence of field accesses and/or array indexing. This is to support collections; for instance, to indicate that all values in field `foo` of a generic dictionary type are owning references, this could be `foo._entries[].value`.
 
 To help identify where configuring more owning references could be useful, you can use the `heapdomstats` command. When run without arguments, this provides statistics on the most frequent types of objects that have floated all the way to the top of the dominator tree. When run with `'list` (and, optionally, `'type` and a type index), this lists the specific object instances that have floated to the top. Then use `backtrace 'depth 1` on some of the given object indices to see whether one of the references in the backtrace clearly should be considered the "owning" reference, and add the referring field to the configuration file. Reissuing the `options 'referenceclassifier` command on the updated file and running `heapdomstats` again can be used to verify the effectiveness of the expanded configuration.
 
