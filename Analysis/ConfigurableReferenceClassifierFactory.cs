@@ -36,21 +36,22 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public class Rule
+        public abstract class Rule
         {
             public ClassSpec Spec;
-
-            // A field name, or "*" to indicate all fields.
-            public string? FieldPattern;
         };
 
-        public sealed class AncestorRule : Rule
+        public sealed class FieldPatternRule : Rule
         {
-            public int UpwardLevels;
+            // A field name, or (if ending in "*") a field prefix.
+            public string? FieldPattern;
+        }
 
-            public ClassSpec AncestorClassSpec;
-
-            public string? AncestorField;
+        public sealed class FieldPathRule : Rule
+        {
+            // Path of fields to dereference. Note that these are full field names, not patterns.
+            // The special field name "[]" represents array indexing (covering all elements of the array).
+            public string[]? FieldNames;
         }
 
         // Creates a lookup table that maps type indices to the field patterns that apply to that type.
@@ -140,80 +141,134 @@ namespace MemorySnapshotAnalyzer.Analysis
         public sealed class ConfigurableReferenceClassifier : ReferenceClassifier
         {
             readonly TypeSystem m_typeSystem;
-            readonly HashSet<(int, int)> m_unconditionalOwningReferences;
-            readonly Dictionary<(int, int), (int, Dictionary<int, List<int>>)> m_conditionalOwningReferences;
+            readonly HashSet<(int typeIndex, int fieldNumber)> m_owningReferences;
+            readonly Dictionary<(int typeIndex, int fieldNumber), List<(int typeIndex, int fieldNumber)[]>> m_conditionAnchors;
 
             public ConfigurableReferenceClassifier(TypeSystem typeSystem, List<Rule> rules)
             {
                 m_typeSystem = typeSystem;
-                m_unconditionalOwningReferences = new HashSet<(int, int)>();
-                m_conditionalOwningReferences = new Dictionary<(int, int), (int, Dictionary<int, List<int>>)> ();
+                m_owningReferences = new HashSet<(int typeIndex, int fieldNumber)>();
+                m_conditionAnchors = new Dictionary<(int typeIndex, int fieldNumber), List<(int typeIndex, int fieldNumber)[]>>();
 
-                var unconditionalSpecs = new List<(ClassSpec spec, string fieldPattern, int ruleNumber)>();
-                var conditionalSpecs = new List<(ClassSpec spec, string fieldPattern, int ruleNumber)>();
-                var conditionMatchers = new Dictionary<int, Matcher>();
-                var conditionRuleToTypeToFields = new Dictionary<int, Dictionary<int, List<int>>>();
+                var shallowSpecs = new List<(ClassSpec spec, string fieldPattern, int ruleNumber)>();
+                var deepSpecs = new List<(ClassSpec spec, string fieldName, int ruleNumber)>();
                 for (int ruleNumber = 0; ruleNumber < rules.Count; ruleNumber++)
                 {
-                    if (rules[ruleNumber] is AncestorRule ancestorRule)
+                    if (rules[ruleNumber] is FieldPatternRule fieldPatternRule)
                     {
-                        conditionalSpecs.Add((rules[ruleNumber].Spec, rules[ruleNumber].FieldPattern!, ruleNumber));
-                        var conditionSpec = ancestorRule.AncestorClassSpec;
-                        conditionMatchers.Add(ruleNumber, new Matcher(m_typeSystem,
-                            new List<(ClassSpec spec, string fieldPattern, int ruleNumber)>() { (conditionSpec, ancestorRule.FieldPattern!, ruleNumber) }));
-                        conditionRuleToTypeToFields.Add(ruleNumber, new Dictionary<int, List<int>>());
+                        shallowSpecs.Add((rules[ruleNumber].Spec, fieldPatternRule.FieldPattern!, ruleNumber));
                     }
                     else
                     {
-                        unconditionalSpecs.Add((rules[ruleNumber].Spec, rules[ruleNumber].FieldPattern!, ruleNumber));
+                        var fieldPathRule = (FieldPathRule)rules[ruleNumber];
+                        deepSpecs.Add((rules[ruleNumber].Spec, fieldPathRule.FieldNames![0], ruleNumber));
                     }
                 }
 
-                var unconditionalMatcher = new Matcher(m_typeSystem, unconditionalSpecs);
-                var conditionalMatcher = new Matcher(m_typeSystem, conditionalSpecs);
+                var owningReferenceMatcher = new Matcher(m_typeSystem, shallowSpecs);
+                var anchorMatcher = new Matcher(m_typeSystem, deepSpecs);
 
                 for (int typeIndex = 0; typeIndex < typeSystem.NumberOfTypeIndices; typeIndex++)
                 {
-                    var unconditionalFieldPatterns = unconditionalMatcher.GetFieldPatterns(typeIndex);
-                    if (unconditionalFieldPatterns != null)
+                    var owningReferenceFieldPatterns = owningReferenceMatcher.GetFieldPatterns(typeIndex);
+                    if (owningReferenceFieldPatterns != null)
                     {
-                        ClassifyFields(typeIndex, unconditionalFieldPatterns,
-                            (fieldNumber, ruleNumber) => m_unconditionalOwningReferences.Add((typeIndex, fieldNumber)));
+                        ClassifyFields(typeIndex, owningReferenceFieldPatterns,
+                            (fieldNumber, ruleNumber) => m_owningReferences.Add((typeIndex, fieldNumber)));
                     }
 
-                    var conditionalFieldPatterns = conditionalMatcher.GetFieldPatterns(typeIndex);
-                    if (conditionalFieldPatterns != null)
+                    var anchorFieldPatterns = anchorMatcher.GetFieldPatterns(typeIndex);
+                    if (anchorFieldPatterns != null)
                     {
-                        ClassifyFields(typeIndex, conditionalFieldPatterns,
+                        ClassifyFields(typeIndex, anchorFieldPatterns,
                             (fieldNumber, ruleNumber) =>
                             {
-                                var ancestorRule = (AncestorRule)rules[ruleNumber];
-                                m_conditionalOwningReferences.Add((typeIndex, fieldNumber),
-                                    (ancestorRule.UpwardLevels, conditionRuleToTypeToFields[ruleNumber]));
+                                var fieldPathRule = (FieldPathRule)rules[ruleNumber];
+                                var fieldPath = FindFieldPath(typeIndex, fieldPathRule.FieldNames!);
+                                if (fieldPath != null)
+                                {
+                                    if (!m_conditionAnchors.TryGetValue((typeIndex, fieldNumber), out List<(int typeIndex, int fieldNumber)[]>? fieldPaths))
+                                    {
+                                        fieldPaths = new List<(int typeIndex, int fieldNumber)[]>();
+                                        m_conditionAnchors.Add((typeIndex, fieldNumber), fieldPaths);
+                                    }
+
+                                    fieldPaths.Add(fieldPath);
+                                }
                             });
                     }
+                }
+            }
 
-                    foreach (var kvp in conditionMatchers)
+            static int s_fieldNotFoundSentinel = -1;
+            static int s_fieldIsArraySentinel = Int32.MaxValue;
+
+            (int typeIndex, int fieldNumber)[]? FindFieldPath(int typeIndex, string[] fieldNames)
+            {
+                var fieldPath = new (int typeIndex, int fieldNumber)[fieldNames.Length];
+                int currentTypeIndex = typeIndex;
+                for (int i = 0; i < fieldNames.Length; i++)
+                {
+                    int fieldNumber = GetFieldNumber(currentTypeIndex, fieldNames[i]);
+                    if (fieldNumber == s_fieldNotFoundSentinel)
                     {
-                        var conditionFieldPatterns = kvp.Value.GetFieldPatterns(typeIndex);
-                        if (conditionFieldPatterns != null)
+                        // TODO: better warning management
+                        Console.Error.WriteLine($"field {fieldNames[i]} not found in type {m_typeSystem.QualifiedName(currentTypeIndex)}");
+                        return null;
+                    }
+
+                    fieldPath[i] = (currentTypeIndex, fieldNumber);
+
+                    if (fieldNumber == s_fieldIsArraySentinel)
+                    {
+                        if (!m_typeSystem.IsArray(currentTypeIndex))
                         {
-                            Dictionary<int, List<int>> typeToFields = conditionRuleToTypeToFields[kvp.Key];
-                            ClassifyFields(typeIndex, conditionFieldPatterns,
-                                (fieldNumber, _) =>
-                                {
-                                    if (typeToFields.TryGetValue(typeIndex, out List<int>? fieldNumbers))
-                                    {
-                                        fieldNumbers!.Add(fieldNumber);
-                                    }
-                                    else
-                                    {
-                                        typeToFields.Add(typeIndex, new List<int>() { fieldNumber });
-                                    }
-                                });
+                            // TODO: better warning management
+                            Console.Error.WriteLine($"field was expected to be an array type; found {m_typeSystem.QualifiedName(currentTypeIndex)}");
+                            return null;
                         }
+
+                        currentTypeIndex = m_typeSystem.BaseOrElementTypeIndex(currentTypeIndex);
+                    }
+                    else
+                    {
+                        currentTypeIndex = m_typeSystem.FieldType(currentTypeIndex, fieldNumber);
                     }
                 }
+
+                if (m_typeSystem.IsValueType(currentTypeIndex))
+                {
+                    // TODO: better warning management
+                    Console.Error.WriteLine("field path for {0}.{1} ending in non-reference type field {2} of type {3}",
+                        m_typeSystem.QualifiedName(typeIndex),
+                        fieldNames[0],
+                        fieldNames[^1],
+                        m_typeSystem.QualifiedName(currentTypeIndex));
+                    return null;
+                }
+
+                return fieldPath;
+            }
+
+            int GetFieldNumber(int typeIndex, string fieldName)
+            {
+                // Sentinel value for array indexing (all elements)
+                if (fieldName == "[]")
+                {
+                    return s_fieldIsArraySentinel;
+                }
+
+                int numberOfFields = m_typeSystem.NumberOfFields(typeIndex);
+                for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
+                {
+                    string aFieldName = m_typeSystem.FieldName(typeIndex, fieldNumber);
+                    if (aFieldName.Equals(fieldName, StringComparison.Ordinal))
+                    {
+                        return fieldNumber;
+                    }
+                }
+
+                return s_fieldNotFoundSentinel;
             }
 
             void ClassifyFields(int typeIndex, List<(string fieldPattern, int ruleNumber)> fieldPatterns, Action<int, int> add)
@@ -232,32 +287,17 @@ namespace MemorySnapshotAnalyzer.Analysis
 
             public override bool IsOwningReference(int typeIndex, int fieldNumber)
             {
-                return m_unconditionalOwningReferences.Contains((typeIndex, fieldNumber));
+                return m_owningReferences.Contains((typeIndex, fieldNumber));
             }
 
-            public override bool IsConditionalOwningReference(int typeIndex, int fieldNumber)
+            public override bool IsConditionAnchor(int typeIndex, int fieldNumber)
             {
-                return m_conditionalOwningReferences.ContainsKey((typeIndex, fieldNumber));
+                return m_conditionAnchors.ContainsKey((typeIndex, fieldNumber));
             }
 
-            public override bool CheckConditionalOwningReference(int typeIndex, int fieldNumber, Func<int, int> getAncestorTypeIndex, Func<int, bool> testField)
+            public override List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
             {
-                if (m_conditionalOwningReferences.TryGetValue((typeIndex, fieldNumber), out (int UpwardLevels, Dictionary<int, List<int>> TypeToFields) pair))
-                {
-                    int ancestorTypeIndex = getAncestorTypeIndex(pair.UpwardLevels);
-                    if (pair.TypeToFields.TryGetValue(ancestorTypeIndex, out List<int>? ancestorFieldNumbers))
-                    {
-                        foreach (int ancestorFieldNumber in ancestorFieldNumbers!)
-                        {
-                            if (testField(ancestorFieldNumber))
-                            {
-                                return true;
-                            }
-                        }
-                    }
-                }
-
-                return false;
+                return m_conditionAnchors[(typeIndex, fieldNumber)];
             }
         }
 

@@ -180,6 +180,11 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
+        bool IBacktracer.IsOwned(int nodeIndex)
+        {
+            return nodeIndex < m_firstClassIndex && m_parentBacktracer.IsOwned(nodeIndex);
+        }
+
         List<int> IBacktracer.Predecessors(int nodeIndex)
         {
             if (nodeIndex == m_rootNodeIndex)

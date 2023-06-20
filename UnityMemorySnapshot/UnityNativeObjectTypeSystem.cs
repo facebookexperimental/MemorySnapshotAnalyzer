@@ -53,7 +53,8 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         public override int BaseSize(int typeIndex)
         {
-            throw new NotImplementedException();
+            // Can be output by dumptype
+            return 0;
         }
 
         public override bool IsValueType(int typeIndex)

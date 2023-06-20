@@ -24,6 +24,8 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         string NodeType(int nodeIndex);
 
+        bool IsOwned(int nodeIndex);
+
         List<int> Predecessors(int nodeIndex);
     }
 }

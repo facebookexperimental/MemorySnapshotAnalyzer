@@ -72,29 +72,29 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_secondary.ContainsAddress(objectAddress) ? m_secondary.GetObjectName(objectAddress) : m_primary.GetObjectName(objectAddress);
         }
 
-        public override IEnumerable<(NativeWord reference, PointerFlags pointerFlags)> GetIntraHeapPointers(NativeWord address, int typeIndex)
+        public override IEnumerable<PointerInfo<NativeWord>> GetIntraHeapPointers(NativeWord address, int typeIndex)
         {
             if (m_secondary.ContainsAddress(address))
             {
-                foreach ((NativeWord Reference, PointerFlags PointerFlags) pair in m_secondary.GetIntraHeapPointers(address, typeIndex - m_primary.TypeSystem.NumberOfTypeIndices))
+                foreach (PointerInfo<NativeWord> pointerInfo in m_secondary.GetIntraHeapPointers(address, typeIndex - m_primary.TypeSystem.NumberOfTypeIndices))
                 {
                     if (m_fusedObjectParent != null && !m_computingObjectPairs)
                     {
-                        if (m_fusedObjectParent.TryGetValue(pair.Reference.Value, out ulong parentAddress))
+                        if (m_fusedObjectParent.TryGetValue(pointerInfo.Value.Value, out ulong parentAddress))
                         {
-                            yield return (Native.From(parentAddress), pair.PointerFlags);
+                            yield return pointerInfo.WithValue(Native.From(parentAddress));
                             continue;
                         }
                     }
 
-                    yield return pair;
+                    yield return pointerInfo;
                 }
             }
             else
             {
-                foreach ((NativeWord Reference, PointerFlags pointerFlags) pair in m_primary.GetIntraHeapPointers(address, typeIndex))
+                foreach (PointerInfo<NativeWord> pointerInfo in m_primary.GetIntraHeapPointers(address, typeIndex))
                 {
-                    yield return pair;
+                    yield return pointerInfo;
                 }
 
                 foreach (NativeWord reference in m_primary.GetInterHeapPointers(address, typeIndex))
@@ -107,7 +107,13 @@ namespace MemorySnapshotAnalyzer.Analysis
                         m_fusedObjectParent!.TryAdd(reference.Value, address.Value);
                     }
 
-                    yield return (reference, PointerFlags.None);
+                    yield return new PointerInfo<NativeWord>
+                    {
+                        Value = reference,
+                        PointerFlags = PointerFlags.None,
+                        TypeIndex = typeIndex,
+                        FieldNumber = -1
+                    };
                 }
             }
         }
@@ -115,6 +121,13 @@ namespace MemorySnapshotAnalyzer.Analysis
         public override IEnumerable<NativeWord> GetInterHeapPointers(NativeWord address, int typeIndex)
         {
             return Array.Empty<NativeWord>();
+        }
+
+        public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        {
+            return m_secondary.ContainsAddress(anchorObjectAddress) ?
+                m_secondary.GetOwningReferencesFromAnchor(anchorObjectAddress, pointerInfo) :
+                m_primary.GetOwningReferencesFromAnchor(anchorObjectAddress, pointerInfo);
         }
 
         public override int NumberOfObjectPairs => m_fusedObjectParent == null ? 0 : m_fusedObjectParent.Count;

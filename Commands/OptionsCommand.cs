@@ -108,15 +108,31 @@ namespace MemorySnapshotAnalyzer.Commands
                             throw new CommandException($"invalid syntax on line {lineNumber}");
                         }
 
-                        configurationEntries.Add(new ConfigurableReferenceClassifierFactory.Rule
+                        List<string> fieldPattern = ParseFieldPattern(lineTrimmed[(lastComma + 1)..].Trim(), lineNumber);
+                        if (fieldPattern.Count == 1)
                         {
-                            Spec = new ConfigurableReferenceClassifierFactory.ClassSpec
+                            configurationEntries.Add(new ConfigurableReferenceClassifierFactory.FieldPatternRule
                             {
-                                Assembly = lineTrimmed[..firstComma].Trim(),
-                                ClassName = lineTrimmed[(firstComma + 1)..lastComma].Trim()
-                            },
-                            FieldPattern = lineTrimmed[(lastComma + 1)..].Trim()
-                        });
+                                Spec = new ConfigurableReferenceClassifierFactory.ClassSpec
+                                {
+                                    Assembly = lineTrimmed[..firstComma].Trim(),
+                                    ClassName = lineTrimmed[(firstComma + 1)..lastComma].Trim()
+                                },
+                                FieldPattern = fieldPattern[0]
+                            });
+                        }
+                        else
+                        {
+                            configurationEntries.Add(new ConfigurableReferenceClassifierFactory.FieldPathRule
+                            {
+                                Spec = new ConfigurableReferenceClassifierFactory.ClassSpec
+                                {
+                                    Assembly = lineTrimmed[..firstComma].Trim(),
+                                    ClassName = lineTrimmed[(firstComma + 1)..lastComma].Trim()
+                                },
+                                FieldNames = fieldPattern.ToArray()
+                            }); ;
+                        }
                     }
 
                     lineNumber++;
@@ -128,6 +144,47 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 throw new CommandException(ex.Message);
             }
+        }
+
+        static List<string> ParseFieldPattern(string fieldPattern, int lineNumber)
+        {
+            var pieces = new List<string>();
+            int startIndex = 0;
+            for (int i = 0; i < fieldPattern.Length; i++)
+            {
+                if (fieldPattern[i] == '[')
+                {
+                    if (i + 1 == fieldPattern.Length || fieldPattern[i + 1] != ']')
+                    {
+                        throw new CommandException($"invalid field pattern syntax on line {lineNumber}; '[' must be immediately followed by ']'");
+                    }
+
+                    if (i > startIndex)
+                    {
+                        pieces.Add(fieldPattern[startIndex..i]);
+                    }
+
+                    pieces.Add("[]");
+                    startIndex = i + 2;
+                    i++;
+                }
+                else if (fieldPattern[i] == '.')
+                {
+                    if (i > startIndex)
+                    {
+                        pieces.Add(fieldPattern[startIndex..i]);
+                    }
+
+                    startIndex = i + 1;
+                }
+            }
+
+            if (startIndex != fieldPattern.Length)
+            {
+                pieces.Add(fieldPattern[startIndex..]);
+            }
+
+            return pieces;
         }
 
         public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['fuseobjectpairs] ['weakgchandles] ['rootobject <address or index>] ['groupstatics] ['fusegchandles]";

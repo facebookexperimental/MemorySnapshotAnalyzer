@@ -1,6 +1,7 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using System;
+using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
@@ -8,19 +9,26 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
     {
         public class ReferenceClassifier
         {
+            readonly List<(int typeIndex, int fieldNumber)[]> m_emptyList;
+
+            public ReferenceClassifier()
+            {
+                m_emptyList = new List<(int typeIndex, int fieldNumber)[]>();
+            }
+
             public virtual bool IsOwningReference(int typeIndex, int fieldNumber)
             {
                 return false;
             }
 
-            public virtual bool IsConditionalOwningReference(int typeIndex, int fieldNumber)
+            public virtual bool IsConditionAnchor(int typeIndex, int fieldNumber)
             {
                 return false;
             }
 
-            public virtual bool CheckConditionalOwningReference(int typeIndex, int fieldNumber, Func<int, int> getAncestorTypeIndex, Func<int, bool> testField)
+            public virtual List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
             {
-                return false;
+                return m_emptyList;
             }
         }
 

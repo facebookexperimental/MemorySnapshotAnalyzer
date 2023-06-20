@@ -91,7 +91,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return null;
         }
 
-        public override IEnumerable<(NativeWord reference, PointerFlags pointerFlags)> GetIntraHeapPointers(NativeWord address, int typeIndex)
+        public override IEnumerable<PointerInfo<NativeWord>> GetIntraHeapPointers(NativeWord address, int typeIndex)
         {
             return m_segmentedHeap.GetIntraHeapPointers(address, typeIndex);
         }
@@ -103,6 +103,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
                 MemoryView objectView = m_segmentedHeap.GetMemoryViewForAddress(address);
                 yield return objectView.ReadPointer(m_unityManagedTypeSystem.UnityEngineCachecPtrFieldOffset, Native);
             }
+        }
+
+        public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        {
+            return m_segmentedHeap.GetOwningReferencesFromAnchor(anchorObjectAddress, pointerInfo);
         }
 
         public override int NumberOfObjectPairs => 0;
