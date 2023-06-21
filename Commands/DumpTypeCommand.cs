@@ -130,7 +130,7 @@ namespace MemorySnapshotAnalyzer.Commands
                     int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
                     if (Statics && isStatic || !Statics && !isStatic)
                     {
-                        Output.WriteLineIndented(indent + 1, "{0} field {1} (index {2}) at offset {3}: {4} type {5} (index {6})",
+                        Output.WriteLineIndented(indent + 1, "{0} field {1} (number {2}) at offset {3}: {4} type {5} (index {6})",
                             typeSystem.FieldIsStatic(typeIndex, fieldNumber) ? "Static" : "Instance",
                             typeSystem.FieldName(typeIndex, fieldNumber),
                             fieldNumber,

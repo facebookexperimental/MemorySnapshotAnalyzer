@@ -21,7 +21,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         int NumberOfGCHandles { get; }
 
-        NativeWord GetRoot(int rootIndex);
+        (NativeWord, PointerFlags) GetRoot(int rootIndex);
 
         bool IsGCHandle(int rootIndex);
 

@@ -8,20 +8,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 {
     public sealed class ConfigurableReferenceClassifierFactory : ReferenceClassifierFactory
     {
-        static ReadOnlySpan<char> WithoutExtension(string assemblyName)
-        {
-            ReadOnlySpan<char> assemblySpan = assemblyName.AsSpan();
-            if (assemblySpan.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-            {
-                return assemblySpan.Slice(0, assemblySpan.Length - 4);
-            }
-            else
-            {
-                return assemblySpan;
-            }
-        }
-
-        public struct ConfigurationEntry
+        public struct ClassSpec
         {
             // Can be a full assembly name (without .dll extension). Matched case-insensitively,
             // and assemblies that include a .dll extension are considered to match.
@@ -30,99 +17,270 @@ namespace MemorySnapshotAnalyzer.Analysis
             // Fully qualified class name.
             public string ClassName;
 
-            // A field name, or "*" to indicate all fields.
-            public string FieldPattern;
-
             public bool AssemblyMatches(ReadOnlySpan<char> assemblyWithoutExtension)
             {
                 return assemblyWithoutExtension.Equals(WithoutExtension(Assembly), StringComparison.OrdinalIgnoreCase);
             }
+
+            public static ReadOnlySpan<char> WithoutExtension(string assemblyName)
+            {
+                ReadOnlySpan<char> assemblySpan = assemblyName.AsSpan();
+                if (assemblySpan.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                {
+                    return assemblySpan[..^4];
+                }
+                else
+                {
+                    return assemblySpan;
+                }
+            }
+        }
+
+        public abstract class Rule
+        {
+            public ClassSpec Spec;
         };
 
-        public sealed class ConfigurableReferenceClassifier : ReferenceClassifier
+        public sealed class FieldPatternRule : Rule
+        {
+            // A field name, or (if ending in "*") a field prefix.
+            public string? FieldPattern;
+        }
+
+        public sealed class FieldPathRule : Rule
+        {
+            // Path of fields to dereference. Note that these are full field names, not patterns.
+            // The special field name "[]" represents array indexing (covering all elements of the array).
+            public string[]? FieldNames;
+        }
+
+        // Creates a lookup table that maps type indices to the field patterns that apply to that type.
+        sealed class Matcher
         {
             readonly TypeSystem m_typeSystem;
-            readonly HashSet<(int, int)> m_owningReferences;
+            readonly List<(ClassSpec spec, string fieldPattern, int ruleNumber)> m_specs;
+            readonly Dictionary<string, Dictionary<string, List<(string fieldPattern, int ruleNumber)>>> m_assemblyToConfiguration;
 
-            public ConfigurableReferenceClassifier(TypeSystem typeSystem, List<ConfigurationEntry> configurationEntries)
+            internal Matcher(TypeSystem typeSystem, List<(ClassSpec spec, string fieldPattern, int ruleNumber)> specs)
             {
                 m_typeSystem = typeSystem;
-                m_owningReferences = new HashSet<(int, int)>();
+                m_specs = specs;
+                m_assemblyToConfiguration = new Dictionary<string, Dictionary<string, List<(string fieldPattern, int ruleNumber)>>>(StringComparer.OrdinalIgnoreCase);
+            }
 
-                // Create a lookup table that maps type indices to the field patterns that apply to that type.
-                var assemblyToConfiguration = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
-                for (int typeIndex = 0; typeIndex < typeSystem.NumberOfTypeIndices; typeIndex++)
+            internal List<(string fieldPattern, int ruleNumber)>? GetFieldPatterns(int typeIndex)
+            {
+                Dictionary<string, List<(string fieldPattern, int ruleNumber)>> assemblyConfiguration = AssemblyConfiguration(typeIndex);
+
+                string className = m_typeSystem.QualifiedName(typeIndex);
+                if (assemblyConfiguration.TryGetValue(className, out List<(string fieldPattern, int ruleNumber)>? fieldPatterns))
                 {
-                    Dictionary<string, List<string>> assemblyConfiguration = AssemblyConfiguration(typeIndex, assemblyToConfiguration, configurationEntries);
-
-                    string className = typeSystem.QualifiedName(typeIndex);
-                    if (assemblyConfiguration.TryGetValue(className, out List<string>? fieldPatterns)) {
-                        ClassifyFields(typeIndex, fieldPatterns);
-                    }
+                    return fieldPatterns;
+                }
+                else
+                {
+                    return null;
                 }
             }
 
-            Dictionary<string, List<string>> AssemblyConfiguration(
-                int typeIndex,
-                Dictionary<string, Dictionary<string, List<string>>> assemblyToConfiguration,
-                List<ConfigurationEntry> configurationEntries)
+            internal static int TestFieldName(string fieldName, List<(string fieldPattern, int ruleNumber)> fieldPatterns)
+            {
+                foreach ((string fieldPattern, int ruleNumber) in fieldPatterns)
+                {
+                    if (fieldPattern.EndsWith("*", StringComparison.Ordinal))
+                    {
+                        if (fieldName.AsSpan().StartsWith(fieldPattern.AsSpan()[..^1], StringComparison.Ordinal))
+                        {
+                            return ruleNumber;
+                        }
+                    }
+                    else
+                    {
+                        if (fieldName.Equals(fieldPattern, StringComparison.Ordinal))
+                        {
+                            return ruleNumber;
+                        }
+                    }
+                }
+
+                return -1;
+            }
+
+            Dictionary<string, List<(string fieldPattern, int ruleNumber)>> AssemblyConfiguration(int typeIndex)
             {
                 string assemblyName = m_typeSystem.Assembly(typeIndex);
-                if (!assemblyToConfiguration.TryGetValue(assemblyName, out Dictionary<string, List<string>>? assemblyConfiguration))
+                if (!m_assemblyToConfiguration.TryGetValue(assemblyName, out Dictionary<string, List<(string fieldPattern, int ruleNumber)>>? assemblyConfiguration))
                 {
                     // We have discovered a new assembly name. Filter the list of configuration entries that apply to the given assembly,
                     // and add them to the lookup structure.
-                    ReadOnlySpan<char> typeAssembly = WithoutExtension(m_typeSystem.Assembly(typeIndex));
+                    ReadOnlySpan<char> typeAssembly = ClassSpec.WithoutExtension(m_typeSystem.Assembly(typeIndex));
 
-                    assemblyConfiguration = new Dictionary<string, List<string>>();
-                    foreach (var configurationEntry in configurationEntries)
+                    assemblyConfiguration = new Dictionary<string, List<(string fieldPattern, int ruleNumber)>>();
+                    foreach ((ClassSpec spec, string fieldPattern, int ruleNumber) in m_specs)
                     {
-                        if (configurationEntry.AssemblyMatches(typeAssembly))
+                        if (spec.AssemblyMatches(typeAssembly))
                         {
-                            if (assemblyConfiguration.TryGetValue(configurationEntry.ClassName, out List<string>? configurationFieldPatterns))
+                            if (assemblyConfiguration.TryGetValue(spec.ClassName, out List<(string fieldPattern, int ruleNumber)>? configurationFieldPatterns))
                             {
-                                configurationFieldPatterns!.Add(configurationEntry.FieldPattern);
+                                configurationFieldPatterns!.Add((fieldPattern, ruleNumber));
                             }
                             else
                             {
-                                assemblyConfiguration.Add(configurationEntry.ClassName, new List<string>() { configurationEntry.FieldPattern });
+                                assemblyConfiguration.Add(spec.ClassName, new List<(string fieldPattern, int ruleNumber)>() { (fieldPattern, ruleNumber) });
                             }
                         }
                     }
 
-                    assemblyToConfiguration.Add(assemblyName, assemblyConfiguration);
+                    m_assemblyToConfiguration.Add(assemblyName, assemblyConfiguration);
                 }
 
                 return assemblyConfiguration;
             }
+        }
 
-            void ClassifyFields(int typeIndex, List<string> fieldPatterns)
+        public sealed class ConfigurableReferenceClassifier : ReferenceClassifier
+        {
+            readonly TypeSystem m_typeSystem;
+            readonly HashSet<(int typeIndex, int fieldNumber)> m_owningReferences;
+            readonly Dictionary<(int typeIndex, int fieldNumber), List<(int typeIndex, int fieldNumber)[]>> m_conditionAnchors;
+
+            public ConfigurableReferenceClassifier(TypeSystem typeSystem, List<Rule> rules)
+            {
+                m_typeSystem = typeSystem;
+                m_owningReferences = new HashSet<(int typeIndex, int fieldNumber)>();
+                m_conditionAnchors = new Dictionary<(int typeIndex, int fieldNumber), List<(int typeIndex, int fieldNumber)[]>>();
+
+                var shallowSpecs = new List<(ClassSpec spec, string fieldPattern, int ruleNumber)>();
+                var deepSpecs = new List<(ClassSpec spec, string fieldName, int ruleNumber)>();
+                for (int ruleNumber = 0; ruleNumber < rules.Count; ruleNumber++)
+                {
+                    if (rules[ruleNumber] is FieldPatternRule fieldPatternRule)
+                    {
+                        shallowSpecs.Add((rules[ruleNumber].Spec, fieldPatternRule.FieldPattern!, ruleNumber));
+                    }
+                    else
+                    {
+                        var fieldPathRule = (FieldPathRule)rules[ruleNumber];
+                        deepSpecs.Add((rules[ruleNumber].Spec, fieldPathRule.FieldNames![0], ruleNumber));
+                    }
+                }
+
+                var owningReferenceMatcher = new Matcher(m_typeSystem, shallowSpecs);
+                var anchorMatcher = new Matcher(m_typeSystem, deepSpecs);
+
+                for (int typeIndex = 0; typeIndex < typeSystem.NumberOfTypeIndices; typeIndex++)
+                {
+                    var owningReferenceFieldPatterns = owningReferenceMatcher.GetFieldPatterns(typeIndex);
+                    if (owningReferenceFieldPatterns != null)
+                    {
+                        ClassifyFields(typeIndex, owningReferenceFieldPatterns,
+                            (fieldNumber, ruleNumber) => m_owningReferences.Add((typeIndex, fieldNumber)));
+                    }
+
+                    var anchorFieldPatterns = anchorMatcher.GetFieldPatterns(typeIndex);
+                    if (anchorFieldPatterns != null)
+                    {
+                        ClassifyFields(typeIndex, anchorFieldPatterns,
+                            (fieldNumber, ruleNumber) =>
+                            {
+                                var fieldPathRule = (FieldPathRule)rules[ruleNumber];
+                                var fieldPath = FindFieldPath(typeIndex, fieldPathRule.FieldNames!);
+                                if (fieldPath != null)
+                                {
+                                    if (!m_conditionAnchors.TryGetValue((typeIndex, fieldNumber), out List<(int typeIndex, int fieldNumber)[]>? fieldPaths))
+                                    {
+                                        fieldPaths = new List<(int typeIndex, int fieldNumber)[]>();
+                                        m_conditionAnchors.Add((typeIndex, fieldNumber), fieldPaths);
+                                    }
+
+                                    fieldPaths.Add(fieldPath);
+                                }
+                            });
+                    }
+                }
+            }
+
+            static int s_fieldNotFoundSentinel = -1;
+            static int s_fieldIsArraySentinel = Int32.MaxValue;
+
+            (int typeIndex, int fieldNumber)[]? FindFieldPath(int typeIndex, string[] fieldNames)
+            {
+                var fieldPath = new (int typeIndex, int fieldNumber)[fieldNames.Length];
+                int currentTypeIndex = typeIndex;
+                for (int i = 0; i < fieldNames.Length; i++)
+                {
+                    int fieldNumber = GetFieldNumber(currentTypeIndex, fieldNames[i]);
+                    if (fieldNumber == s_fieldNotFoundSentinel)
+                    {
+                        // TODO: better warning management
+                        Console.Error.WriteLine($"field {fieldNames[i]} not found in type {m_typeSystem.QualifiedName(currentTypeIndex)}");
+                        return null;
+                    }
+
+                    fieldPath[i] = (currentTypeIndex, fieldNumber);
+
+                    if (fieldNumber == s_fieldIsArraySentinel)
+                    {
+                        if (!m_typeSystem.IsArray(currentTypeIndex))
+                        {
+                            // TODO: better warning management
+                            Console.Error.WriteLine($"field was expected to be an array type; found {m_typeSystem.QualifiedName(currentTypeIndex)}");
+                            return null;
+                        }
+
+                        currentTypeIndex = m_typeSystem.BaseOrElementTypeIndex(currentTypeIndex);
+                    }
+                    else
+                    {
+                        currentTypeIndex = m_typeSystem.FieldType(currentTypeIndex, fieldNumber);
+                    }
+                }
+
+                if (m_typeSystem.IsValueType(currentTypeIndex))
+                {
+                    // TODO: better warning management
+                    Console.Error.WriteLine("field path for {0}.{1} ending in non-reference type field {2} of type {3}",
+                        m_typeSystem.QualifiedName(typeIndex),
+                        fieldNames[0],
+                        fieldNames[^1],
+                        m_typeSystem.QualifiedName(currentTypeIndex));
+                    return null;
+                }
+
+                return fieldPath;
+            }
+
+            int GetFieldNumber(int typeIndex, string fieldName)
+            {
+                // Sentinel value for array indexing (all elements)
+                if (fieldName == "[]")
+                {
+                    return s_fieldIsArraySentinel;
+                }
+
+                int numberOfFields = m_typeSystem.NumberOfFields(typeIndex);
+                for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
+                {
+                    string aFieldName = m_typeSystem.FieldName(typeIndex, fieldNumber);
+                    if (aFieldName.Equals(fieldName, StringComparison.Ordinal))
+                    {
+                        return fieldNumber;
+                    }
+                }
+
+                return s_fieldNotFoundSentinel;
+            }
+
+            void ClassifyFields(int typeIndex, List<(string fieldPattern, int ruleNumber)> fieldPatterns, Action<int, int> add)
             {
                 int numberOfFields = m_typeSystem.NumberOfFields(typeIndex);
                 for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
                 {
                     string fieldName = m_typeSystem.FieldName(typeIndex, fieldNumber);
-                    bool isOwningReference = false;
-                    foreach (string fieldPattern in fieldPatterns)
+                    int ruleNumber = Matcher.TestFieldName(fieldName, fieldPatterns);
+                    if (ruleNumber != -1)
                     {
-                        if (fieldPattern.EndsWith("*", StringComparison.Ordinal))
-                        {
-                            isOwningReference = fieldName.AsSpan().StartsWith(fieldPattern.AsSpan()[..(fieldPattern.Length - 1)], StringComparison.Ordinal);
-                        }
-                        else
-                        {
-                            isOwningReference = fieldName.Equals(fieldPattern, StringComparison.Ordinal);
-                        }
-
-                        if (isOwningReference)
-                        {
-                            break;
-                        }
-                    }
-
-                    if (isOwningReference)
-                    {
-                        m_owningReferences.Add((typeIndex, fieldNumber));
+                        add(fieldNumber, ruleNumber);
                     }
                 }
             }
@@ -131,12 +289,22 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 return m_owningReferences.Contains((typeIndex, fieldNumber));
             }
+
+            public override bool IsConditionAnchor(int typeIndex, int fieldNumber)
+            {
+                return m_conditionAnchors.ContainsKey((typeIndex, fieldNumber));
+            }
+
+            public override List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
+            {
+                return m_conditionAnchors[(typeIndex, fieldNumber)];
+            }
         }
 
         readonly string m_description;
-        readonly List<ConfigurationEntry> m_configurationEntries;
+        readonly List<Rule> m_configurationEntries;
 
-        public ConfigurableReferenceClassifierFactory(string description, List<ConfigurationEntry> configurationEntries)
+        public ConfigurableReferenceClassifierFactory(string description, List<Rule> configurationEntries)
         {
             m_description = description;
             m_configurationEntries = configurationEntries;

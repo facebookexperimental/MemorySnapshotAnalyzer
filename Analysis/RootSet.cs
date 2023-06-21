@@ -15,6 +15,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             public int FieldNumberOrReferrerId;
             public int Offset;
             public ulong Value;
+            public PointerFlags PointerFlags;
         }
 
         readonly TraceableHeap m_traceableHeap;
@@ -45,6 +46,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             entry.FieldNumberOrReferrerId = gcHandleIndex;
             entry.Offset = 0;
             entry.Value = targetAddress.Value;
+            entry.PointerFlags = PointerFlags.None;
             m_roots.Add(entry);
         }
 
@@ -64,9 +66,11 @@ namespace MemorySnapshotAnalyzer.Analysis
                         if (staticFieldBytesView.IsValid)
                         {
                             int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
-                            foreach ((int offset, bool isOwningReference) in typeSystem.GetFieldPointerOffsets(fieldTypeIndex, baseOffset: 0))
+                            foreach (PointerInfo<int> pointerInfo in typeSystem.GetStaticFieldPointerOffsets(typeIndex, fieldNumber, fieldTypeIndex, baseOffset: 0))
                             {
-                                AddStaticRoot(typeIndex, fieldNumber, offset, staticFieldBytesView.ReadPointer(offset, m_traceableHeap.Native));
+                                int offset = pointerInfo.Value;
+                                PointerFlags pointerFlags = pointerInfo.PointerFlags;
+                                AddStaticRoot(typeIndex, fieldNumber, offset, staticFieldBytesView.ReadPointer(offset, m_traceableHeap.Native), pointerFlags);
                             }
                         }
                     }
@@ -74,23 +78,14 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public void AddStaticRoot(int typeIndex, int fieldNumber, int offset, NativeWord reference)
+        public void AddStaticRoot(int typeIndex, int fieldNumber, int offset, NativeWord reference, PointerFlags pointerFlags)
         {
             RootEntry entry;
             entry.TypeIndexOrSentinel = typeIndex;
             entry.FieldNumberOrReferrerId = fieldNumber;
             entry.Offset = offset;
             entry.Value = reference.Value;
-            m_roots.Add(entry);
-        }
-
-        public void AddForeignHeapReference(int referrerId, NativeWord reference)
-        {
-            RootEntry entry;
-            entry.TypeIndexOrSentinel = -2;
-            entry.FieldNumberOrReferrerId = referrerId;
-            entry.Offset = 0;
-            entry.Value = reference.Value;
+            entry.PointerFlags = pointerFlags;
             m_roots.Add(entry);
         }
 
@@ -102,9 +97,9 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         public int NumberOfStaticRoots => NumberOfRoots - NumberOfGCHandles;
 
-        NativeWord IRootSet.GetRoot(int rootIndex)
+        (NativeWord, PointerFlags) IRootSet.GetRoot(int rootIndex)
         {
-            return m_traceableHeap.Native.From(m_roots[rootIndex].Value);
+            return (m_traceableHeap.Native.From(m_roots[rootIndex].Value), m_roots[rootIndex].PointerFlags);
         }
 
         bool IRootSet.IsGCHandle(int rootIndex)

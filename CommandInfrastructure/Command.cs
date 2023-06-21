@@ -253,14 +253,14 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 typeIndex);
 
             var sb = new StringBuilder();
-            foreach ((NativeWord reference, bool isOwningReference) in CurrentTraceableHeap.GetIntraHeapPointers(address, typeIndex))
+            foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetIntraHeapPointers(address, typeIndex))
             {
-                DescribeAddress(reference, sb);
+                DescribeAddress(pointerInfo.Value, sb);
                 if (sb.Length > 0)
                 {
-                    if (isOwningReference)
+                    if (pointerInfo.PointerFlags != PointerFlags.None)
                     {
-                        Output.WriteLineIndented(1, "{0} (owning reference)", sb);
+                        Output.WriteLineIndented(1, "{0} ({1})", sb, pointerInfo.PointerFlags);
                     }
                     else
                     {

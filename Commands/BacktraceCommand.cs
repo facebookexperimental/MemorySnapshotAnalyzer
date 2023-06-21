@@ -169,7 +169,14 @@ namespace MemorySnapshotAnalyzer.Commands
 
             seen.Add(nodeIndex);
 
-            Output.WriteLineIndented(depth, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+            if (CurrentBacktracer.IsOwned(nodeIndex))
+            {
+                Output.WriteLineIndented(depth, "** {0}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+            }
+            else
+            {
+                Output.WriteLineIndented(depth, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+            }
 
             ancestors.Add(nodeIndex);
             foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
@@ -341,7 +348,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
             for (int i = 0; i < reachableRoots.Count && allFromOneAssembly; i++)
             {
-                List<int> rootIndices = CurrentTracedHeap.PostorderRootIndices(CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex));
+                (List<int> rootIndices, _) = CurrentTracedHeap.PostorderRootIndices(CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex));
                 foreach (int rootIndex in rootIndices)
                 {
                     if (CurrentRootSet.IsGCHandle(rootIndex))
