@@ -41,6 +41,7 @@ static class Program
         repl.AddCommand(typeof(BacktraceCommand), "backtrace", "bt");
         repl.AddCommand(typeof(HeapDomCommand), "heapdom");
         repl.AddCommand(typeof(HeapDomStatsCommand), "heapdomstats");
+        repl.AddCommand(typeof(CollectionStatsCommand), "collectionstats");
 
         repl.Run();
 
