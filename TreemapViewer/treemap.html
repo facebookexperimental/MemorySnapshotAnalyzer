@@ -213,7 +213,7 @@
                 .on("click", (event, d) => d === root ? zoomout(root) : zoomin(d));
 
             node.append("title")
-                .text(d => `${d.ancestors().reverse().map(d => d.data.name).join("\n")}\n${format(d.value)}`);
+                .text(d => `${d.ancestors().slice(0, 6).reverse().map(d => d.data.name).join("\n")}\n${format(d.value)}`);
 
             node.append("rect")
                 .attr("id", d => (d.nodeUid = DOM.uid("node")).id)
