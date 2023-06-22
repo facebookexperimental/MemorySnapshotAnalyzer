@@ -11,21 +11,6 @@ namespace MemorySnapshotAnalyzer.Commands
 {
     public class HeapDomCommand : Command
     {
-        sealed class TreeSizeComparer : IComparer<int>
-        {
-            readonly HeapDom m_heapDom;
-
-            public TreeSizeComparer(HeapDom heapDom)
-            {
-                m_heapDom = heapDom;
-            }
-
-            int IComparer<int>.Compare(int x, int y)
-            {
-                return m_heapDom.TreeSize(y).CompareTo(m_heapDom.TreeSize(x));
-            }
-        }
-
         public HeapDomCommand(Repl repl) : base(repl) {}
 
 #pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value
@@ -124,7 +109,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpTree()
         {
-            var sizeComparer = new TreeSizeComparer(CurrentHeapDom);
+            var sizeComparer = CurrentHeapDom.Comparer;
             _ = DumpTree(CurrentHeapDom.RootNodeIndex, sizeComparer, false, 0, out _);
         }
 

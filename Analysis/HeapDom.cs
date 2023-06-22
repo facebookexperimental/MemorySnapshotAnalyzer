@@ -8,6 +8,21 @@ namespace MemorySnapshotAnalyzer.Analysis
 {
     public sealed class HeapDom
     {
+        sealed class TreeSizeComparer : IComparer<int>
+        {
+            readonly HeapDom m_heapDom;
+
+            public TreeSizeComparer(HeapDom heapDom)
+            {
+                m_heapDom = heapDom;
+            }
+
+            int IComparer<int>.Compare(int x, int y)
+            {
+                return m_heapDom.TreeSize(y).CompareTo(m_heapDom.TreeSize(x));
+            }
+        }
+
         struct SizeEntry
         {
             public long NodeSizeExcludingDescendants;
@@ -42,6 +57,8 @@ namespace MemorySnapshotAnalyzer.Analysis
         public IBacktracer Backtracer => m_backtracer;
 
         public int RootNodeIndex => m_rootNodeIndex;
+
+        public IComparer<int> Comparer => new TreeSizeComparer(this);
 
         public long NodeSize(int nodeIndex)
         {
