@@ -235,7 +235,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 sb.AppendFormat(" (committed {0})", committedSize);
             }
 
-            sb.AppendFormat(", type {0} (type index {1})]",
+            sb.AppendFormat(", type {0}:{1} (type index {2})]",
+                CurrentTraceableHeap.TypeSystem.Assembly(typeIndex),
                 CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
                 typeIndex);
         }
@@ -248,7 +249,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 throw new CommandException($"unable to determine object type");
             }
 
-            Output.WriteLine("Object of type {0} (type index {1})",
+            Output.WriteLine("Object of type {0}:{1} (type index {2})",
+                CurrentTraceableHeap.TypeSystem.Assembly(typeIndex),
                 CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
                 typeIndex);
 
@@ -340,7 +342,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
             else
             {
-                Output.WriteLineIndented(indent, "Object of type {0} (type index {1})",
+                Output.WriteLineIndented(indent, "Object of type {0}:{1} (type index {2})",
+                    typeSystem.Assembly(typeIndex),
                     typeSystem.QualifiedName(typeIndex),
                     typeIndex);
 
