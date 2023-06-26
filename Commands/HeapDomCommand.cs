@@ -43,7 +43,15 @@ namespace MemorySnapshotAnalyzer.Commands
         public bool NodeTypes;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
-        Dictionary<int, bool>? m_diffTree;
+        enum Diff
+        {
+            Incomparable = 0,
+            New = 1,
+            Modified = 2,
+            Same = 3,
+        }
+
+        Dictionary<int, Diff>? m_diffTree;
         int m_numberOfNodesWritten;
 
         public override void Run()
@@ -58,7 +66,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 }
 
                 otherContext.EnsureTracedHeap();
-                m_diffTree = new Dictionary<int, bool>();
+                m_diffTree = new Dictionary<int, Diff>();
                 _ = ComputeDiffTree(CurrentHeapDom.RootNodeIndex, otherContext);
             }
 
@@ -81,30 +89,50 @@ namespace MemorySnapshotAnalyzer.Commands
             Output.WriteLine("wrote {0} nodes", m_numberOfNodesWritten);
         }
 
-        bool ComputeDiffTree(int nodeIndex, Context previousContext)
+        Diff ComputeDiffTree(int nodeIndex, Context previousContext)
         {
-            bool hasDiffs;
-            if (CurrentHeapDom.Backtracer.IsLiveObjectNode(nodeIndex))
+            Diff diff;
+            if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
             {
-                // TODO: this only works with non-relocating garbage collectors.
                 int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
                 NativeWord objectAddress = CurrentTracedHeap.PostorderAddress(postorderIndex);
+                // TODO: this only works with non-relocating garbage collectors.
                 int previousPostorderIndex = previousContext!.CurrentTracedHeap!.ObjectAddressToPostorderIndex(objectAddress);
-                hasDiffs = previousPostorderIndex == -1;
+                if (previousPostorderIndex == -1)
+                {
+                    diff = Diff.New;
+                }
+                else
+                {
+                    int typeIndex = previousContext.CurrentTracedHeap.PostorderTypeIndexOrSentinel(previousPostorderIndex);
+                    if (typeIndex != CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex))
+                    {
+                        diff = Diff.Same;
+                    }
+                    else
+                    {
+                        diff = Diff.New;
+                    }
+                }
             }
             else
             {
-                hasDiffs = false;
+                diff = Diff.Incomparable;
             }
 
             List<int>? children = CurrentHeapDom.GetChildren(nodeIndex);
             int numberOfChildren = children == null ? 0 : children.Count;
             for (int i = 0; i < numberOfChildren; i++)
             {
-                hasDiffs |= ComputeDiffTree(children![i], previousContext);
+                var childDiff = ComputeDiffTree(children![i], previousContext);
+                if (diff == Diff.Same && childDiff != Diff.Incomparable && childDiff != Diff.Same)
+                {
+                    diff = Diff.Modified;
+                }
             }
-            m_diffTree!.Add(nodeIndex, hasDiffs);
-            return hasDiffs;
+
+            m_diffTree!.Add(nodeIndex, diff);
+            return diff;
         }
 
         void DumpTree()
@@ -165,9 +193,27 @@ namespace MemorySnapshotAnalyzer.Commands
             bool elideChildren = false;
             if (m_diffTree != null)
             {
-                Output.Write("\"diff\":\"{0}\",",
-                    m_diffTree[nodeIndex] ? "different" : "same");
-                elideChildren = !m_diffTree[nodeIndex];
+                string? diffString;
+                switch (m_diffTree[nodeIndex])
+                {
+                    case Diff.New:
+                        diffString = "new";
+                        break;
+                    case Diff.Modified:
+                        diffString = "modified";
+                        break;
+                    case Diff.Same:
+                        diffString = "same";
+                        break;
+                    default:
+                        diffString = null;
+                        break;
+                }
+
+                if (diffString != null)
+                {
+                    Output.Write("\"diff\":\"{0}\",", diffString);
+                }
             }
 
             if (nodeIndex == CurrentHeapDom.RootNodeIndex && ToplevelObjectsOnly)

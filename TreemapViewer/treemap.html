@@ -67,6 +67,8 @@
         const nodeName = d => d.data.name;
 
         const depthColorScale = d3.scaleSequential([0, 15], d3.interpolateOranges);
+        const depthColorScale_modified = d3.scaleSequential([0, 15], d3.interpolatePurples);
+        const depthColorScale_new = d3.scaleSequential([0, 15], d3.interpolateBlues);
 
         const nodeTypeColor = {
             root: d3.schemePastel1[1],
@@ -95,6 +97,12 @@
                 else if (d.data.name == "intrinsic") {
                     return nodeTypeColor["intrinsic"];
                 }
+                else if (d.data.diff == "modified") {
+                    return depthColorScale_modified(d.depth - root.depth);
+                }
+                else if (d.data.diff == "new") {
+                    return depthColorScale_new(d.depth - root.depth);
+                }
                 else {
                     return depthColorScale(d.depth - root.depth);
                 }
@@ -102,35 +110,6 @@
             else if (colorGrouping == 1) {
                 // By node type
                 return nodeTypeColor[d.data.nodetype];
-            }
-            else if (colorGrouping == 2) {
-                // Diff view
-                if (d.data.diff == "different") {
-                    if (d.data.children || d.data._children) {
-                        // new leaf
-                        return d3.schemeSet2[1];
-                    }
-                    else {
-                        // affected non-leaf
-                        return d3.schemePastel2[1];
-                    }
-                }
-                else if (d.data.diff == "same") {
-                    // non-affected node
-                    return d3.schemePastel1[5];
-                }
-                else {
-                    // non-object node
-                    if (d.data.name.startsWith("elided+")) {
-                        return nodeTypeColor["elided"];
-                    }
-                    else if (d.data.name == "intrinsic") {
-                        return nodeTypeColor["intrinsic"];
-                    }
-                    else {
-                        return nodeTypeColor["root"];
-                    }
-                }
             }
             else {
                 // By assembly group: {mscorlib,System[.*]}/{Unity[.*],UnityEngine[.*],UnityEditor[.*]}/other
