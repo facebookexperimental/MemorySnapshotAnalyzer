@@ -72,10 +72,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
             if (typeIndex == -1)
             {
-                (List<int> rootIndices, _) = m_tracedHeap.PostorderRootIndices(nodeIndex);
-                if (rootIndices.Count == 1)
+                List<(int rootIndex, PointerInfo<NativeWord> pointerFlags)> rootInfos = m_tracedHeap.PostorderRootIndices(nodeIndex);
+                if (rootInfos.Count == 1)
                 {
-                    return m_rootSet.DescribeRoot(rootIndices[0], fullyQualified);
+                    return m_rootSet.DescribeRoot(rootInfos[0].rootIndex, fullyQualified);
                 }
                 else
                 {
@@ -116,9 +116,9 @@ namespace MemorySnapshotAnalyzer.Analysis
             int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
             if (typeIndex == -1)
             {
-                (List<int> rootIndices, _) = m_tracedHeap.PostorderRootIndices(postorderIndex);
+                List<(int rootIndex, PointerInfo<NativeWord> pointerFlags)> rootInfos = m_tracedHeap.PostorderRootIndices(postorderIndex);
                 bool allGCHandles = true;
-                foreach (var rootIndex in rootIndices)
+                foreach ((int rootIndex, _) in rootInfos)
                 {
                     if (!m_rootSet.IsGCHandle(rootIndex))
                     {
@@ -168,26 +168,32 @@ namespace MemorySnapshotAnalyzer.Analysis
                 int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(parentPostorderIndex);
                 if (typeIndex == -1)
                 {
-                    (List<int> rootIndices, bool isOwningReference) = m_tracedHeap.PostorderRootIndices(parentPostorderIndex);
+                    List<(int rootIndex, PointerInfo<NativeWord> pointerFlags)> rootInfos = m_tracedHeap.PostorderRootIndices(parentPostorderIndex);
 
-                    bool isGCHandle = false;
-                    if (weakGCHandles)
+                    // Check whether all of the roots are GCHandles. If so, treat this parent as weak.
+                    bool isGCHandle = weakGCHandles;
+                    PointerFlags pointerFlags = PointerFlags.None;
+                    foreach ((int rootIndex, PointerInfo<NativeWord> pointerInfo) in rootInfos)
                     {
-                        // Check whether all of the roots are GCHandles. If so, treat this parent as weak.
-                        isGCHandle = true;
-                        foreach (int rootIndex in rootIndices)
+                        if (!m_rootSet.IsGCHandle(rootIndex))
                         {
                             if (!m_rootSet.IsGCHandle(rootIndex))
                             {
                                 isGCHandle = false;
-                                break;
                             }
+                        }
+
+                        pointerFlags |= pointerInfo.PointerFlags;
+
+                        bool isConditionAnchor = (pointerInfo.PointerFlags & PointerFlags.IsConditionAnchor) != 0;
+                        if (isConditionAnchor)
+                        {
+                            ProcessConditionAnchor(address, pointerInfo);
                         }
                     }
 
                     // If this parent index represents a (set of) root nodes, PostOrderAddress above returned the target.
                     int childPostorderIndex = m_tracedHeap.ObjectAddressToPostorderIndex(address);
-                    var pointerFlags = isOwningReference ? PointerFlags.IsOwningReference : PointerFlags.None;
                     AddPredecessor(childPostorderIndex, parentPostorderIndex, pointerFlags, isGCHandle: isGCHandle);
                 }
                 else
@@ -211,7 +217,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                             bool isConditionAnchor = (pointerInfo.PointerFlags & PointerFlags.IsConditionAnchor) != 0;
                             if (isConditionAnchor)
                             {
-                                ProcessConditionAnchor(resolvedParentPostorderIndex, pointerInfo);
+                                ProcessConditionAnchor(address, pointerInfo);
                             }
 
                             AddPredecessor(childPostorderIndex, resolvedParentPostorderIndex, pointerInfo.PointerFlags, isGCHandle: false);
@@ -265,9 +271,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             parentNodeIndices.Add(parentNodeIndex);
         }
 
-        void ProcessConditionAnchor(int anchorPostorderIndex, PointerInfo<NativeWord> pointerInfo)
+        void ProcessConditionAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
         {
-            NativeWord anchorObjectAddress = m_tracedHeap.PostorderAddress(anchorPostorderIndex);
             foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) in m_traceableHeap.GetOwningReferencesFromAnchor(anchorObjectAddress, pointerInfo))
             {
                 int childPostorderIndex = m_tracedHeap.ObjectAddressToPostorderIndex(childObjectAddress);

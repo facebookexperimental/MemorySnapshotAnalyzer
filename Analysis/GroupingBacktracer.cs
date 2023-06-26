@@ -1,5 +1,6 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
+using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System;
 using System.Collections.Generic;
 
@@ -225,14 +226,14 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         List<int> ComputePostorderRootPredecessors(int postorderIndex)
         {
-            (List<int> rootIndices, _) = m_parentBacktracer.TracedHeap.PostorderRootIndices(postorderIndex);
-            if (rootIndices.Count == 1)
+            List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)> rootInfos = m_parentBacktracer.TracedHeap.PostorderRootIndices(postorderIndex);
+            if (rootInfos.Count == 1)
             {
-                return m_rootPredecessors[rootIndices[0]] ?? m_assemblyPredecessors;
+                return m_rootPredecessors[rootInfos[0].rootIndex] ?? m_assemblyPredecessors;
             }
 
             var predecessors = new List<int>();
-            foreach (int rootIndex in rootIndices)
+            foreach ((int rootIndex, _) in rootInfos)
             {
                 foreach (int predIndex in m_rootPredecessors[rootIndex] ?? m_assemblyPredecessors)
                 {

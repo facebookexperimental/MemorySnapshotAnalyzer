@@ -37,7 +37,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly Native m_native;
         readonly List<PostorderEntry> m_postorderEntries;
         readonly Dictionary<ulong, int> m_numberOfPredecessors;
-        readonly Dictionary<ulong, (List<int>, bool isOwned)> m_objectAddressToRootIndices;
+        readonly Dictionary<ulong, List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)>> m_objectAddressToRootIndices;
         readonly Stack<MarkStackEntry>? m_markStack;
         readonly int m_rootIndexBeingMarked;
         readonly List<(int rootIndex, ulong invalidReference)> m_invalidRoots;
@@ -58,34 +58,20 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_invalidPointers = new List<(ulong reference, ulong objectAddress)>();
 
             // Group all the roots that reference each individual target objects into a single node.
-            m_objectAddressToRootIndices = new Dictionary<ulong, (List<int> rootIndices, bool isOwned)>();
+            m_objectAddressToRootIndices = new Dictionary<ulong, List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)>>();
             for (int rootIndex = 0; rootIndex < rootSet.NumberOfRoots; rootIndex++)
             {
-                (NativeWord address, PointerFlags pointerFlags) = rootSet.GetRoot(rootIndex);
+                PointerInfo<NativeWord> pointerInfo = rootSet.GetRoot(rootIndex);
+                NativeWord address = pointerInfo.Value;
                 if (address.Value != 0 && m_traceableHeap.TryGetTypeIndex(address) != -1)
                 {
-                    bool isOwningReference = (pointerFlags & PointerFlags.IsOwningReference) != 0;
-
-                    if (m_objectAddressToRootIndices.TryGetValue(address.Value, out (List<int> rootIndices, bool isOwned) pair))
+                    if (m_objectAddressToRootIndices.TryGetValue(address.Value, out List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)>? rootInfos))
                     {
-                        if (pair.isOwned && !isOwningReference)
-                        {
-                            // This target is already the target of an owning root reference; ignore non-owning reference.
-                            continue;
-                        }
-
-                        if (isOwningReference && !pair.isOwned)
-                        {
-                            // We found the first root node with an owning reference to this target; discard previous (non-owning) roots.
-                            pair.rootIndices.Clear();
-                            m_objectAddressToRootIndices[address.Value] = (pair.rootIndices, isOwned: true);
-                        }
-
-                        pair.rootIndices.Add(rootIndex);
+                        rootInfos.Add((rootIndex, pointerInfo));
                     }
                     else
                     {
-                        m_objectAddressToRootIndices.Add(address.Value, (new List<int>() { rootIndex }, isOwningReference));
+                        m_objectAddressToRootIndices.Add(address.Value, new List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)>() { (rootIndex, pointerInfo) });
                     }
                 }
             }
@@ -97,10 +83,10 @@ namespace MemorySnapshotAnalyzer.Analysis
                 // Otherwise, remove the GCHandles from that root group.
                 foreach (ulong address in m_objectAddressToRootIndices.Keys.ToArray())
                 {
-                    (List<int> rootIndices, bool isOwningReference) = m_objectAddressToRootIndices[address];
+                    List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)> rootInfos = m_objectAddressToRootIndices[address];
 
                     bool allRootsAreGCHandles = true;
-                    foreach (int rootIndex in rootIndices)
+                    foreach ((int rootIndex, PointerInfo<NativeWord> PointerInfo) in rootInfos)
                     {
                         if (!m_rootSet.IsGCHandle(rootIndex))
                         {
@@ -111,16 +97,16 @@ namespace MemorySnapshotAnalyzer.Analysis
 
                     if (!allRootsAreGCHandles)
                     {
-                        var newRootIndices = new List<int>();
-                        foreach (int rootIndex in rootIndices)
+                        var newRootInfos = new List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)>();
+                        foreach ((int rootIndex, PointerInfo<NativeWord> pointerInfo) in rootInfos)
                         {
                             if (!m_rootSet.IsGCHandle(rootIndex))
                             {
-                                newRootIndices.Add(rootIndex);
+                                newRootInfos.Add((rootIndex, pointerInfo));
                             }
                         }
 
-                        m_objectAddressToRootIndices[address] = (newRootIndices, isOwningReference);
+                        m_objectAddressToRootIndices[address] = newRootInfos;
                     }
                 }
             }
@@ -128,8 +114,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             for (int rootIndex = 0; rootIndex < rootSet.NumberOfRoots; rootIndex++)
             {
                 m_rootIndexBeingMarked = rootIndex;
-                (NativeWord target, PointerFlags _) = rootSet.GetRoot(rootIndex);
-                Mark(target, referrer: default);
+                PointerInfo<NativeWord> pointerInfo = rootSet.GetRoot(rootIndex);
+                Mark(pointerInfo.Value, referrer: default);
             }
             m_rootIndexBeingMarked = -1;
 
@@ -244,22 +230,22 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_postorderEntries[postorderIndex].TypeIndexOrRootSentinel;
         }
 
-        public (List<int>, bool isOwningReference) PostorderRootIndices(int postorderIndex)
+        public List<(int rootIndex, PointerInfo<NativeWord> pointerFlags)> PostorderRootIndices(int postorderIndex)
         {
             return m_objectAddressToRootIndices[m_postorderEntries[postorderIndex].Address];
         }
 
         public void DescribeRootIndices(int postorderIndex, StringBuilder sb)
         {
-            (List<int> rootIndices, _) = PostorderRootIndices(postorderIndex);
+            List<(int rootIndex, PointerInfo<NativeWord> pointerFlags)> rootInfos = PostorderRootIndices(postorderIndex);
             sb.AppendFormat("roots#{0}{{", postorderIndex);
-            for (int i = 0; i < rootIndices.Count; i++)
+            for (int i = 0; i < rootInfos.Count; i++)
             {
                 if (i > 0)
                 {
                     sb.Append(", ");
                 }
-                sb.Append(m_rootSet.DescribeRoot(rootIndices[i], fullyQualified: true));
+                sb.Append(m_rootSet.DescribeRoot(rootInfos[i].rootIndex, fullyQualified: true));
             }
             sb.Append('}');
         }

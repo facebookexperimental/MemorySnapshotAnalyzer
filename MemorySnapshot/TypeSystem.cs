@@ -170,7 +170,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     Value = baseOffset,
                     PointerFlags = pointerFlags,
                     TypeIndex = typeIndex,
-                    FieldNumber = -1
+                    FieldNumber = fieldNumber
                 };
             }
         }
@@ -186,7 +186,6 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
             else
             {
-                // TODO (reference classification): support PointerFlags for array elements of reference type
                 yield return new PointerInfo<int>
                 {
                     Value = baseOffset,
