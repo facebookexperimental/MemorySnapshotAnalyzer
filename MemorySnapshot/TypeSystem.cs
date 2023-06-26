@@ -196,6 +196,21 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
         }
 
+        public int GetFieldNumber(int typeIndex, string fieldName)
+        {
+            int numberOfFields = NumberOfFields(typeIndex);
+            for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
+            {
+                string aFieldName = FieldName(typeIndex, fieldNumber);
+                if (aFieldName.Equals(fieldName, StringComparison.Ordinal))
+                {
+                    return fieldNumber;
+                }
+            }
+
+            return -1;
+        }
+
         public List<(int offset, int typeIndex)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
         {
             return m_referenceClassifier!.GetConditionalAnchorFieldPaths(typeIndex, fieldNumber);

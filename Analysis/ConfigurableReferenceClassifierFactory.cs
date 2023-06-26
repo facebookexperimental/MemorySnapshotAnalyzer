@@ -200,7 +200,6 @@ namespace MemorySnapshotAnalyzer.Analysis
                 }
             }
 
-            static int s_fieldNotFoundSentinel = -1;
             static int s_fieldIsArraySentinel = Int32.MaxValue;
 
             (int typeIndex, int fieldNumber)[]? FindFieldPath(int typeIndex, string[] fieldNames)
@@ -209,18 +208,12 @@ namespace MemorySnapshotAnalyzer.Analysis
                 int currentTypeIndex = typeIndex;
                 for (int i = 0; i < fieldNames.Length; i++)
                 {
-                    int fieldNumber = GetFieldNumber(currentTypeIndex, fieldNames[i]);
-                    if (fieldNumber == s_fieldNotFoundSentinel)
+                    int fieldNumber;
+                    int fieldTypeIndex;
+                    if (fieldNames[i] == "[]")
                     {
-                        // TODO: better warning management
-                        Console.Error.WriteLine($"field {fieldNames[i]} not found in type {m_typeSystem.QualifiedName(currentTypeIndex)}");
-                        return null;
-                    }
-
-                    fieldPath[i] = (currentTypeIndex, fieldNumber);
-
-                    if (fieldNumber == s_fieldIsArraySentinel)
-                    {
+                        // Sentinel value for array indexing (all elements)
+                        fieldNumber = s_fieldIsArraySentinel;
                         if (!m_typeSystem.IsArray(currentTypeIndex))
                         {
                             // TODO: better warning management
@@ -228,12 +221,23 @@ namespace MemorySnapshotAnalyzer.Analysis
                             return null;
                         }
 
-                        currentTypeIndex = m_typeSystem.BaseOrElementTypeIndex(currentTypeIndex);
+                        fieldTypeIndex = m_typeSystem.BaseOrElementTypeIndex(currentTypeIndex);
                     }
                     else
                     {
-                        currentTypeIndex = m_typeSystem.FieldType(currentTypeIndex, fieldNumber);
+                        fieldNumber = m_typeSystem.GetFieldNumber(currentTypeIndex, fieldNames[i]);
+                        if (fieldNumber == -1)
+                        {
+                            // TODO: better warning management
+                            Console.Error.WriteLine($"field {fieldNames[i]} not found in type {m_typeSystem.QualifiedName(currentTypeIndex)}");
+                            return null;
+                        }
+
+                        fieldTypeIndex = m_typeSystem.FieldType(currentTypeIndex, fieldNumber);
                     }
+
+                    fieldPath[i] = (currentTypeIndex, fieldNumber);
+                    currentTypeIndex = fieldTypeIndex;
                 }
 
                 if (m_typeSystem.IsValueType(currentTypeIndex))
@@ -248,27 +252,6 @@ namespace MemorySnapshotAnalyzer.Analysis
                 }
 
                 return fieldPath;
-            }
-
-            int GetFieldNumber(int typeIndex, string fieldName)
-            {
-                // Sentinel value for array indexing (all elements)
-                if (fieldName == "[]")
-                {
-                    return s_fieldIsArraySentinel;
-                }
-
-                int numberOfFields = m_typeSystem.NumberOfFields(typeIndex);
-                for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
-                {
-                    string aFieldName = m_typeSystem.FieldName(typeIndex, fieldNumber);
-                    if (aFieldName.Equals(fieldName, StringComparison.Ordinal))
-                    {
-                        return fieldNumber;
-                    }
-                }
-
-                return s_fieldNotFoundSentinel;
             }
 
             void ClassifyFields(int typeIndex, List<(string fieldPattern, int ruleNumber)> fieldPatterns, Action<int, int> add)
