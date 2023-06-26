@@ -1,7 +1,6 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandProcessing;
 using Newtonsoft.Json;
 using System;
@@ -45,6 +44,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [NamedArgument("minsize")]
         public int MinSize;
+
+        [FlagArgument("objectsonly")]
+        public bool ToplevelObjectsOnly;
 
         [FlagArgument("nonleaves")]
         public bool NonLeafNodesOnly;
@@ -97,7 +99,7 @@ namespace MemorySnapshotAnalyzer.Commands
         bool ComputeDiffTree(int nodeIndex, Context previousContext)
         {
             bool hasDiffs;
-            if (Context.CurrentBacktracer!.IsLiveObjectNode(nodeIndex))
+            if (CurrentHeapDom.Backtracer.IsLiveObjectNode(nodeIndex))
             {
                 // TODO: this only works with non-relocating garbage collectors.
                 int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
@@ -183,7 +185,23 @@ namespace MemorySnapshotAnalyzer.Commands
                 elideChildren = !m_diffTree[nodeIndex];
             }
 
-            if (numberOfChildren == 0)
+            if (nodeIndex == CurrentHeapDom.RootNodeIndex && ToplevelObjectsOnly)
+            {
+                var toplevelObjects = new List<int>();
+                long newSize = 0;
+                for (int i = 0; i < children!.Count; i++)
+                {
+                    int childNodeIndex = children[i];
+                    if (CurrentHeapDom.Backtracer.IsLiveObjectNode(childNodeIndex))
+                    {
+                        toplevelObjects.Add(childNodeIndex);
+                        newSize += CurrentHeapDom.TreeSize(childNodeIndex);
+                    }
+                }
+
+                DumpChildren(toplevelObjects, newSize, comparer, depth);
+            }
+            else if (numberOfChildren == 0)
             {
                 Output.Write("\"value\":{0}", CurrentHeapDom.NodeSize(nodeIndex));
             }
@@ -273,6 +291,6 @@ namespace MemorySnapshotAnalyzer.Commands
             return numberOfNodes;
         }
 
-        public override string HelpText => "heapdom <output filename> ['relativeto <context id> ['elideunchanged]] ['depth <depth>] ['width <width>] ['minsize <node size in bytes>] ['nonleaves] ['nodetype]";
+        public override string HelpText => "heapdom <output filename> ['relativeto <context id> ['elideunchanged]] ['depth <depth>] ['width <width>] ['minsize <node size in bytes>] ['objectsonly] ['nonleaves] ['nodetype]";
     }
 }
