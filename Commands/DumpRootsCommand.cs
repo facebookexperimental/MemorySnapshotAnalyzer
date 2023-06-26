@@ -17,14 +17,15 @@ namespace MemorySnapshotAnalyzer.Commands
             IRootSet rootSet = CurrentRootSet;
             for (int rootIndex = 0; rootIndex < rootSet.NumberOfRoots; rootIndex++)
             {
-                (NativeWord address, PointerFlags pointerFlags) = rootSet.GetRoot(rootIndex);
+                PointerInfo<NativeWord> pointerInfo = rootSet.GetRoot(rootIndex);
+                NativeWord address = pointerInfo.Value;
                 if (address.Value == 0)
                 {
                     continue;
                 }
 
                 DescribeAddress(address, sb);
-                if (pointerFlags == PointerFlags.None)
+                if (pointerInfo.PointerFlags == PointerFlags.None)
                 {
                     Output.WriteLine("{0}: {1} -> {2}",
                         rootIndex,
@@ -37,7 +38,7 @@ namespace MemorySnapshotAnalyzer.Commands
                         rootIndex,
                         rootSet.DescribeRoot(rootIndex, fullyQualified: true),
                         sb,
-                        pointerFlags);
+                        pointerInfo.PointerFlags);
                 }
                 sb.Clear();
             }

@@ -66,7 +66,7 @@
         // TODO: provide dropdown to select name formatting options (include/exclude namespace, assembly)
         const nodeName = d => d.data.name;
 
-        const depthColorScale = d3.scaleSequential([0, 8], d3.interpolateOranges);
+        const depthColorScale = d3.scaleSequential([0, 15], d3.interpolateOranges);
 
         const nodeTypeColor = {
             root: d3.schemePastel1[1],
@@ -85,6 +85,7 @@
 
         function nodeColor(d, root) {
             // TODO: provide dropdown for coloring options
+            // TODO: option to visually distinguish direct references from reparented nodes
 
             if (colorGrouping == 0) {
                 // By depth
@@ -212,7 +213,7 @@
                 .on("click", (event, d) => d === root ? zoomout(root) : zoomin(d));
 
             node.append("title")
-                .text(d => `${d.ancestors().reverse().map(d => d.data.name).join("\n")}\n${format(d.value)}`);
+                .text(d => `${d.ancestors().slice(0, 6).reverse().map(d => d.data.name).join("\n")}\n${format(d.value)}`);
 
             node.append("rect")
                 .attr("id", d => (d.nodeUid = DOM.uid("node")).id)

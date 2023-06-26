@@ -41,6 +41,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("fullyqualified")]
         public bool FullyQualified;
+
+        [FlagArgument("fields")]
+        public bool Fields = true;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         int m_numberOfNodesOutput;
@@ -142,15 +145,21 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 var ancestors = new HashSet<int>();
                 var seen = new HashSet<int>();
-                DumpBacktraces(nodeIndex, ancestors, seen, 0);
+                DumpBacktraces(nodeIndex, ancestors, seen, depth: 0, successorNodeIndex: -1);
             }
         }
 
-        void DumpBacktraces(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int depth)
+        void DumpBacktraces(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int depth, int successorNodeIndex)
         {
             if (MaxDepth > 0 && depth > MaxDepth)
             {
                 return;
+            }
+
+            string fields = "";
+            if (Fields && successorNodeIndex != -1 && CurrentBacktracer.IsLiveObjectNode(nodeIndex))
+            {
+                fields = CollectFields(nodeIndex, successorNodeIndex);
             }
 
             if (seen.Contains(nodeIndex))
@@ -158,11 +167,11 @@ namespace MemorySnapshotAnalyzer.Commands
                 // Back reference to a node that was already printed.
                 if (ancestors.Contains(nodeIndex))
                 {
-                    Output.WriteLineIndented(depth, "^^ {0}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+                    Output.WriteLineIndented(depth, "^^ {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
                 }
                 else
                 {
-                    Output.WriteLineIndented(depth, "~~ {0}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+                    Output.WriteLineIndented(depth, "~~ {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
                 }
                 return;
             }
@@ -171,19 +180,42 @@ namespace MemorySnapshotAnalyzer.Commands
 
             if (CurrentBacktracer.IsOwned(nodeIndex))
             {
-                Output.WriteLineIndented(depth, "** {0}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+                Output.WriteLineIndented(depth, "** {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
             }
             else
             {
-                Output.WriteLineIndented(depth, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+                Output.WriteLineIndented(depth, "{0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
             }
 
             ancestors.Add(nodeIndex);
             foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
             {
-                DumpBacktraces(predIndex, ancestors, seen, depth + 1);
+                DumpBacktraces(predIndex, ancestors, seen, depth + 1, successorNodeIndex: nodeIndex);
             }
             ancestors.Remove(nodeIndex);
+        }
+
+        string CollectFields(int nodeIndex, int successorNodeIndex)
+        {
+            var sb = new StringBuilder();
+            NativeWord address = CurrentTracedHeap.PostorderAddress(nodeIndex);
+            int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(nodeIndex);
+            foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetIntraHeapPointers(address, typeIndex))
+            {
+                if (pointerInfo.FieldNumber != -1 && CurrentTracedHeap.ObjectAddressToPostorderIndex(pointerInfo.Value) == successorNodeIndex)
+                {
+                    if (sb.Length > 0)
+                    {
+                        sb.Append(", ");
+                    }
+                    else
+                    {
+                        sb.Append(' ');
+                    }
+                    sb.Append(CurrentTraceableHeap.TypeSystem.FieldName(pointerInfo.TypeIndex, pointerInfo.FieldNumber));
+                }
+            }
+            return sb.ToString();
         }
 
         void DumpShortestPathsToRoots(int nodeIndex)
@@ -348,8 +380,8 @@ namespace MemorySnapshotAnalyzer.Commands
 
             for (int i = 0; i < reachableRoots.Count && allFromOneAssembly; i++)
             {
-                (List<int> rootIndices, _) = CurrentTracedHeap.PostorderRootIndices(CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex));
-                foreach (int rootIndex in rootIndices)
+                List<(int rootIndex, PointerInfo<NativeWord> PointerInfo)> rootInfos = CurrentTracedHeap.PostorderRootIndices(CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex));
+                foreach ((int rootIndex, _) in rootInfos)
                 {
                     if (CurrentRootSet.IsGCHandle(rootIndex))
                     {
@@ -435,6 +467,6 @@ namespace MemorySnapshotAnalyzer.Commands
             while (currentNodeIndex != CurrentHeapDom.RootNodeIndex);
         }
 
-        public override string HelpText => "backtrace [<object address or index> [<output dot filename>] ['depth <max depth>]|['stats]] ['shortestpaths ['stats]|'mostspecificroots|'allroots|'dom]] ['fullyqualified]";
+        public override string HelpText => "backtrace [<object address or index> [<output dot filename>] ['depth <max depth>] ['fields]|['stats]] ['shortestpaths ['stats]|'mostspecificroots|'allroots|'dom]] ['fullyqualified]";
     }
 }

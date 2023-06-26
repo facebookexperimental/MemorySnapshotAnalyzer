@@ -23,9 +23,15 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         int IRootSet.NumberOfGCHandles => 0;
 
-        (NativeWord, PointerFlags) IRootSet.GetRoot(int rootIndex)
+        PointerInfo<NativeWord> IRootSet.GetRoot(int rootIndex)
         {
-            return (m_address, PointerFlags.None);
+            return new PointerInfo<NativeWord>
+            {
+                Value = m_address,
+                PointerFlags = PointerFlags.None,
+                TypeIndex = -1,
+                FieldNumber = -1
+            };
         }
 
         bool IRootSet.IsGCHandle(int rootIndex)

@@ -1,7 +1,6 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandProcessing;
 using Newtonsoft.Json;
 using System;
@@ -12,21 +11,6 @@ namespace MemorySnapshotAnalyzer.Commands
 {
     public class HeapDomCommand : Command
     {
-        sealed class TreeSizeComparer : IComparer<int>
-        {
-            readonly HeapDom m_heapDom;
-
-            public TreeSizeComparer(HeapDom heapDom)
-            {
-                m_heapDom = heapDom;
-            }
-
-            int IComparer<int>.Compare(int x, int y)
-            {
-                return m_heapDom.TreeSize(y).CompareTo(m_heapDom.TreeSize(x));
-            }
-        }
-
         public HeapDomCommand(Repl repl) : base(repl) {}
 
 #pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value
@@ -45,6 +29,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [NamedArgument("minsize")]
         public int MinSize;
+
+        [FlagArgument("objectsonly")]
+        public bool ToplevelObjectsOnly;
 
         [FlagArgument("nonleaves")]
         public bool NonLeafNodesOnly;
@@ -97,7 +84,7 @@ namespace MemorySnapshotAnalyzer.Commands
         bool ComputeDiffTree(int nodeIndex, Context previousContext)
         {
             bool hasDiffs;
-            if (Context.CurrentBacktracer!.IsLiveObjectNode(nodeIndex))
+            if (CurrentHeapDom.Backtracer.IsLiveObjectNode(nodeIndex))
             {
                 // TODO: this only works with non-relocating garbage collectors.
                 int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
@@ -122,7 +109,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpTree()
         {
-            var sizeComparer = new TreeSizeComparer(CurrentHeapDom);
+            var sizeComparer = CurrentHeapDom.Comparer;
             _ = DumpTree(CurrentHeapDom.RootNodeIndex, sizeComparer, false, 0, out _);
         }
 
@@ -183,7 +170,23 @@ namespace MemorySnapshotAnalyzer.Commands
                 elideChildren = !m_diffTree[nodeIndex];
             }
 
-            if (numberOfChildren == 0)
+            if (nodeIndex == CurrentHeapDom.RootNodeIndex && ToplevelObjectsOnly)
+            {
+                var toplevelObjects = new List<int>();
+                long newSize = 0;
+                for (int i = 0; i < children!.Count; i++)
+                {
+                    int childNodeIndex = children[i];
+                    if (CurrentHeapDom.Backtracer.IsLiveObjectNode(childNodeIndex))
+                    {
+                        toplevelObjects.Add(childNodeIndex);
+                        newSize += CurrentHeapDom.TreeSize(childNodeIndex);
+                    }
+                }
+
+                DumpChildren(toplevelObjects, newSize, comparer, depth);
+            }
+            else if (numberOfChildren == 0)
             {
                 Output.Write("\"value\":{0}", CurrentHeapDom.NodeSize(nodeIndex));
             }
@@ -273,6 +276,6 @@ namespace MemorySnapshotAnalyzer.Commands
             return numberOfNodes;
         }
 
-        public override string HelpText => "heapdom <output filename> ['relativeto <context id> ['elideunchanged]] ['depth <depth>] ['width <width>] ['minsize <node size in bytes>] ['nonleaves] ['nodetype]";
+        public override string HelpText => "heapdom <output filename> ['relativeto <context id> ['elideunchanged]] ['depth <depth>] ['width <width>] ['minsize <node size in bytes>] ['objectsonly] ['nonleaves] ['nodetype]";
     }
 }

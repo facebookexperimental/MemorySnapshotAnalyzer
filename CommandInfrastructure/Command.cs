@@ -2,6 +2,7 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.Analysis;
+using System;
 using System.Text;
 
 namespace MemorySnapshotAnalyzer.CommandProcessing
@@ -141,9 +142,15 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         public void DescribeAddress(NativeWord addressOfValue, StringBuilder sb)
         {
-            SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
+
+            if (addressOfValue.Value == 0)
+            {
+                sb.AppendFormat("{0}", addressOfValue);
+                return;
+            }
 
             NativeWord nativeValue = default;
+            SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
             if (segmentedHeap != null)
             {
                 MemoryView memoryView = segmentedHeap.GetMemoryViewForAddress(addressOfValue);
@@ -235,9 +242,24 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 sb.AppendFormat(" (committed {0})", committedSize);
             }
 
-            sb.AppendFormat(", type {0} (type index {1})]",
+            sb.AppendFormat(", type {0}:{1} (type index {2})]",
+                CurrentTraceableHeap.TypeSystem.Assembly(typeIndex),
                 CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
                 typeIndex);
+
+            if (typeIndex == CurrentTraceableHeap.TypeSystem.SystemStringTypeIndex)
+            {
+                SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
+                if (segmentedHeap != null)
+                {
+                    MemoryView objectView = segmentedHeap.GetMemoryViewForAddress(objectAddress);
+                    if (objectView.IsValid)
+                    {
+                        (int stringLength, string s) = ReadString(objectView, maxLength: 80);
+                        sb.AppendFormat("  String of length {0} = \"{1}\"", stringLength, s);
+                    }
+                }
+            }
         }
 
         protected void DumpObjectInformation(NativeWord address)
@@ -248,7 +270,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 throw new CommandException($"unable to determine object type");
             }
 
-            Output.WriteLine("Object of type {0} (type index {1})",
+            Output.WriteLine("Object of type {0}:{1} (type index {2})",
+                CurrentTraceableHeap.TypeSystem.Assembly(typeIndex),
                 CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
                 typeIndex);
 
@@ -302,18 +325,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
             if (typeIndex == typeSystem.SystemStringTypeIndex)
             {
-                objectView.Read(typeSystem.SystemStringLengthOffset, out int stringLength);
-
-                var sb = new StringBuilder(stringLength);
-                for (int i = 0; i < stringLength; i++)
-                {
-                    objectView.Read(typeSystem.SystemStringFirstCharOffset + i * 2, out char c);
-                    sb.Append(c);
-                }
-
-                Output.WriteLineIndented(indent, "String of length {0} = \"{1}\"",
-                    stringLength,
-                    sb.ToString());
+                (int stringLength, string s) = ReadString(objectView, maxLength: int.MaxValue);
+                Output.WriteLineIndented(indent, "String of length {0} = \"{1}\"", stringLength, s);
             }
             else if (typeSystem.IsArray(typeIndex))
             {
@@ -340,7 +353,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
             else
             {
-                Output.WriteLineIndented(indent, "Object of type {0} (type index {1})",
+                Output.WriteLineIndented(indent, "Object of type {0}:{1} (type index {2})",
+                    typeSystem.Assembly(typeIndex),
                     typeSystem.QualifiedName(typeIndex),
                     typeIndex);
 
@@ -369,6 +383,26 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
+        (int stringLength, string s) ReadString(MemoryView objectView, int maxLength)
+        {
+            objectView.Read(CurrentTraceableHeap.TypeSystem.SystemStringLengthOffset, out int stringLength);
+
+            var sb = new StringBuilder(stringLength);
+            int length = maxLength < stringLength ? maxLength : stringLength;
+            for (int i = 0; i < length; i++)
+            {
+                objectView.Read(CurrentTraceableHeap.TypeSystem.SystemStringFirstCharOffset + i * 2, out char c);
+                sb.Append(c);
+            }
+
+            if (maxLength < stringLength)
+            {
+                sb.Append("...");
+            }
+
+            return (stringLength, sb.ToString());
+        }
+
         protected void DumpFieldMemory(MemoryView objectView, int fieldTypeIndex, int indent)
         {
             TypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
@@ -380,7 +414,9 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             else
             {
                 NativeWord reference = objectView.ReadPointer(0, CurrentMemorySnapshot.Native);
-                Output.WriteLineIndented(indent, "Pointer to {0}", reference);
+                var sb = new StringBuilder();
+                DescribeAddress(reference, sb);
+                Output.WriteLineIndented(indent, sb.ToString());
             }
         }
 
@@ -413,7 +449,65 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                             fieldTypeIndex);
                         DumpFieldMemory(objectView.GetRange(fieldOffset, objectView.Size - fieldOffset), fieldTypeIndex, indent + 1);
                     }
+                    else
+                    {
+                        object? valueOpt = ReadValue(objectView, typeIndex);
+                        if (valueOpt != null)
+                        {
+                            Output.WriteLineIndented(indent, "Value {0}", valueOpt);
+                        }
+                    }
                 }
+            }
+        }
+
+        object? ReadValue(MemoryView objectView, int typeIndex)
+        {
+            string typeName = CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex);
+            switch (typeName)
+            {
+                case "System.Boolean":
+                    {
+                        objectView.Read(0, out byte value);
+                        return value != 0;
+                    }
+                case "System.Char":
+                    {
+                        objectView.Read(0, out Char value);
+                        return (int)value;
+                    }
+                case "System.Int16":
+                    {
+                        objectView.Read(0, out Int16 value);
+                        return (int)value;
+                    }
+                case "System.UInt16":
+                    {
+                        objectView.Read(0, out UInt16 value);
+                        return (int)value;
+                    }
+                case "System.Int32":
+                    {
+                        objectView.Read(0, out Int32 value);
+                        return value;
+                    }
+                case "System.UInt32":
+                    {
+                        objectView.Read(0, out UInt32 value);
+                        return value;
+                    }
+                case "System.Int64":
+                    {
+                        objectView.Read(0, out Int64 value);
+                        return value;
+                    }
+                case "System.UInt64":
+                    {
+                        objectView.Read(0, out UInt64 value);
+                        return value;
+                    }
+                default:
+                    return null;
             }
         }
 

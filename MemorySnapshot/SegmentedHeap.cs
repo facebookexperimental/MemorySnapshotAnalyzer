@@ -74,15 +74,15 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromObject(NativeWord referrer, (int typeIndex, int fieldNumber)[] fieldPath, int pathIndex)
         {
-            MemoryView objectView = GetMemoryViewForAddress(referrer);
-            if (!objectView.IsValid)
-            {
-                yield break;
-            }
-
             (int typeIndex, int fieldNumber) = fieldPath[pathIndex];
             if (fieldNumber == Int32.MaxValue)
             {
+                MemoryView objectView = GetMemoryViewForAddress(referrer);
+                if (!objectView.IsValid)
+                {
+                    yield break;
+                }
+
                 Debug.Assert(m_typeSystem.IsArray(typeIndex));
 
                 int elementTypeIndex = m_typeSystem.BaseOrElementTypeIndex(typeIndex);
@@ -105,8 +105,22 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     }
                 }
             }
+            else if (m_typeSystem.FieldIsStatic(typeIndex, fieldNumber))
+            {
+                MemoryView fieldView = m_typeSystem.StaticFieldBytes(typeIndex, fieldNumber);
+                foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) in GetOwningReferencesFromField(fieldView, referrer, fieldPath, pathIndex + 1))
+                {
+                    yield return (childObjectAddress, parentObjectAddress);
+                }
+            }
             else
             {
+                MemoryView objectView = GetMemoryViewForAddress(referrer);
+                if (!objectView.IsValid)
+                {
+                    yield break;
+                }
+
                 int fieldOffset = m_typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: true);
                 MemoryView fieldView = objectView.GetRange(fieldOffset, objectView.Size - fieldOffset);
                 foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) in GetOwningReferencesFromField(fieldView, referrer, fieldPath, pathIndex + 1))
