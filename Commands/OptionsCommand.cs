@@ -23,6 +23,9 @@ namespace MemorySnapshotAnalyzer.Commands
         [NamedArgument("referenceclassifier")]
         public string? ReferenceClassifier;
 
+        [FlagArgument("noreferenceclassifier")]
+        public bool NoReferenceClassifier;
+
         [FlagArgument("weakgchandles")]
         public int WeakGCHandles = -1;
 
@@ -61,9 +64,17 @@ namespace MemorySnapshotAnalyzer.Commands
                 Context.TraceableHeap_FuseObjectPairs = FuseObjectPairs != 0;
             }
 
-            if (ReferenceClassifier != null)
+            if (ReferenceClassifier != null && NoReferenceClassifier)
+            {
+                throw new CommandException("only one of 'referenceclassifier and 'noreferenceclassifier may be given");
+            }
+            else if (ReferenceClassifier != null)
             {
                 Context.TraceableHeap_ReferenceClassifier = LoadReferenceClassifierConfiguration();
+            }
+            else if (NoReferenceClassifier)
+            {
+                Context.TraceableHeap_ReferenceClassifier = new ReferenceClassifierFactory();
             }
 
             if (WeakGCHandles != -1)
