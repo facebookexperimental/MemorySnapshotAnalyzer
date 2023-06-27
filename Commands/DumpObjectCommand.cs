@@ -31,6 +31,12 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [NamedArgument("type")]
         public int TypeIndex = -1;
+
+        [FlagArgument("owned")]
+        public bool Owned;
+
+        [FlagArgument("unowned")]
+        public bool Unowned;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
@@ -49,12 +55,27 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 if (!(ListLive || Memory))
                 {
-                    throw new CommandException("can only provide a type index if dumping object memory");
+                    throw new CommandException("can only provide 'type with 'list or 'memory");
                 }
                 else if (TypeIndex >= CurrentTraceableHeap.TypeSystem.NumberOfTypeIndices)
                 {
                     throw new CommandException($"{TypeIndex} is not a valid type index");
                 }
+            }
+
+            if ((Owned || Unowned) && !ListLive)
+            {
+                throw new CommandException("can only provide 'owned or 'unowned with 'list");
+            }
+
+            if (Owned && Unowned)
+            {
+                throw new CommandException("can provide at most one of 'owned or 'unowned");
+            }
+
+            if (Boxing && !Statistics)
+            {
+                throw new CommandException("can only provide 'boxing with 'statistics");
             }
 
             if (Statistics)
@@ -71,7 +92,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
             if (ListLive)
             {
-                // List all live objects, or a specific live object
+                // List all live objects
                 if (AddressOrIndex.Size != 0)
                 {
                     throw new CommandException("cannot provide an address or index when listing live objects");
@@ -152,19 +173,36 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void ListAllLiveObjects()
         {
-            // TODO: also support listing objects of types derived from the given type index?
+            // This command can operate in the following modes:
+            // - (If neither 'type nor 'owned nor 'unowned are given) List all live objects.
+            // - (If 'type and 'owned/'unowned are given) List all owned/unowned objects of the given type.
+            // - (If only 'type is given) List all objects of the given type.
+            // - (If only 'owned is given) List all owned objects.
+            // - (If only 'unowned is given) Find all types of objects that are owned, according to the reference classifier.
+            //   Then list all unowned instances of these types.
 
-            int numberOfPostorderNodes = CurrentTracedHeap.NumberOfPostorderNodes;
-
-            int numberOfObjectsFound = 0;
-            for (int postorderIndex = 0; postorderIndex < numberOfPostorderNodes; postorderIndex++)
+            var typeIndices = new HashSet<int>();
+            if (TypeIndex != -1)
             {
-                int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-                if (TypeIndex != -1 && typeIndex == TypeIndex || TypeIndex == -1 && typeIndex != -1)
+                // Only consider objects of the given type.
+                // TODO: also support listing objects of types derived from the given type index?
+                typeIndices.Add(TypeIndex);
+            }
+            else if (Unowned)
+            {
+                // Consider all objects of types for which there is at least one owned instance.
+                for (int postorderIndex = 0; postorderIndex < CurrentTracedHeap.NumberOfPostorderNodes; postorderIndex++)
                 {
-                    numberOfObjectsFound++;
+                    int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+                    if (typeIndex != -1 && CurrentBacktracer.IsOwned(postorderIndex))
+                    {
+                        typeIndices.Add(typeIndex);
+                    }
                 }
             }
+
+            int numberOfObjectsFound = 0;
+            SelectObjects(typeIndices, _ => numberOfObjectsFound++);
 
             if (TypeIndex != -1)
             {
@@ -178,15 +216,36 @@ namespace MemorySnapshotAnalyzer.Commands
             }
 
             var sb = new StringBuilder();
-            for (int postorderIndex = 0; postorderIndex < numberOfPostorderNodes; postorderIndex++)
+            SelectObjects(typeIndices, postorderIndex =>
+            {
+                NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
+                DescribeAddress(address, sb);
+                Output.WriteLine(sb.ToString());
+                sb.Clear();
+            });
+        }
+
+        void SelectObjects(HashSet<int> typeIndices, Action<int> select)
+        {
+            for (int postorderIndex = 0; postorderIndex < CurrentTracedHeap.NumberOfPostorderNodes; postorderIndex++)
             {
                 int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-                if (TypeIndex != -1 && typeIndex == TypeIndex || TypeIndex == -1 && typeIndex != -1)
+                if (typeIndex != -1 && (typeIndices.Count == 0 || typeIndices.Contains(typeIndex)))
                 {
-                    NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
-                    DescribeAddress(address, sb);
-                    Output.WriteLine(sb.ToString());
-                    sb.Clear();
+                    bool selected = true;
+                    if (Unowned && CurrentBacktracer.IsOwned(postorderIndex))
+                    {
+                        selected = false;
+                    }
+                    else if (Owned && !CurrentBacktracer.IsOwned(postorderIndex))
+                    {
+                        selected = false;
+                    }
+
+                    if (selected)
+                    {
+                        select(postorderIndex);
+                    }
                 }
             }
         }
@@ -264,6 +323,6 @@ namespace MemorySnapshotAnalyzer.Commands
             DumpObjectInformation(address);
         }
 
-        public override string HelpText => "dumpobj 'livestats ['sortbysize] | 'list ['type <type index>] | <object address or index> | 'memory <object address or index> ['type <type index>]";
+        public override string HelpText => "dumpobj 'livestats ['sortbysize] | 'list ['type <type index>|'unowned] | <object address or index> | 'memory <object address or index> ['type <type index>]";
     }
 }
