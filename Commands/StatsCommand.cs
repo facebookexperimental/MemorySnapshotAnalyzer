@@ -54,7 +54,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpHeapStatistics()
         {
-            // TODO: stats on gaps between segments/within segments
+            // TODO: stats on gaps between segments, and identification of active heap
 
             SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
             if (segmentedHeap == null)

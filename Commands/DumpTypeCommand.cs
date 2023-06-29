@@ -1,8 +1,8 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandProcessing;
-using System;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -25,6 +25,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("statics")]
         public bool Statics;
+
+        [FlagArgument("includederived")]
+        public bool IncludeDerived;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value null
 
         public override void Run()
@@ -55,47 +58,16 @@ namespace MemorySnapshotAnalyzer.Commands
             else if (IndexOrSubstring.ArgumentType == CommandLineArgumentType.String)
             {
                 // Dump by name.
-                string value = IndexOrSubstring.StringValue;
-                bool anchoredAtStart = value.StartsWith(@"\<");
-                bool anchoredAtEnd = value.EndsWith(@"\>");
-
-                for (int typeIndex = 0; typeIndex < typeSystem.NumberOfTypeIndices; typeIndex++)
+                var typeSet = new TypeSet(typeSystem);
+                typeSet.AddTypesByName(IndexOrSubstring.StringValue, Assembly);
+                if (IncludeDerived)
                 {
-                    if (Assembly != null)
-                    {
-                        if (typeSystem.Assembly(typeIndex) != Assembly)
-                        {
-                            continue;
-                        }
-                    }
+                    typeSet.AddDerivedTypes();
+                }
 
-                    string qualifiedName = typeSystem.QualifiedName(typeIndex);
-
-                    bool matches;
-                    if (anchoredAtStart)
-                    {
-                        if (anchoredAtEnd)
-                        {
-                            matches = qualifiedName.Equals(value[2..^2], StringComparison.Ordinal);
-                        }
-                        else
-                        {
-                            matches = qualifiedName.StartsWith(value[2..], StringComparison.Ordinal);
-                        }
-                    }
-                    else if (anchoredAtEnd)
-                    {
-                        matches = qualifiedName.EndsWith(value[..^2], StringComparison.Ordinal);
-                    }
-                    else
-                    {
-                        matches = qualifiedName.Contains(value, StringComparison.Ordinal);
-                    }
-
-                    if (matches)
-                    {
-                        DumpType(typeIndex, 0);
-                    }
+                foreach (int typeIndex in typeSet.TypeIndices)
+                {
+                    DumpType(typeIndex, 0);
                 }
             }
             else
@@ -189,6 +161,6 @@ namespace MemorySnapshotAnalyzer.Commands
             return false;
         }
 
-        public override string HelpText => "dumptype [<index>|<substring> ['assembly <assembly>] ['exact]] ['recursive] ['verbose] ['statics]";
+        public override string HelpText => "dumptype [<index>|<substring> ['assembly <assembly>] ['exact]] ['recursive] ['verbose] ['statics] ['includederived]";
     }
 }

@@ -32,6 +32,7 @@ static class Program
         repl.AddCommand(typeof(DumpCommand), "dump", "d");
         repl.AddCommand(typeof(DumpSegmentCommand), "dumpseg", "ds");
         repl.AddCommand(typeof(DumpObjectCommand), "dumpobj", "do");
+        repl.AddCommand(typeof(ListObjectsCommand), "listobjs", "lo");
         repl.AddCommand(typeof(DumpInvalidReferencesCommand), "dumpinvalidrefs");
         repl.AddCommand(typeof(DumpAssembliesCommand), "dumpassemblies", "da");
         repl.AddCommand(typeof(DumpTypeCommand), "dumptype", "dt");
