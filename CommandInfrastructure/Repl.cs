@@ -131,38 +131,18 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                     continue;
                 }
 
-                RunCommand(line);
+                RunCommandGuarded(line);
             }
         }
 
-        public void RunCommand(string line)
+        public void RunCommandGuarded(string line)
         {
-            var commandConstructorSignature = new Type[1];
-            commandConstructorSignature[0] = typeof(Repl);
-            var commandConstructorArguments = new object[1];
-            commandConstructorArguments[0] = this;
+            // TODO: store in history - make this return a "CommandLineArgument?"
+            m_currentCommandLine = line;
 
             try
             {
-                CommandLine? commandLine = CommandLineParser.Parse(line, CurrentContext);
-                if (commandLine == null)
-                {
-                    return;
-                }
-
-                Type? commandType;
-                if (!m_commands.TryGetValue(commandLine.CommandName, out commandType))
-                {
-                    throw new CommandException($"unknown command '{commandLine.CommandName}'");
-                }
-
-                Command command = (Command)commandType.GetConstructor(commandConstructorSignature)!.Invoke(commandConstructorArguments);
-                AssignArgumentValues(command, commandLine);
-
-                // TODO: store in history - make this return a "CommandLineArgument?"
-                m_currentCommandLine = line;
-                command.Run();
-                m_currentCommandLine = null;
+                RunCommand(line);
             }
             catch (OperationCanceledException)
             {
@@ -176,6 +156,31 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             {
                 Output.WriteLine(ex.Message);
             }
+
+            m_currentCommandLine = null;
+        }
+
+        public void RunCommand(string line)
+        {
+            CommandLine? commandLine = CommandLineParser.Parse(line, CurrentContext);
+            if (commandLine == null)
+            {
+                return;
+            }
+
+            Type? commandType;
+            if (!m_commands.TryGetValue(commandLine.CommandName, out commandType))
+            {
+                throw new CommandException($"unknown command '{commandLine.CommandName}'");
+            }
+
+            var commandConstructorSignature = new Type[] { typeof(Repl) };
+            var commandConstructorArguments = new object[] { this };
+
+            Command command = (Command)commandType.GetConstructor(commandConstructorSignature)!.Invoke(commandConstructorArguments);
+            AssignArgumentValues(command, commandLine);
+
+            command.Run();
         }
 
         public void OutputHelpText()

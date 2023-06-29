@@ -32,6 +32,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("unowned")]
         public bool Unowned;
+
+        [NamedArgument("exec")]
+        public string? ExecCommandLine;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
@@ -47,10 +50,17 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 throw new CommandException("can only provide 'includederived with 'list 'type");
             }
-
-            if (Owned && Unowned)
+            else if (Owned && Unowned)
             {
                 throw new CommandException("can provide at most one of 'owned or 'unowned");
+            }
+            else if (StatisticsOnly && ExecCommandLine != null)
+            {
+                throw new CommandException("can provide at most one of 'stats or 'exec");
+            }
+            else if (SortBySize && !StatisticsOnly)
+            {
+                throw new CommandException("can only provide 'sortbysize with 'stats");
             }
 
             ListObjects();
@@ -166,6 +176,10 @@ namespace MemorySnapshotAnalyzer.Commands
             if (StatisticsOnly)
             {
                 statistics.Dump(Output, SortBySize);
+            }
+            else if (ExecCommandLine != null)
+            {
+                SelectObjects(typeSet, postorderIndex => Repl.RunCommand($"{ExecCommandLine} {postorderIndex}"));
             }
             else
             {
