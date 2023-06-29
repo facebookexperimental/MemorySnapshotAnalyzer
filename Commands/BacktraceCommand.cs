@@ -128,6 +128,10 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 Output.WriteLineIndented(depth, "** {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
             }
+            else if (CurrentBacktracer.IsWeak(nodeIndex))
+            {
+                Output.WriteLineIndented(depth, ".. {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+            }
             else
             {
                 Output.WriteLineIndented(depth, "{0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);

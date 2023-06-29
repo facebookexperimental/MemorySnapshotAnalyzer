@@ -186,6 +186,11 @@ namespace MemorySnapshotAnalyzer.Analysis
             return nodeIndex < m_firstClassIndex && m_parentBacktracer.IsOwned(nodeIndex);
         }
 
+        bool IBacktracer.IsWeak(int nodeIndex)
+        {
+            return nodeIndex < m_firstClassIndex && m_parentBacktracer.IsWeak(nodeIndex);
+        }
+
         List<int> IBacktracer.Predecessors(int nodeIndex)
         {
             if (nodeIndex == m_rootNodeIndex)
