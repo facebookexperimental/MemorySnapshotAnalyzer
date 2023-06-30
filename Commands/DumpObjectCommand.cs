@@ -2,10 +2,6 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandProcessing;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -17,70 +13,15 @@ namespace MemorySnapshotAnalyzer.Commands
         [PositionalArgument(0, optional: true)]
         public NativeWord AddressOrIndex;
 
-        [FlagArgument("livestats")]
-        public bool Statistics;
-
-        [FlagArgument("sortbysize")]
-        public bool SortBySize;
-
-        [FlagArgument("list")]
-        public bool ListLive;
-
         [FlagArgument("memory")]
         public bool Memory;
 
-        [NamedArgument("type")]
+        [NamedArgument("astype")]
         public int TypeIndex = -1;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
         {
-            // Only one command mode can be selected
-            int numberOfModes = 0;
-            numberOfModes += Statistics ? 1 : 0;
-            numberOfModes += ListLive ? 1 : 0;
-            numberOfModes += Memory ? 1 : 0;
-            if (numberOfModes > 1)
-            {
-                throw new CommandException("only one command mode can be selected");
-            }
-
-            if (TypeIndex != -1)
-            {
-                if (!(ListLive || Memory))
-                {
-                    throw new CommandException("can only provide a type index if dumping object memory");
-                }
-                else if (TypeIndex >= CurrentTraceableHeap.TypeSystem.NumberOfTypeIndices)
-                {
-                    throw new CommandException($"{TypeIndex} is not a valid type index");
-                }
-            }
-
-            if (Statistics)
-            {
-                // Dump statistics about live objects
-                if (AddressOrIndex.Size != 0)
-                {
-                    throw new CommandException("cannot provide an address or index when dumping statistics");
-                }
-
-                DumpStatistics();
-                return;
-            }
-
-            if (ListLive)
-            {
-                // List all live objects, or a specific live object
-                if (AddressOrIndex.Size != 0)
-                {
-                    throw new CommandException("cannot provide an address or index when listing live objects");
-                }
-
-                ListAllLiveObjects();
-                return;
-            }
-
             if (AddressOrIndex.Size == 0)
             {
                 throw new CommandException("missing address or index");
@@ -95,99 +36,6 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 // Dump information for a specific object
                 DumpObjectInformation();
-            }
-        }
-
-        void DumpStatistics()
-        {
-            int numberOfPostorderNodes = CurrentTracedHeap.NumberOfPostorderNodes;
-            long totalSize = 0;
-            int numberOfLiveObjects = 0;
-            var perTypeCounts = new Dictionary<int, (int Count, long Size)>();
-            for (int postorderIndex = 0; postorderIndex < numberOfPostorderNodes; postorderIndex++)
-            {
-                int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-                if (typeIndex == -1)
-                {
-                    continue;
-                }
-
-                long size = CurrentTraceableHeap.GetObjectSize(CurrentTracedHeap.PostorderAddress(postorderIndex), typeIndex, committedOnly: true);
-                totalSize += size;
-                numberOfLiveObjects++;
-
-                if (perTypeCounts.TryGetValue(typeIndex, out (int Count, long Size) data))
-                {
-                    perTypeCounts[typeIndex] = (data.Count + 1, data.Size + size);
-                }
-                else
-                {
-                    perTypeCounts[typeIndex] = (1, size);
-                }
-            }
-
-            Output.WriteLine("number of live objects = {0}, total size = {1}",
-                numberOfLiveObjects,
-                totalSize);
-
-            KeyValuePair<int, (int Count, long Size)>[] kvps = perTypeCounts.ToArray();
-            if (SortBySize)
-            {
-                Array.Sort(kvps, (a, b) => b.Value.Size.CompareTo(a.Value.Size));
-            }
-            else
-            {
-                Array.Sort(kvps, (a, b) => b.Value.Count.CompareTo(a.Value.Count));
-            }
-
-            foreach (KeyValuePair<int, (int Count, long Size)> kvp in kvps)
-            {
-                Output.WriteLine("{0} object(s) of type {1} (type index {2}, total size {3})",
-                    kvp.Value.Count,
-                    CurrentTraceableHeap.TypeSystem.QualifiedName(kvp.Key),
-                    kvp.Key,
-                    kvp.Value.Size);
-            }
-        }
-
-        void ListAllLiveObjects()
-        {
-            // TODO: also support listing objects of types derived from the given type index?
-
-            int numberOfPostorderNodes = CurrentTracedHeap.NumberOfPostorderNodes;
-
-            int numberOfObjectsFound = 0;
-            for (int postorderIndex = 0; postorderIndex < numberOfPostorderNodes; postorderIndex++)
-            {
-                int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-                if (TypeIndex != -1 && typeIndex == TypeIndex || TypeIndex == -1 && typeIndex != -1)
-                {
-                    numberOfObjectsFound++;
-                }
-            }
-
-            if (TypeIndex != -1)
-            {
-                Output.WriteLine("found {0} object(s) of type {1}",
-                    numberOfObjectsFound,
-                    CurrentTraceableHeap.TypeSystem.QualifiedName(TypeIndex));
-            }
-            else
-            {
-                Output.WriteLine("found {0} object(s)", numberOfObjectsFound);
-            }
-
-            var sb = new StringBuilder();
-            for (int postorderIndex = 0; postorderIndex < numberOfPostorderNodes; postorderIndex++)
-            {
-                int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-                if (TypeIndex != -1 && typeIndex == TypeIndex || TypeIndex == -1 && typeIndex != -1)
-                {
-                    NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
-                    DescribeAddress(address, sb);
-                    Output.WriteLine(sb.ToString());
-                    sb.Clear();
-                }
             }
         }
 
@@ -264,6 +112,6 @@ namespace MemorySnapshotAnalyzer.Commands
             DumpObjectInformation(address);
         }
 
-        public override string HelpText => "dumpobj 'livestats ['sortbysize] | 'list ['type <type index>] | <object address or index> | 'memory <object address or index> ['type <type index>]";
+        public override string HelpText => "dumpobj <object address or index> ['memory ['type <type index>]]";
     }
 }
