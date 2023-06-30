@@ -3,6 +3,7 @@
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandProcessing;
 using System.Collections.Generic;
+using System.Text;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -16,6 +17,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("heap")]
         public bool HeapStatistics;
+
+        [FlagArgument("frag")]
+        public bool Fragmentation;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value null
 
         public override void Run()
@@ -29,6 +33,12 @@ namespace MemorySnapshotAnalyzer.Commands
             if (HeapStatistics)
             {
                 DumpHeapStatistics();
+                Output.WriteLine();
+            }
+
+            if (Fragmentation)
+            {
+                DumpFragmentation();
                 Output.WriteLine();
             }
         }
@@ -97,6 +107,106 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        public override string HelpText => "stats ['types] ['heap]";
+        void DumpFragmentation()
+        {
+            SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
+            if (segmentedHeap == null)
+            {
+                throw new CommandException("memory contents for active heap not available");
+            }
+
+            var heapMap = new Dictionary<ulong, SortedDictionary<ulong, int>>();
+            for (int i = 0; i < segmentedHeap.NumberOfSegments; i++)
+            {
+                HeapSegment segment = segmentedHeap.GetSegment(i);
+                heapMap.Add(segment.StartAddress.Value, new SortedDictionary<ulong, int>());
+            }
+
+            int numberOfPostorderNodes = CurrentTracedHeap.NumberOfPostorderNodes;
+            for (int postorderIndex = 0; postorderIndex < numberOfPostorderNodes; postorderIndex++)
+            {
+                int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+                if (typeIndex != -1)
+                {
+                    NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
+                    int objectSize = CurrentTraceableHeap.GetObjectSize(address, typeIndex, committedOnly: false);
+
+                    HeapSegment? segment = segmentedHeap.GetSegmentForAddress(address);
+                    if (segment != null)
+                    {
+                        SortedDictionary<ulong, int> objectMap = heapMap[segment.StartAddress.Value];
+                        objectMap.Add(address.Value, objectSize);
+                    }
+                }
+            }
+
+            var segmentStats = new SortedDictionary<ulong, (ulong largestGap, ulong totalObjectSize, ulong totalFreeSize)>();
+            ulong totalHeapSize = 0;
+            ulong totalUsedSize = 0;
+            ulong totalFreeSize = 0;
+            for (int i = 0; i < segmentedHeap.NumberOfSegments; i++)
+            {
+                HeapSegment segment = segmentedHeap.GetSegment(i);
+                (ulong largestGap, ulong totalObjectSize, ulong totalFreeSize) tuple = ComputeUsageForSegment(segment, heapMap[segment.StartAddress.Value]);
+                totalHeapSize += (ulong)segment.Size;
+                totalUsedSize += tuple.totalObjectSize;
+                totalFreeSize += tuple.totalFreeSize;
+                segmentStats.Add(segment.StartAddress.Value, tuple);
+            }
+
+            Output.WriteLine("total heap size = {0}, used size = {1}, free size = {2}",
+                totalHeapSize,
+                totalUsedSize,
+                totalFreeSize);
+
+            foreach (KeyValuePair<ulong, (ulong largestGap, ulong totalObjectSize, ulong totalFreeSize)> kvp in segmentStats)
+            {
+                HeapSegment segment = segmentedHeap.GetSegmentForAddress(CurrentMemorySnapshot.Native.From(kvp.Key))!;
+                Output.WriteLine("{0}: largest gap {1}, total object size {2}, total free size {3}",
+                    segment,
+                    kvp.Value.largestGap,
+                    kvp.Value.totalObjectSize,
+                    kvp.Value.totalFreeSize);
+            }
+        }
+
+        (ulong largestGap, ulong totalObjectSize, ulong totalFreeSize) ComputeUsageForSegment(HeapSegment segment, SortedDictionary<ulong, int> objectMap)
+        {
+            ulong largestGap = 0;
+            ulong totalObjectSize = 0;
+            ulong totalFreeSize = 0;
+
+            ulong previousObjectAddress = segment.StartAddress.Value;
+            foreach (KeyValuePair<ulong, int> kvp in objectMap)
+            {
+                ulong delta = kvp.Key - previousObjectAddress;
+                if (delta != 0)
+                {
+                    if (delta > largestGap)
+                    {
+                        largestGap = delta;
+                    }
+
+                    totalFreeSize += delta;
+                }
+
+                totalObjectSize += RoundUp((ulong)kvp.Value);
+
+                previousObjectAddress = kvp.Key + (ulong)kvp.Value;
+            }
+
+            totalFreeSize += segment.EndAddress.Value - previousObjectAddress;
+
+            return (largestGap, totalObjectSize, totalFreeSize);
+        }
+
+        ulong RoundUp(ulong size)
+        {
+            ulong nativeWordSize = (ulong)CurrentMemorySnapshot.Native.Size;
+            ulong granularity = nativeWordSize * 2;
+            return (size + granularity - 1) & ~(granularity - 1);
+        }
+
+        public override string HelpText => "stats ['types] ['heap] ['frag]";
     }
 }
