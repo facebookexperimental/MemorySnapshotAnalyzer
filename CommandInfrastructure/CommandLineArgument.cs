@@ -1,6 +1,7 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using MemorySnapshotAnalyzer.Analysis;
 using System;
 
 namespace MemorySnapshotAnalyzer.CommandProcessing
@@ -168,13 +169,14 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         internal CommandLineArgument Indirect(Context context)
         {
-            if (context.CurrentTraceableHeap == null)
+            if (context.CurrentMemorySnapshot == null)
             {
                 throw new CommandException("no active memory snapshot");
             }
 
-            NativeWord address = AsNativeWord(context.CurrentTraceableHeap.Native);
-            SegmentedHeap? segmentedHeap = context.CurrentTraceableHeap.SegmentedHeapOpt;
+            context.EnsureTraceableHeap();
+            NativeWord address = AsNativeWord(context.CurrentTraceableHeap!.Native);
+            SegmentedHeap? segmentedHeap = context.CurrentTraceableHeap!.SegmentedHeapOpt;
             if (segmentedHeap == null)
             {
                 throw new CommandException("memory contents for active heap not available");
@@ -187,6 +189,41 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
             NativeWord value = memoryView.ReadNativeWord(0, context.CurrentTraceableHeap.Native);
             return FromInteger(value.Value);
+        }
+
+        public TypeSet ResolveTypeIndexOrPattern(Context context, bool includeDerived)
+        {
+            if (context.CurrentMemorySnapshot == null)
+            {
+                throw new CommandException("no active memory snapshot");
+            }
+
+            context.EnsureTraceableHeap();
+            var typeSet = new TypeSet(context.CurrentTraceableHeap!.TypeSystem);
+            if (ArgumentType == CommandLineArgumentType.Integer)
+            {
+                ulong value = IntegerValue;
+                if (value >= (ulong)context.CurrentTraceableHeap.TypeSystem.NumberOfTypeIndices)
+                {
+                    throw new CommandException("could not find type with given address or index");
+                }
+
+                typeSet.Add((int)value);
+            }
+            else if (ArgumentType == CommandLineArgumentType.String)
+            {
+                typeSet.AddTypesByName(StringValue);
+                if (includeDerived)
+                {
+                    typeSet.AddDerivedTypes();
+                }
+            }
+            else
+            {
+                throw new CommandException("not a type index or pattern");
+            }
+
+            return typeSet;
         }
     }
 }

@@ -101,6 +101,8 @@ namespace MemorySnapshotAnalyzer.Commands
             Context.Dump(indent: 1);
         }
 
+        static char[] s_assemblySeparator = new char[] { ',', ':' };
+
         ConfigurableReferenceClassifierFactory LoadReferenceClassifierConfiguration()
         {
             try
@@ -112,7 +114,7 @@ namespace MemorySnapshotAnalyzer.Commands
                     string lineTrimmed = line.Trim();
                     if (lineTrimmed.Length > 0 && !lineTrimmed.StartsWith("#", StringComparison.OrdinalIgnoreCase))
                     {
-                        int firstComma = lineTrimmed.IndexOf(',');
+                        int firstComma = lineTrimmed.IndexOfAny(s_assemblySeparator);
                         int lastComma = lineTrimmed.LastIndexOf(',');
                         if (firstComma < 0 || lastComma < 0 || firstComma == lastComma)
                         {

@@ -426,5 +426,37 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             m_currentHeapDom = null;
         }
+
+        #region Helpers for command line processing
+
+        public int ResolveToPostorderIndex(NativeWord addressOrIndex)
+        {
+            if (m_currentMemorySnapshot == null)
+            {
+                throw new CommandException("no active memory snapshot");
+            }
+
+            EnsureTracedHeap();
+            int postorderIndex = CurrentTracedHeap!.ObjectAddressToPostorderIndex(addressOrIndex);
+            if (postorderIndex != -1)
+            {
+                return postorderIndex;
+            }
+
+            if (addressOrIndex.Value < (ulong)CurrentTracedHeap.NumberOfPostorderNodes)
+            {
+                return (int)addressOrIndex.Value;
+            }
+
+            SegmentedHeap? segmentedHeap = m_currentTraceableHeap.SegmentedHeapOpt;
+            if (segmentedHeap != null && !segmentedHeap.GetMemoryViewForAddress(addressOrIndex).IsValid)
+            {
+                throw new CommandException($"{addressOrIndex} is neither an address in mapped memory, nor is {addressOrIndex.Value} a valid index");
+            }
+
+            throw new CommandException($"no live object at address {addressOrIndex}");
+        }
+
+        #endregion
     }
 }

@@ -3,6 +3,7 @@
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace MemorySnapshotAnalyzer.Analysis
 {
@@ -31,42 +32,51 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_typeIndices.Add(typeIndex);
         }
 
-        public void AddTypesByName(string namePattern, string? assemblyOpt)
+        static ReadOnlySpan<char> AssemblyWithoutExtension(ReadOnlySpan<char> assemblyName)
         {
-            bool anchoredAtStart = namePattern.StartsWith(@"\<");
-            bool anchoredAtEnd = namePattern.EndsWith(@"\>");
+            if (assemblyName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            {
+                return assemblyName[..^4];
+            }
+            else
+            {
+                return assemblyName;
+            }
+        }
+
+        static bool AssemblyMatches(string assemblyName, ReadOnlySpan<char> assemblyWithoutExtension)
+        {
+            return assemblyWithoutExtension.Equals(AssemblyWithoutExtension(assemblyName.AsSpan()), StringComparison.OrdinalIgnoreCase);
+        }
+
+        public void AddTypesByName(string input)
+        {
+            string namePattern;
+            string? assemblyWithoutExtensionOpt;
+
+            int indexOfColon = input.IndexOf(':');
+            if (indexOfColon != -1)
+            {
+                assemblyWithoutExtensionOpt = new string(AssemblyWithoutExtension(input.AsSpan(0, indexOfColon)));
+                namePattern = input[(indexOfColon + 1)..];
+            }
+            else
+            {
+                assemblyWithoutExtensionOpt = null;
+                namePattern = input;
+            }
+
+            var regex = new Regex(namePattern, RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
             for (int typeIndex = 0; typeIndex < m_typeSystem.NumberOfTypeIndices; typeIndex++)
             {
-                if (assemblyOpt != null && m_typeSystem.Assembly(typeIndex) != assemblyOpt)
+                if (assemblyWithoutExtensionOpt != null && !AssemblyMatches(m_typeSystem.Assembly(typeIndex), assemblyWithoutExtensionOpt))
                 {
                     continue;
                 }
 
                 string qualifiedName = m_typeSystem.QualifiedName(typeIndex);
-
-                bool matches;
-                if (anchoredAtStart)
-                {
-                    if (anchoredAtEnd)
-                    {
-                        matches = qualifiedName.Equals(namePattern[2..^2], StringComparison.Ordinal);
-                    }
-                    else
-                    {
-                        matches = qualifiedName.StartsWith(namePattern[2..], StringComparison.Ordinal);
-                    }
-                }
-                else if (anchoredAtEnd)
-                {
-                    matches = qualifiedName.EndsWith(namePattern[..^2], StringComparison.Ordinal);
-                }
-                else
-                {
-                    matches = qualifiedName.Contains(namePattern, StringComparison.Ordinal);
-                }
-
-                if (matches)
+                if (regex.IsMatch(qualifiedName))
                 {
                     m_typeIndices.Add(typeIndex);
                 }

@@ -118,28 +118,6 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public int ResolveToPostorderIndex(NativeWord addressOrIndex)
-        {
-            int postorderIndex = CurrentTracedHeap.ObjectAddressToPostorderIndex(addressOrIndex);
-            if (postorderIndex != -1)
-            {
-                return postorderIndex;
-            }
-
-            if (addressOrIndex.Value < (ulong)CurrentTracedHeap.NumberOfPostorderNodes)
-            {
-                return (int)addressOrIndex.Value;
-            }
-
-            SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
-            if (segmentedHeap != null && !segmentedHeap.GetMemoryViewForAddress(addressOrIndex).IsValid)
-            {
-                throw new CommandException($"argument {addressOrIndex} is neither an address in mapped memory, nor is {addressOrIndex.Value} a valid index");
-            }
-
-            throw new CommandException($"no live object at address {addressOrIndex}");
-        }
-
         public void DescribeAddress(NativeWord addressOfValue, StringBuilder sb)
         {
 
@@ -332,9 +310,10 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             {
                 int elementTypeIndex = typeSystem.BaseOrElementTypeIndex(typeIndex);
                 int arraySize = CurrentSegmentedHeapOpt!.ReadArraySize(objectView);
-                Output.WriteLineIndented(indent, "Array of length {0} with element type {1}",
+                Output.WriteLineIndented(indent, "Array of length {0} with element type {1} (type index {2})",
                     arraySize,
-                    typeSystem.QualifiedName(elementTypeIndex));
+                    typeSystem.QualifiedName(elementTypeIndex),
+                    elementTypeIndex);
 
                 int elementSize = typeSystem.GetArrayElementSize(elementTypeIndex);
                 for (int i = 0; i < arraySize; i++)
@@ -425,12 +404,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             TypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
             int numberOfFields = typeSystem.NumberOfFields(typeIndex);
-            if (numberOfFields == 0)
-            {
-                Output.WriteLineIndented(indent, "No fields");
-                return;
-            }
-
+            int numberOfFieldsDumped = 0;
             for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
             {
                 if (!typeSystem.FieldIsStatic(typeIndex, fieldNumber))
@@ -448,16 +422,34 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                             typeSystem.QualifiedName(fieldTypeIndex),
                             fieldTypeIndex);
                         DumpFieldMemory(objectView.GetRange(fieldOffset, objectView.Size - fieldOffset), fieldTypeIndex, indent + 1);
+                        numberOfFieldsDumped++;
                     }
                     else
                     {
                         object? valueOpt = ReadValue(objectView, typeIndex);
                         if (valueOpt != null)
                         {
-                            Output.WriteLineIndented(indent, "Value {0}", valueOpt);
+                            if (valueOpt is char c)
+                            {
+                                Output.WriteLineIndented(indent, "Value {0}  0x{0:X04}  '{1}'", (int)c, char.IsControl(c) ? '.' : c);
+                            }
+                            else if (valueOpt is byte b)
+                            {
+                                Output.WriteLineIndented(indent, "Value {0}  0x{0:X02}  '{1}'", b, char.IsControl((char)b) ? '.' : (char)b);
+                            }
+                            else
+                            {
+                                Output.WriteLineIndented(indent, "Value {0}", valueOpt);
+                            }
+                            numberOfFieldsDumped++;
                         }
                     }
                 }
+            }
+
+            if (numberOfFieldsDumped == 0)
+            {
+                Output.WriteLineIndented(indent, "No fields that could be dumped");
             }
         }
 
@@ -468,23 +460,34 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             {
                 case "System.Boolean":
                     {
+                        // Read as a byte, which is the representation for a boolean stored in a field.
                         objectView.Read(0, out byte value);
                         return value != 0;
+                    }
+                case "System.Byte":
+                    {
+                        objectView.Read(0, out byte value);
+                        return value;
+                    }
+                case "System.SByte":
+                    {
+                        objectView.Read(0, out sbyte value);
+                        return value;
                     }
                 case "System.Char":
                     {
                         objectView.Read(0, out Char value);
-                        return (int)value;
+                        return value;
                     }
                 case "System.Int16":
                     {
                         objectView.Read(0, out Int16 value);
-                        return (int)value;
+                        return value;
                     }
                 case "System.UInt16":
                     {
                         objectView.Read(0, out UInt16 value);
-                        return (int)value;
+                        return value;
                     }
                 case "System.Int32":
                     {

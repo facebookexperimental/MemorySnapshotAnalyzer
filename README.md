@@ -29,6 +29,10 @@ Note that some commands take indices of different kinds (as well as addresses). 
 * Indices can be specific to the context (see below) and can change with different analysis options (e.g., heap stitching).
 * (Only of interest to developers working on the analyzer itself: Internally, the root set also assigns a root index to each root, and backtracing assigns a node index to each node that can be part of a backtrace - or of the dominator tree.)
 
+Some commands take a "type index or pattern" argument. This can be either:
+* an integer representing a type index, or
+* a string, representing a regular expression that the fully qualified name of each type is matched against. The string can also be an assembly name (with or without `.dll` extension, and matched case-insensitively) followed by a colon ('`:`') and a regular expression that the fully-qualified type names in that assembly will be matched against.
+
 ### Pagination
 
 Output of commands is paginated to the console window height. Type `q` to get back to the command prompt or hit space for the next screenful of output. Commands can be interrupted using `Ctrl-C` at the time they output another line of text.
@@ -45,7 +49,7 @@ Use the `load` command to load a snapshot; by default, this will be loaded into 
 
 MemorySnapshotAnalyzer allows analysis of what's in a heap snapshot at different levels of abstraction, ranging from bytes within ranges of committed memory up to object graphs. The levels of analysis, and which of them have been computed within a given context, are listed by the `context` command. Note that analyses at these levels are computed implicitly by commands as needed, which will be increasingly more expensive.
 * **Types:**
-  * Given that we are processing memory snapshots from managed runtimes, some type information will be available for any heap snapshot. Use `stats 'types` to print high-level type system information (such as high-level properties of object representation in memory), and `dumptype` to dump loaded types and their layout. (Note that for `dumptype`, you can use anchors when specifying the type name, such as `"foo"` to dump types containing `foo`, or `"\<foo\>"` to dump only types whose fully-qualified name is `foo`.) Use `dumpobj 'memory 'astype` to dump the contents of a given address interpreted as the given type.
+  * Given that we are processing memory snapshots from managed runtimes, some type information will be available for any heap snapshot. Use `stats 'types` to print high-level type system information (such as high-level properties of object representation in memory), and `dumptype` to dump loaded types and their layout. Use `dumpobj 'memory 'astype` to dump the contents of a given address interpreted as the given type.
 * **Memory:**
   * Note that depending on how the memory snapshot was produced and the file format, the actual contents of heap memory may or may not be available in the snapshot. Some commands can be used to find out if heap memory is available, and to inspect it.
   * Use `listsegs` to list regions of committed memory ("memory segments") and `stats 'heap`, `dumpseg`, `describe`, or `dump` to print out the meaning or contents of memory addresses without specific interpretation as objects. This can be useful when investigating a memory corruption. Use `find` to find bit patterns in the managed heap. This can be useful to find garbage objects of specific types.
@@ -90,7 +94,7 @@ The `'referenceclassifier` option takes the name of a configuration file with th
 
 * Lines starting with a hash ('`#`') symbol are treated as comment lines and are ignored.
 * Blank lines are ignored.
-* All remaining lines must consist of the following three comma-separated fields:
+* All remaining lines must consist of the following three fields, where the first and second are separated by either a comma or a colon (`:`), and the second and third are separated by a comma:
   * The first field is an assembly name. This can be given with or without a `.dll` extension, and is matched case-insensitively.
   * The second field is a type name. This needs to match exactly the name that is output by, say, the `dumptype` command.
   * The third field is a field pattern. This can be one of:

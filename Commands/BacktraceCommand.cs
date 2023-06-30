@@ -57,7 +57,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 return;
             }
 
-            int postorderIndex = ResolveToPostorderIndex(AddressOrIndex);
+            int postorderIndex = Context.ResolveToPostorderIndex(AddressOrIndex);
             int nodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex);
             DumpCore(nodeIndex);
         }

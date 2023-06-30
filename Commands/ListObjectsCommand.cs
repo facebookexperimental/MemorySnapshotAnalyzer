@@ -22,7 +22,7 @@ namespace MemorySnapshotAnalyzer.Commands
         public bool SortBySize;
 
         [NamedArgument("type")]
-        public int TypeIndex = -1;
+        public CommandLineArgument? TypeIndexOrPattern;
 
         [FlagArgument("includederived")]
         public bool IncludeDerived;
@@ -39,14 +39,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            if (TypeIndex != -1)
-            {
-                if (TypeIndex >= CurrentTraceableHeap.TypeSystem.NumberOfTypeIndices)
-                {
-                    throw new CommandException($"{TypeIndex} is not a valid type index");
-                }
-            }
-            else if (IncludeDerived)
+            if (TypeIndexOrPattern == null && IncludeDerived)
             {
                 throw new CommandException("can only provide 'includederived with 'list 'type");
             }
@@ -69,7 +62,6 @@ namespace MemorySnapshotAnalyzer.Commands
         sealed class Statistics
         {
             readonly TracedHeap m_tracedHeap;
-            readonly bool m_boxing;
 
             long m_totalSize;
             int m_numberOfObjects;
@@ -146,19 +138,16 @@ namespace MemorySnapshotAnalyzer.Commands
             // - (If only 'unowned is given) Find all types of objects that are owned, according to the reference classifier.
             //   Then list all unowned instances of these types.
 
-            var typeSet = new TypeSet(CurrentTraceableHeap.TypeSystem);
-            if (TypeIndex != -1)
+            TypeSet? typeSet;
+            if (TypeIndexOrPattern != null)
             {
                 // Only consider objects of the given type.
-                typeSet.Add(TypeIndex);
-                if (IncludeDerived)
-                {
-                    typeSet.AddDerivedTypes();
-                }
+                typeSet = TypeIndexOrPattern.ResolveTypeIndexOrPattern(Context, IncludeDerived);
             }
             else if (Unowned)
             {
                 // Consider all objects of types for which there is at least one owned instance.
+                typeSet = new TypeSet(CurrentTraceableHeap.TypeSystem);
                 for (int postorderIndex = 0; postorderIndex < CurrentTracedHeap.NumberOfPostorderNodes; postorderIndex++)
                 {
                     int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
@@ -167,6 +156,11 @@ namespace MemorySnapshotAnalyzer.Commands
                         typeSet.Add(typeIndex);
                     }
                 }
+            }
+            else
+            {
+                // Consider objects of all types.
+                typeSet = null;
             }
 
             var statistics = new Statistics(CurrentTracedHeap);
@@ -194,12 +188,12 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        void SelectObjects(TypeSet typeSet, Action<int> select)
+        void SelectObjects(TypeSet? typeSet, Action<int> select)
         {
             for (int postorderIndex = 0; postorderIndex < CurrentTracedHeap.NumberOfPostorderNodes; postorderIndex++)
             {
                 int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-                if (typeIndex != -1 && (typeSet.Count == 0 || typeSet.Contains(typeIndex)))
+                if (typeIndex != -1 && (typeSet == null || typeSet.Contains(typeIndex)))
                 {
                     bool selected = true;
                     if (Unowned && CurrentBacktracer.IsOwned(postorderIndex))
