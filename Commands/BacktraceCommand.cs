@@ -456,13 +456,15 @@ namespace MemorySnapshotAnalyzer.Commands
         void DumpDominators(int nodeIndex)
         {
             int currentNodeIndex = nodeIndex;
+            int i = 0;
             do
             {
-                Output.WriteLine("{0} - exclusive size {1}, inclusive size {2}",
+                Output.WriteLineIndented(i, "{0} - exclusive size {1}, inclusive size {2}",
                     CurrentHeapDom.Backtracer.DescribeNodeIndex(currentNodeIndex, FullyQualified),
                     CurrentHeapDom.NodeSize(currentNodeIndex),
                     CurrentHeapDom.TreeSize(currentNodeIndex));
                 currentNodeIndex = CurrentHeapDom.GetDominator(currentNodeIndex);
+                i = 1;
             }
             while (currentNodeIndex != CurrentHeapDom.RootNodeIndex);
         }
