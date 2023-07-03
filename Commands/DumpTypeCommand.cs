@@ -12,10 +12,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
 #pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value null
         [PositionalArgument(0, optional: true)]
-        public CommandLineArgument? IndexOrSubstring;
-
-        [NamedArgument("assembly")]
-        public string? Assembly;
+        public CommandLineArgument? TypeIndexOrPattern;
 
         [FlagArgument("recursive")]
         public bool Recursive;
@@ -34,7 +31,7 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             TypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
-            if (IndexOrSubstring == null)
+            if (TypeIndexOrPattern == null)
             {
                 // Dump all types.
                 Output.WriteLine("Number of type indices: {0}", typeSystem.NumberOfTypeIndices);
@@ -43,36 +40,13 @@ namespace MemorySnapshotAnalyzer.Commands
                     DumpType(typeIndex, 0);
                 }
             }
-            else if (IndexOrSubstring.ArgumentType == CommandLineArgumentType.Integer)
+            else
             {
-                // Dump by index.
-                ulong value = IndexOrSubstring.IntegerValue;
-                if (value >= (ulong)typeSystem.NumberOfTypeIndices)
-                {
-                    throw new CommandException("could not find type with given address or index");
-                }
-
-                int typeIndex = (int)value;
-                DumpType(typeIndex, 0);
-            }
-            else if (IndexOrSubstring.ArgumentType == CommandLineArgumentType.String)
-            {
-                // Dump by name.
-                var typeSet = new TypeSet(typeSystem);
-                typeSet.AddTypesByName(IndexOrSubstring.StringValue, Assembly);
-                if (IncludeDerived)
-                {
-                    typeSet.AddDerivedTypes();
-                }
-
+                TypeSet typeSet = TypeIndexOrPattern.ResolveTypeIndexOrPattern(Context, IncludeDerived);
                 foreach (int typeIndex in typeSet.TypeIndices)
                 {
                     DumpType(typeIndex, 0);
                 }
-            }
-            else
-            {
-                throw new CommandException("unrecognized type");
             }
         }
 
@@ -161,6 +135,6 @@ namespace MemorySnapshotAnalyzer.Commands
             return false;
         }
 
-        public override string HelpText => "dumptype [<index>|<substring> ['assembly <assembly>] ['exact]] ['recursive] ['verbose] ['statics] ['includederived]";
+        public override string HelpText => "dumptype [<type index or pattern>] ['exact]] ['recursive] ['verbose] ['statics] ['includederived]";
     }
 }

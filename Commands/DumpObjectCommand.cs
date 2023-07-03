@@ -1,6 +1,7 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandProcessing;
 
 namespace MemorySnapshotAnalyzer.Commands
@@ -17,7 +18,7 @@ namespace MemorySnapshotAnalyzer.Commands
         public bool Memory;
 
         [NamedArgument("astype")]
-        public int TypeIndex = -1;
+        public CommandLineArgument? TypeIndexOrPattern;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
@@ -82,31 +83,35 @@ namespace MemorySnapshotAnalyzer.Commands
             }
 
             // If no type index is given, infer the type from memory contents.
-            if (TypeIndex == -1)
+            if (TypeIndexOrPattern == null)
             {
                 DumpObjectMemory(address, objectView);
                 return;
             }
 
             // If a type index is given, dump memory as if it was an object of that type.
-            if (TypeIndex < 0 || TypeIndex >= CurrentTraceableHeap.TypeSystem.NumberOfTypeIndices)
+            TypeSet typeSet = TypeIndexOrPattern.ResolveTypeIndexOrPattern(Context, includeDerived: false);
+            if (typeSet.Count != 1)
             {
-                throw new CommandException($"invalid type index {TypeIndex}");
+                throw new CommandException($"type pattern does not match exactly one type");
             }
 
-            if (CurrentTraceableHeap.TypeSystem.IsValueType(TypeIndex))
+            foreach (int typeIndex in typeSet.TypeIndices)
             {
-                DumpValueTypeMemory(objectView, TypeIndex, 0);
-            }
-            else
-            {
-                DumpObjectMemory(objectView, TypeIndex, 0);
+                if (CurrentTraceableHeap.TypeSystem.IsValueType(typeIndex))
+                {
+                    DumpValueTypeMemory(objectView, typeIndex, 0);
+                }
+                else
+                {
+                    DumpObjectMemory(objectView, typeIndex, 0);
+                }
             }
         }
 
         void DumpObjectInformation()
         {
-            int postorderIndex = ResolveToPostorderIndex(AddressOrIndex);
+            int postorderIndex = Context.ResolveToPostorderIndex(AddressOrIndex);
             NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
             Output.WriteLine("live object with index {0} at address {1}", postorderIndex, address);
             DumpObjectInformation(address);

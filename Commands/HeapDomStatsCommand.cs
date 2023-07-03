@@ -1,6 +1,7 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandProcessing;
 using System;
 using System.Collections;
@@ -22,7 +23,10 @@ namespace MemorySnapshotAnalyzer.Commands
         public bool List;
 
         [NamedArgument("type")]
-        public int TypeIndex = -1;
+        public CommandLineArgument? TypeIndexOrPattern;
+
+        [FlagArgument("includederived")]
+        public bool IncludeDerived;
 
         [FlagArgument("memory")]
         public bool Memory;
@@ -109,6 +113,16 @@ namespace MemorySnapshotAnalyzer.Commands
             List<int>? children = CurrentHeapDom.GetChildren(CurrentHeapDom.RootNodeIndex);
             if (children != null)
             {
+                TypeSet? typeSet;
+                if (TypeIndexOrPattern != null)
+                {
+                    typeSet = TypeIndexOrPattern.ResolveTypeIndexOrPattern(Context, IncludeDerived);
+                }
+                else
+                {
+                    typeSet = null;
+                }
+
                 var indices = new List<int>();
                 for (int i = 0; i < children.Count; i++)
                 {
@@ -118,7 +132,7 @@ namespace MemorySnapshotAnalyzer.Commands
                         int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
                         int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
 
-                        if (TypeIndex != -1 && typeIndex == TypeIndex || TypeIndex == -1 && typeIndex != -1)
+                        if (typeIndex != -1 && (typeSet == null || typeSet.Contains(typeIndex)))
                         {
                             indices.Add(postorderIndex);
                         }
@@ -149,6 +163,6 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        public override string HelpText => "heapdomstats ['list ['type <type index>] ['memory]]";
+        public override string HelpText => "heapdomstats ['list ['type <type index or pattern> ['includederived]] ['memory]]";
     }
 }

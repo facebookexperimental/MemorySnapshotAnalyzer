@@ -15,7 +15,7 @@ namespace MemorySnapshotAnalyzer.Commands
         public BacktraceCommand(Repl repl) : base(repl) {}
 
 #pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value
-        [PositionalArgument(0, optional: true)]
+        [PositionalArgument(0, optional: false)]
         public NativeWord AddressOrIndex;
 
         [PositionalArgument(1, optional: true)]
@@ -51,63 +51,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            if (AddressOrIndex.Size == 0)
-            {
-                DumpRootsForAllObjectsDominatedOnlyByProcessNode();
-                return;
-            }
-
-            int postorderIndex = ResolveToPostorderIndex(AddressOrIndex);
+            int postorderIndex = Context.ResolveToPostorderIndex(AddressOrIndex);
             int nodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex);
-            DumpCore(nodeIndex);
-        }
 
-        void DumpRootsForAllObjectsDominatedOnlyByProcessNode()
-        {
-            List<int>? children = CurrentHeapDom.GetChildren(CurrentHeapDom.RootNodeIndex);
-            if (children != null)
-            {
-                if (Statistics)
-                {
-                    var stats = new Dictionary<int, int>();
-                    foreach (int nodeIndex in children)
-                    {
-                        if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
-                        {
-                            int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
-                            int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-                            if (stats.TryGetValue(typeIndex, out int count))
-                            {
-                                stats[typeIndex] = count + 1;
-                            }
-                            else
-                            {
-                                stats[typeIndex] = 1;
-                            }
-                        }
-                    }
-
-                    int[] keys = stats.Keys.ToArray();
-                    Array.Sort(keys, (a, b) => stats[b].CompareTo(stats[a]));
-                    foreach (int key in keys)
-                    {
-                        Output.WriteLine("{0}: {1}",
-                            CurrentTraceableHeap.TypeSystem.QualifiedName(key),
-                            stats[key]);
-                    }
-                }
-                else
-                {
-                    foreach (int nodeIndex in children)
-                    {
-                        DumpCore(nodeIndex);
-                    }
-                }
-            }
-        }
-
-        void DumpCore(int nodeIndex)
-        {
             if (ShortestPaths)
             {
                 DumpShortestPathsToRoots(nodeIndex);
@@ -456,17 +402,19 @@ namespace MemorySnapshotAnalyzer.Commands
         void DumpDominators(int nodeIndex)
         {
             int currentNodeIndex = nodeIndex;
+            int i = 0;
             do
             {
-                Output.WriteLine("{0} - exclusive size {1}, inclusive size {2}",
+                Output.WriteLineIndented(i, "{0} - exclusive size {1}, inclusive size {2}",
                     CurrentHeapDom.Backtracer.DescribeNodeIndex(currentNodeIndex, FullyQualified),
                     CurrentHeapDom.NodeSize(currentNodeIndex),
                     CurrentHeapDom.TreeSize(currentNodeIndex));
                 currentNodeIndex = CurrentHeapDom.GetDominator(currentNodeIndex);
+                i = 1;
             }
             while (currentNodeIndex != CurrentHeapDom.RootNodeIndex);
         }
 
-        public override string HelpText => "backtrace [<object address or index> [<output dot filename>] ['depth <max depth>] ['fields]|['stats]] ['shortestpaths ['stats]|'mostspecificroots|'allroots|'dom]] ['fullyqualified]";
+        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] ['fields] | 'shortestpaths ['stats] | 'mostspecificroots | 'allroots | 'dom] ['fullyqualified]";
     }
 }
