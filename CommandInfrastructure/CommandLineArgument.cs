@@ -3,6 +3,7 @@
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.Analysis;
 using System;
+using System.Net;
 
 namespace MemorySnapshotAnalyzer.CommandProcessing
 {
@@ -189,6 +190,45 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
             NativeWord value = memoryView.ReadNativeWord(0, context.CurrentTraceableHeap.Native);
             return FromInteger(value.Value);
+        }
+
+        internal CommandLineArgument Typeof(Context context)
+        {
+            if (context.CurrentMemorySnapshot == null)
+            {
+                throw new CommandException("no active memory snapshot");
+            }
+
+            context.EnsureTracedHeap();
+            NativeWord addressOrIndex = AsNativeWord(context.CurrentTraceableHeap!.Native);
+            int typeIndex;
+            if (addressOrIndex.Value < (ulong)context.CurrentTracedHeap!.NumberOfPostorderNodes)
+            {
+                // Assume the argument is an object index.
+                int postorderIndex = (int)addressOrIndex.Value;
+                typeIndex = context.CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+            }
+            else
+            {
+                // Check whether the argument corresponds to an object address.
+                int postorderIndex = context.CurrentTracedHeap!.ObjectAddressToPostorderIndex(addressOrIndex);
+                if (postorderIndex == -1)
+                {
+                    // See whether the argument is a memory address we can read a type index from.
+                    typeIndex = context.CurrentTraceableHeap.TryGetTypeIndex(addressOrIndex);
+                }
+                else
+                {
+                    typeIndex = context.CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+                }
+            }
+
+            if (typeIndex == -1)
+            {
+                throw new CommandException("could not determine type index");
+            }
+
+            return new CommandLineArgument((ulong)typeIndex);
         }
 
         public TypeSet ResolveTypeIndexOrPattern(Context context, bool includeDerived)

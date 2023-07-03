@@ -120,8 +120,15 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             {
                 m_cursor++;
             }
+
             token = m_line.Substring(start, m_cursor - start);
-            return Token.Ident;
+            switch (token)
+            {
+                case "typeof":
+                    return Token.Typeof;
+                default:
+                    return Token.Ident;
+            }
         }
 
         bool IsIdentRestChar(char c)

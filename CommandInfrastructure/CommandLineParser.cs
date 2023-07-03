@@ -48,6 +48,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
     //              |  '(' <expr> ')'
     //              |  <prim-expr> '.' ident                    // access object/struct field
     //              |  <prim-expr> '[' { <expr> // ',' }+ ']'   // access array element
+    //              |  'typeof' '(' <expr> ')'                  // type index for object
     // <cast-rest> ::= '<' { <ident> // '.' }+ '>' <prim-expr>  // explicit typing with qualified name
     //              |  <prim-expr>                              // implicit typing, extracting object type from vtable field
     //
@@ -292,6 +293,13 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                     m_tokenizer.Consume();
                     result = ParseExpr();
                     Expect(Token.CloseParen);
+                    break;
+                case Token.Typeof:
+                    m_tokenizer.Consume();
+                    Expect(Token.OpenParen);
+                    result = ParseExpr();
+                    Expect(Token.CloseParen);
+                    result = result.Typeof(m_context);
                     break;
                 default:
                     throw new CommandException($"parse error at {m_tokenizer.Peek()}");
