@@ -5,10 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MemorySnapshot\AbstractMemorySnapshot.csproj" />
+    <ProjectReference Include="..\MemorySnapshot\MemorySnapshot.csproj" />
   </ItemGroup>
 
 </Project>

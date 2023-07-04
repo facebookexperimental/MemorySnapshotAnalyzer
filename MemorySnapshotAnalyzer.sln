@@ -5,7 +5,7 @@ VisualStudioVersion = 17.5.33516.290
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MemorySnapshotAnalyzer", "MemorySnapshotAnalyzer\MemorySnapshotAnalyzer.csproj", "{A63A6621-4DEF-4E60-AB0C-1AB5D360BC02}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AbstractMemorySnapshot", "MemorySnapshot\AbstractMemorySnapshot.csproj", "{12024A92-D344-4133-B61B-9F2A557A8B66}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MemorySnapshot", "MemorySnapshot\MemorySnapshot.csproj", "{12024A92-D344-4133-B61B-9F2A557A8B66}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TreemapViewer", "TreemapViewer\TreemapViewer.csproj", "{D1FFA9C8-A2DC-4CF1-878D-B517A45133E2}"
 EndProject
@@ -13,7 +13,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnityMemorySnapshot", "Unit
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Analysis", "Analysis\Analysis.csproj", "{174DA817-B460-4F00-88D8-B39942F1C5CA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CommandProcessing", "CommandInfrastructure\CommandProcessing.csproj", "{8B8AC564-E3ED-46D8-A278-AC2A9EC81338}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CommandInfrastructure", "CommandInfrastructure\CommandInfrastructure.csproj", "{8B8AC564-E3ED-46D8-A278-AC2A9EC81338}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Commands", "Commands\Commands.csproj", "{161B4C96-366E-4A08-B179-E54229C198FF}"
 EndProject

@@ -448,7 +448,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 return (int)addressOrIndex.Value;
             }
 
-            SegmentedHeap? segmentedHeap = m_currentTraceableHeap.SegmentedHeapOpt;
+            SegmentedHeap? segmentedHeap = m_currentTraceableHeap!.SegmentedHeapOpt;
             if (segmentedHeap != null && !segmentedHeap.GetMemoryViewForAddress(addressOrIndex).IsValid)
             {
                 throw new CommandException($"{addressOrIndex} is neither an address in mapped memory, nor is {addressOrIndex.Value} a valid index");
