@@ -3,7 +3,9 @@
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandProcessing;
 using Microsoft.Extensions.Configuration;
+#if Windows
 using System.Windows.Forms;
+#endif
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -12,7 +14,11 @@ namespace MemorySnapshotAnalyzer.Commands
         public LoadCommand(Repl repl) : base(repl) {}
 
 #pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value null
+#if Windows
         [PositionalArgument(0, optional: true)]
+#else
+        [PositionalArgument(0, optional: false)]
+#endif
         public string? Filename;
 
         [FlagArgument("replace")]
@@ -21,6 +27,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
+#if Windows
             if (Filename == null)
             {
                 Filename = SelectFileViaDialog();
@@ -29,6 +36,7 @@ namespace MemorySnapshotAnalyzer.Commands
                     return;
                 }
             }
+#endif
 
             MemorySnapshot? memorySnapshot = Repl.TryLoad(Filename!);
             if (memorySnapshot == null)
@@ -52,6 +60,7 @@ namespace MemorySnapshotAnalyzer.Commands
             Repl.DumpContexts();
         }
 
+#if Windows
         string? SelectFileViaDialog()
         {
             using (var openFileDialog = new OpenFileDialog())
@@ -68,7 +77,12 @@ namespace MemorySnapshotAnalyzer.Commands
             }
             return null;
         }
+#endif
 
+#if Windows
+        public override string HelpText => "load [<filename>] ['replace]";
+#else
         public override string HelpText => "load <filename> ['replace]";
+#endif
     }
 }
