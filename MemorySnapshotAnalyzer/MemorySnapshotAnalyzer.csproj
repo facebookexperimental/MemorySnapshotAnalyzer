@@ -7,10 +7,11 @@
     <TargetFramework Condition="'$(IsWindows)'==''">net6.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CommandInfrastructure\CommandProcessing.csproj" />
+    <ProjectReference Include="..\CommandInfrastructure\CommandInfrastructure.csproj" />
     <ProjectReference Include="..\Commands\Commands.csproj" />
     <ProjectReference Include="..\UnityMemorySnapshot\UnityMemorySnapshot.csproj" />
   </ItemGroup>

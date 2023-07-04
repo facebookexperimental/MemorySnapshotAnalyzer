@@ -4,6 +4,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,7 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Analysis\Analysis.csproj" />
-    <ProjectReference Include="..\MemorySnapshot\AbstractMemorySnapshot.csproj" />
+    <ProjectReference Include="..\MemorySnapshot\MemorySnapshot.csproj" />
   </ItemGroup>
 
 </Project>

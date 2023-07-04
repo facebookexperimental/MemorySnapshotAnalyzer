@@ -7,6 +7,7 @@
     <UseWindowsForms Condition="'$(IsWindows)'=='true'">true</UseWindowsForms>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition="'$(IsWindows)'=='true'">
     <DefineConstants>Windows</DefineConstants>
@@ -14,8 +15,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Analysis\Analysis.csproj" />
-    <ProjectReference Include="..\CommandInfrastructure\CommandProcessing.csproj" />
-    <ProjectReference Include="..\MemorySnapshot\AbstractMemorySnapshot.csproj" />
+    <ProjectReference Include="..\CommandInfrastructure\CommandInfrastructure.csproj" />
+    <ProjectReference Include="..\MemorySnapshot\MemorySnapshot.csproj" />
   </ItemGroup>
 
 </Project>
