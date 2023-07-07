@@ -14,8 +14,11 @@ namespace MemorySnapshotAnalyzer.Commands
         [PositionalArgument(0, optional: true)]
         public NativeWord AddressOrIndex;
 
-        [FlagArgument("memory")]
-        public bool Memory;
+        [FlagArgument("pointers")]
+        public bool Pointers;
+
+        [NamedArgument("field")]
+        public string? Field;
 
         [NamedArgument("astype")]
         public CommandLineArgument? TypeIndexOrPattern;
@@ -28,16 +31,29 @@ namespace MemorySnapshotAnalyzer.Commands
                 throw new CommandException("missing address or index");
             }
 
-            if (Memory)
+            if (Pointers && (Field != null || TypeIndexOrPattern != null))
+            {
+                throw new CommandException("'field or 'astype may only be given if 'memory is given");
+            }
+
+            if (Pointers)
+            {
+                // Dump information for a specific object
+                DumpObjectPointers();
+            }
+            else
             {
                 // Dump memory for a specific object
                 DumpObjectMemory();
             }
-            else
-            {
-                // Dump information for a specific object
-                DumpObjectInformation();
-            }
+        }
+
+        void DumpObjectPointers()
+        {
+            int postorderIndex = Context.ResolveToPostorderIndex(AddressOrIndex);
+            NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
+            Output.WriteLine("live object with index {0} at address {1}", postorderIndex, address);
+            DumpObjectPointers(address);
         }
 
         void DumpObjectMemory()
@@ -85,7 +101,7 @@ namespace MemorySnapshotAnalyzer.Commands
             // If no type index is given, infer the type from memory contents.
             if (TypeIndexOrPattern == null)
             {
-                DumpObjectMemory(address, objectView);
+                DumpObjectMemory(address, objectView, Field);
                 return;
             }
 
@@ -100,23 +116,15 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 if (CurrentTraceableHeap.TypeSystem.IsValueType(typeIndex))
                 {
-                    DumpValueTypeMemory(objectView, typeIndex, 0);
+                    DumpValueTypeMemory(objectView, typeIndex, 0, Field);
                 }
                 else
                 {
-                    DumpObjectMemory(objectView, typeIndex, 0);
+                    DumpObjectMemory(objectView, typeIndex, 0, Field);
                 }
             }
         }
 
-        void DumpObjectInformation()
-        {
-            int postorderIndex = Context.ResolveToPostorderIndex(AddressOrIndex);
-            NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
-            Output.WriteLine("live object with index {0} at address {1}", postorderIndex, address);
-            DumpObjectInformation(address);
-        }
-
-        public override string HelpText => "dumpobj <object address or index> ['memory ['type <type index>]]";
+        public override string HelpText => "dumpobj <object address or index> (['astype <type index>] ['field <field name>] | 'pointers)";
     }
 }

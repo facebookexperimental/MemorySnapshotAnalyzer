@@ -32,6 +32,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         Ampersand,
         Hat,
         Or,
+        Typeof,
         Eof,
     }
 }

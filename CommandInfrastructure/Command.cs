@@ -240,7 +240,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        protected void DumpObjectInformation(NativeWord address)
+        protected void DumpObjectPointers(NativeWord address)
         {
             int typeIndex = CurrentTraceableHeap.TryGetTypeIndex(address);
             if (typeIndex < 0)
@@ -282,7 +282,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        protected void DumpObjectMemory(NativeWord address, MemoryView objectView)
+        protected void DumpObjectMemory(NativeWord address, MemoryView objectView, string? fieldNameOpt = null)
         {
             // TODO: if the address is not valid, later reads into the assumed object memory range can throw
 
@@ -292,10 +292,10 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 throw new CommandException($"unable to determine object type");
             }
 
-            DumpObjectMemory(objectView, typeIndex, 0);
+            DumpObjectMemory(objectView, typeIndex, 0, fieldNameOpt);
         }
 
-        protected void DumpObjectMemory(MemoryView objectView, int typeIndex, int indent)
+        protected void DumpObjectMemory(MemoryView objectView, int typeIndex, int indent, string? fieldNameOpt = null)
         {
             // TODO: if the address is not valid, later reads into the assumed object memory range can throw
 
@@ -340,24 +340,32 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 int numberOfFields = typeSystem.NumberOfFields(typeIndex);
                 for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
                 {
-                    if (!typeSystem.FieldIsStatic(typeIndex, fieldNumber))
+                    if (typeSystem.FieldIsStatic(typeIndex, fieldNumber))
                     {
-                        int fieldOffset = typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: true);
-                        int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
-                        Output.WriteLineIndented(indent + 1, "+{0}  {1} : {2} {3} (type index {4})",
-                            fieldOffset,
-                            typeSystem.FieldName(typeIndex, fieldNumber),
-                            typeSystem.IsValueType(fieldTypeIndex) ? "value" : typeSystem.IsArray(fieldTypeIndex) ? "array" : "object",
-                            typeSystem.QualifiedName(fieldTypeIndex),
-                            fieldTypeIndex);
-                        DumpFieldMemory(objectView.GetRange(fieldOffset, objectView.Size - fieldOffset), fieldTypeIndex, indent + 2);
+                        continue;
                     }
+
+                    string fieldName = typeSystem.FieldName(typeIndex, fieldNumber);
+                    if (fieldNameOpt != null && !fieldName.Equals(fieldNameOpt, StringComparison.InvariantCulture))
+                    {
+                        continue;
+                    }
+
+                    int fieldOffset = typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: true);
+                    int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
+                    Output.WriteLineIndented(indent + 1, "+{0}  {1} : {2} {3} (type index {4})",
+                        fieldOffset,
+                        fieldName,
+                        typeSystem.IsValueType(fieldTypeIndex) ? "value" : typeSystem.IsArray(fieldTypeIndex) ? "array" : "object",
+                        typeSystem.QualifiedName(fieldTypeIndex),
+                        fieldTypeIndex);
+                    DumpFieldMemory(objectView.GetRange(fieldOffset, objectView.Size - fieldOffset), fieldTypeIndex, indent + 2);
                 }
 
                 int baseTypeIndex = typeSystem.BaseOrElementTypeIndex(typeIndex);
                 if (baseTypeIndex >= 0)
                 {
-                    DumpObjectMemory(objectView, baseTypeIndex, indent + 1);
+                    DumpObjectMemory(objectView, baseTypeIndex, indent + 1, fieldNameOpt);
                 }
             }
         }
@@ -399,7 +407,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        protected void DumpValueTypeMemory(MemoryView objectView, int typeIndex, int indent)
+        protected void DumpValueTypeMemory(MemoryView objectView, int typeIndex, int indent, string? fieldNameOpt = null)
         {
             TypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
@@ -407,42 +415,50 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             int numberOfFieldsDumped = 0;
             for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
             {
-                if (!typeSystem.FieldIsStatic(typeIndex, fieldNumber))
+                if (typeSystem.FieldIsStatic(typeIndex, fieldNumber))
                 {
-                    int fieldOffset = typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: false);
-                    int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
+                    continue;
+                }
 
-                    // Avoid infinite recursion due to the way that primitive types (such as System.Int32) are defined.
-                    if (fieldTypeIndex != typeIndex)
+                string fieldName = typeSystem.FieldName(typeIndex, fieldNumber);
+                    if (fieldNameOpt != null && !fieldName.Equals(fieldNameOpt, StringComparison.InvariantCulture))
                     {
-                        Output.WriteLineIndented(indent, "+{0}  {1} : {2} {3} (type index {4})",
-                            fieldOffset,
-                            typeSystem.FieldName(typeIndex, fieldNumber),
-                            typeSystem.IsValueType(fieldTypeIndex) ? "value" : typeSystem.IsArray(fieldTypeIndex) ? "array" : "object",
-                            typeSystem.QualifiedName(fieldTypeIndex),
-                            fieldTypeIndex);
-                        DumpFieldMemory(objectView.GetRange(fieldOffset, objectView.Size - fieldOffset), fieldTypeIndex, indent + 1);
-                        numberOfFieldsDumped++;
+                        continue;
                     }
-                    else
+
+                int fieldOffset = typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: false);
+                int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
+
+                // Avoid infinite recursion due to the way that primitive types (such as System.Int32) are defined.
+                if (fieldTypeIndex != typeIndex)
+                {
+                    Output.WriteLineIndented(indent, "+{0}  {1} : {2} {3} (type index {4})",
+                        fieldOffset,
+                        fieldName,
+                        typeSystem.IsValueType(fieldTypeIndex) ? "value" : typeSystem.IsArray(fieldTypeIndex) ? "array" : "object",
+                        typeSystem.QualifiedName(fieldTypeIndex),
+                        fieldTypeIndex);
+                    DumpFieldMemory(objectView.GetRange(fieldOffset, objectView.Size - fieldOffset), fieldTypeIndex, indent + 1);
+                    numberOfFieldsDumped++;
+                }
+                else
+                {
+                    object? valueOpt = ReadValue(objectView, typeIndex);
+                    if (valueOpt != null)
                     {
-                        object? valueOpt = ReadValue(objectView, typeIndex);
-                        if (valueOpt != null)
+                        if (valueOpt is char c)
                         {
-                            if (valueOpt is char c)
-                            {
-                                Output.WriteLineIndented(indent, "Value {0}  0x{0:X04}  '{1}'", (int)c, char.IsControl(c) ? '.' : c);
-                            }
-                            else if (valueOpt is byte b)
-                            {
-                                Output.WriteLineIndented(indent, "Value {0}  0x{0:X02}  '{1}'", b, char.IsControl((char)b) ? '.' : (char)b);
-                            }
-                            else
-                            {
-                                Output.WriteLineIndented(indent, "Value {0}", valueOpt);
-                            }
-                            numberOfFieldsDumped++;
+                            Output.WriteLineIndented(indent, "Value {0}  0x{0:X04}  '{1}'", (int)c, char.IsControl(c) ? '.' : c);
                         }
+                        else if (valueOpt is byte b)
+                        {
+                            Output.WriteLineIndented(indent, "Value {0}  0x{0:X02}  '{1}'", b, char.IsControl((char)b) ? '.' : (char)b);
+                        }
+                        else
+                        {
+                            Output.WriteLineIndented(indent, "Value {0}", valueOpt);
+                        }
+                        numberOfFieldsDumped++;
                     }
                 }
             }
@@ -507,6 +523,16 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 case "System.UInt64":
                     {
                         objectView.Read(0, out UInt64 value);
+                        return value;
+                    }
+                case "System.Single":
+                    {
+                        objectView.Read(0, out Single value);
+                        return value;
+                    }
+                case "System.Double":
+                    {
+                        objectView.Read(0, out Double value);
                         return value;
                     }
                 default:
