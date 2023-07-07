@@ -3,7 +3,8 @@
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.Analysis;
 using System;
-using System.Net;
+using System.Linq;
+using System.Text;
 
 namespace MemorySnapshotAnalyzer.CommandProcessing
 {
@@ -55,7 +56,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             get
             {
-                CheckType(CommandLineArgumentType.String);
+                CheckType(CommandLineArgumentType.String, CommandLineArgumentType.Atom);
                 return m_atomOrStringValue!;
             }
         }
@@ -74,11 +75,23 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             return native.From(IntegerValue);
         }
 
-        void CheckType(CommandLineArgumentType type)
+        void CheckType(params CommandLineArgumentType[] types)
         {
-            if (m_type != type)
+            if (!types.Contains(m_type))
             {
-                throw new CommandException($"argument is not {type}; found {m_type}");
+                var sb = new StringBuilder("argument is not ");
+                bool first = true;
+                foreach (var type in types)
+                {
+                    if (!first)
+                    {
+                        sb.Append(" or ");
+                    }
+                    first = false;
+                    sb.Append(type.ToString());
+                }
+                sb.Append($"; found {m_type}");
+                throw new CommandException(sb.ToString());
             }
         }
 
