@@ -35,9 +35,11 @@ namespace MemorySnapshotAnalyzer.Commands
         [FlagArgument("groupstatics")]
         public int GroupStatics = -1;
 
-        // TODO: this is not a great name anymore, as it fuses all roots with their targets
-        [FlagArgument("fusegchandles")]
-        public int FuseGCHandles = -1;
+        [FlagArgument("fuseroots")]
+        public int FuseRoots = -1;
+
+        [FlagArgument("weakdelegates")]
+        public int WeakDelegates = -1;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
@@ -92,9 +94,14 @@ namespace MemorySnapshotAnalyzer.Commands
                 Context.Backtracer_GroupStatics = GroupStatics != 0;
             }
 
-            if (FuseGCHandles != -1)
+            if (FuseRoots != -1)
             {
-                Context.Backtracer_FuseGCHandles = FuseGCHandles != 0;
+                Context.Backtracer_FuseRoots = FuseRoots != 0;
+            }
+
+            if (WeakDelegates != -1)
+            {
+                Context.Backtracer_WeakDelegates = WeakDelegates != 0;
             }
 
             Output.WriteLine("* [{0}]", Context.Id);
@@ -200,6 +207,6 @@ namespace MemorySnapshotAnalyzer.Commands
             return pieces;
         }
 
-        public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['fuseobjectpairs] ['weakgchandles] ['rootobject <address or index>] ['groupstatics] ['fusegchandles]";
+        public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['fuseobjectpairs] ['weakgchandles] ['rootobject <address or index>] ['groupstatics] ['fuseroots] ['weakdelegates]";
     }
 }

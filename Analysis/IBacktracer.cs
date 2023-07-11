@@ -26,6 +26,8 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         bool IsOwned(int nodeIndex);
 
+        bool IsWeak(int nodeIndex);
+
         List<int> Predecessors(int nodeIndex);
     }
 }

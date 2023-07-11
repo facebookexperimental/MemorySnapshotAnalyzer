@@ -15,9 +15,18 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly int m_rootNodeIndex;
         readonly List<int>[] m_predecessors;
         readonly HashSet<int> m_ownedNodes;
-        readonly HashSet<int> m_nonGCHandleNodes;
+        readonly HashSet<int> m_strongNodes;
+        readonly TypeSet m_weakTypes;
 
-        public Backtracer(TracedHeap tracedHeap, bool fuseGCHandles, bool weakGCHandles)
+        public enum Options
+        {
+            None = 0,
+            FuseRoots = 1 << 0,
+            WeakGCHandles = 1 << 1,
+            WeakDelegates = 1 << 2,
+        }
+
+        public Backtracer(TracedHeap tracedHeap, Options options)
         {
             m_tracedHeap = tracedHeap;
             m_rootSet = m_tracedHeap.RootSet;
@@ -28,11 +37,18 @@ namespace MemorySnapshotAnalyzer.Analysis
             //   N : root node - representing the containing process
             m_rootNodeIndex = tracedHeap.NumberOfPostorderNodes;
 
-            // TODO: use m_tracedHeap.GetNumberOfPredecessors for a more efficient representation
             m_predecessors = new List<int>[m_rootNodeIndex + 1];
             m_ownedNodes = new HashSet<int>();
-            m_nonGCHandleNodes = new HashSet<int>();
-            ComputePredecessors(fuseGCHandles, weakGCHandles);
+            m_strongNodes = new HashSet<int>();
+
+            m_weakTypes = new TypeSet(m_traceableHeap.TypeSystem);
+            if ((options & Options.WeakDelegates) != 0)
+            {
+                m_weakTypes.AddTypesByName(@"mscorlib.dll:^System\.Delegate$");
+                m_weakTypes.AddDerivedTypes();
+            }
+
+            ComputePredecessors(options);
         }
 
         public TracedHeap TracedHeap => m_tracedHeap;
@@ -152,12 +168,17 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_ownedNodes.Contains(nodeIndex);
         }
 
+        public bool IsWeak(int nodeIndex)
+        {
+            return !m_strongNodes.Contains(nodeIndex);
+        }
+
         public List<int> Predecessors(int nodeIndex)
         {
             return m_predecessors[nodeIndex];
         }
 
-        void ComputePredecessors(bool fuseGCHandles, bool weakGCHandles)
+        void ComputePredecessors(Options options)
         {
             m_predecessors[m_rootNodeIndex] = new List<int>();
 
@@ -171,16 +192,13 @@ namespace MemorySnapshotAnalyzer.Analysis
                     List<(int rootIndex, PointerInfo<NativeWord> pointerFlags)> rootInfos = m_tracedHeap.PostorderRootIndices(parentPostorderIndex);
 
                     // Check whether all of the roots are GCHandles. If so, treat this parent as weak.
-                    bool isGCHandle = weakGCHandles;
+                    bool isGCHandle = (options & Options.WeakGCHandles) != 0;
                     PointerFlags pointerFlags = PointerFlags.None;
                     foreach ((int rootIndex, PointerInfo<NativeWord> pointerInfo) in rootInfos)
                     {
                         if (!m_rootSet.IsGCHandle(rootIndex))
                         {
-                            if (!m_rootSet.IsGCHandle(rootIndex))
-                            {
-                                isGCHandle = false;
-                            }
+                            isGCHandle = false;
                         }
 
                         pointerFlags |= pointerInfo.PointerFlags;
@@ -194,12 +212,12 @@ namespace MemorySnapshotAnalyzer.Analysis
 
                     // If this parent index represents a (set of) root nodes, PostOrderAddress above returned the target.
                     int childPostorderIndex = m_tracedHeap.ObjectAddressToPostorderIndex(address);
-                    AddPredecessor(childPostorderIndex, parentPostorderIndex, pointerFlags, isGCHandle: isGCHandle);
+                    AddPredecessor(childPostorderIndex, parentPostorderIndex, pointerFlags, isWeak: isGCHandle);
                 }
                 else
                 {
                     int resolvedParentPostorderIndex = parentPostorderIndex;
-                    if (fuseGCHandles)
+                    if ((options & Options.FuseRoots) != 0)
                     {
                         // Redirect parentPostorderIndex to root postorder index, if available.
                         int rootPostorderIndex = m_tracedHeap.ObjectAddressToRootPostorderIndex(address);
@@ -209,6 +227,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                         }
                     }
 
+                    bool isWeak = m_weakTypes.Contains(typeIndex);
                     foreach (PointerInfo<NativeWord> pointerInfo in m_traceableHeap.GetIntraHeapPointers(address, typeIndex))
                     {
                         int childPostorderIndex = m_tracedHeap.ObjectAddressToPostorderIndex(pointerInfo.Value);
@@ -220,52 +239,80 @@ namespace MemorySnapshotAnalyzer.Analysis
                                 ProcessConditionAnchor(address, pointerInfo);
                             }
 
-                            AddPredecessor(childPostorderIndex, resolvedParentPostorderIndex, pointerInfo.PointerFlags, isGCHandle: false);
+                            AddPredecessor(childPostorderIndex, resolvedParentPostorderIndex, pointerInfo.PointerFlags, isWeak: isWeak);
                         }
                     }
                 }
             }
         }
 
-        void AddPredecessor(int childNodeIndex, int parentNodeIndex, PointerFlags pointerFlags, bool isGCHandle)
+        void AddPredecessor(int childNodeIndex, int parentNodeIndex, PointerFlags pointerFlags, bool isWeak)
         {
-            if (isGCHandle && m_nonGCHandleNodes.Contains(childNodeIndex))
-            {
-                return;
-            }
-
             bool isOwningReference = (pointerFlags & PointerFlags.IsOwningReference) != 0;
-            if (!isOwningReference && m_ownedNodes.Contains(childNodeIndex))
+            bool clearPreviousReferences;
+
+            bool warnAboutMultipleOwningReferences = false;
+            if (isOwningReference)
             {
-                return;
+                // If this is the first owning reference to this child, clear previous references
+                // (which must have been non-owning, either strong or weak). Also, this marks the node
+                // as being owned.
+                clearPreviousReferences = m_ownedNodes.Add(childNodeIndex);
+
+                // If this is not the first owning reference to this child, report a warning that
+                // there there is more than one owning reference to this child.
+                if (!clearPreviousReferences)
+                {
+                    warnAboutMultipleOwningReferences = true;
+                }
+            }
+            else
+            {
+                // Ignore non-owning references to nodes for which we already found owning references.
+                if (m_ownedNodes.Contains(childNodeIndex))
+                {
+                    return;
+                }
+
+                if (isWeak)
+                {
+                    // Ignore weak, non-owning references to nodes for which we already found strong references.
+                    if (m_strongNodes.Contains(childNodeIndex))
+                    {
+                        return;
+                    }
+
+                    clearPreviousReferences = false;
+                }
+                else
+                {
+                    // If this is the first strong reference to this node (and we have not found owning references),
+                    // clear previous references (which must all have been weak). Also, this marks the node
+                    // as being strongly referenced.
+                    clearPreviousReferences = m_strongNodes.Add(childNodeIndex);
+                }
             }
 
-            bool isFirstNonGCHandleReferenceToThisChild = !isGCHandle && m_nonGCHandleNodes.Add(childNodeIndex);
-            bool isFirstOwningReferenceToThisChild = isOwningReference && m_ownedNodes.Add(childNodeIndex);
             List<int>? parentNodeIndices = m_predecessors[childNodeIndex];
             if (parentNodeIndices == null)
             {
                 parentNodeIndices = new List<int>();
                 m_predecessors[childNodeIndex] = parentNodeIndices;
             }
-            else if (isFirstNonGCHandleReferenceToThisChild || isFirstOwningReferenceToThisChild)
+            else if (clearPreviousReferences)
             {
                 parentNodeIndices.Clear();
             }
-            else
+            else if (parentNodeIndices.Contains(parentNodeIndex))
             {
-                if (parentNodeIndices.Contains(parentNodeIndex))
-                {
-                    return;
-                }
-
-                if (isOwningReference && !isFirstOwningReferenceToThisChild)
-                {
-                    // TODO: better warning management
-                    int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(childNodeIndex);
-                    string typeName = m_traceableHeap.TypeSystem.QualifiedName(typeIndex);
-                    Console.Error.WriteLine($"found multiple owning references to object {childNodeIndex} of type {typeName}");
-                }
+                return;
+            }
+            else if (warnAboutMultipleOwningReferences)
+            {
+                // TODO: better warning management
+                int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(childNodeIndex);
+                string typeName = m_traceableHeap.TypeSystem.QualifiedName(typeIndex);
+                Console.Error.WriteLine($"found multiple owning references to object {childNodeIndex} of type {typeName}");
             }
 
             parentNodeIndices.Add(parentNodeIndex);
@@ -280,7 +327,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
                 if (childPostorderIndex != -1)
                 {
-                    AddPredecessor(childPostorderIndex, parentPostorderIndex, PointerFlags.IsOwningReference, isGCHandle: false);
+                    AddPredecessor(childPostorderIndex, parentPostorderIndex, PointerFlags.IsOwningReference, isWeak: false);
                 }
             }
         }

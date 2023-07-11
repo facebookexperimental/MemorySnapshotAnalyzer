@@ -29,7 +29,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         bool m_tracedHeap_weakGCHandles;
         // Options for Backtracer
         bool m_backtracer_groupStatics;
-        bool m_backtracer_fuseGCHandles;
+        bool m_backtracer_fuseRoots;
+        bool m_backtracer_weakDelegates;
 
         MemorySnapshot? m_currentMemorySnapshot;
         TraceableHeap? m_currentTraceableHeap;
@@ -55,7 +56,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 TraceableHeap_FuseObjectPairs = other.TraceableHeap_FuseObjectPairs,
                 TraceableHeap_ReferenceClassifier = other.TraceableHeap_ReferenceClassifier,
                 Backtracer_GroupStatics = other.Backtracer_GroupStatics,
-                Backtracer_FuseGCHandles = other.Backtracer_FuseGCHandles
+                Backtracer_FuseRoots = other.Backtracer_FuseRoots,
+                Backtracer_WeakDelegates = other.Backtracer_WeakDelegates
             };
             return newContext;
         }
@@ -138,15 +140,17 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
             if (m_currentBacktracer == null)
             {
-                yield return string.Format("Backtracer[groupstatics={0}, fusegchandles={1}] not computed",
+                yield return string.Format("Backtracer[groupstatics={0}, fuseroots={1}, weakdelegates={2}] not computed",
                     m_backtracer_groupStatics,
-                    m_backtracer_fuseGCHandles);
+                    m_backtracer_fuseRoots,
+                    m_backtracer_weakDelegates);
             }
             else
             {
-                yield return string.Format("Backtracer[groupstatics={0}, fusegchandles={1}]",
+                yield return string.Format("Backtracer[groupstatics={0}, fuseroots={1}, weakdelegates={2}]",
                     m_backtracer_groupStatics,
-                    m_backtracer_fuseGCHandles);
+                    m_backtracer_fuseRoots,
+                    m_backtracer_weakDelegates);
             }
 
             if (m_currentHeapDom == null)
@@ -370,14 +374,27 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public bool Backtracer_FuseGCHandles
+        public bool Backtracer_FuseRoots
         {
-            get { return m_backtracer_fuseGCHandles; }
+            get { return m_backtracer_fuseRoots; }
             set
             {
-                if (m_backtracer_fuseGCHandles != value)
+                if (m_backtracer_fuseRoots != value)
                 {
-                    m_backtracer_fuseGCHandles = value;
+                    m_backtracer_fuseRoots = value;
+                    ClearBacktracer();
+                }
+            }
+        }
+
+        public bool Backtracer_WeakDelegates
+        {
+            get { return m_backtracer_weakDelegates; }
+            set
+            {
+                if (m_backtracer_weakDelegates != value)
+                {
+                    m_backtracer_weakDelegates = value;
                     ClearBacktracer();
                 }
             }
@@ -392,7 +409,24 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             if (m_currentBacktracer == null)
             {
                 m_output.Write("[context {0}] computing backtraces ...", m_id);
-                IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, m_backtracer_fuseGCHandles, m_tracedHeap_weakGCHandles);
+
+                var backtracerOptions = Backtracer.Options.None;
+                if (m_backtracer_fuseRoots)
+                {
+                    backtracerOptions |= Backtracer.Options.FuseRoots;
+                }
+
+                if (m_tracedHeap_weakGCHandles)
+                {
+                    backtracerOptions |= Backtracer.Options.WeakGCHandles;
+                }
+
+                if (m_backtracer_weakDelegates)
+                {
+                    backtracerOptions |= Backtracer.Options.WeakDelegates;
+                }
+
+                IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, backtracerOptions);
                 if (m_backtracer_groupStatics)
                 {
                     backtracer = new GroupingBacktracer(backtracer);
