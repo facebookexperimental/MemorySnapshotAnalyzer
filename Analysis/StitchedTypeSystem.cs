@@ -14,6 +14,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly int m_systemStringTypeIndex;
         readonly int m_systemStringLengthOffset;
         readonly int m_systemStringFirstCharOffset;
+        readonly int m_systemVoidStarTypeIndex;
 
         public StitchedTypeSystem(TypeSystem first, TypeSystem second)
             : base(new ReferenceClassifierFactory())
@@ -37,16 +38,19 @@ namespace MemorySnapshotAnalyzer.Analysis
                 m_systemStringTypeIndex = first.SystemStringTypeIndex;
                 m_systemStringLengthOffset = first.SystemStringLengthOffset;
                 m_systemStringFirstCharOffset = first.SystemStringFirstCharOffset;
+                m_systemVoidStarTypeIndex = first.SystemVoidStarTypeIndex;
             }
             else if (second.SystemStringTypeIndex != -1)
             {
                 m_systemStringTypeIndex = second.SystemStringTypeIndex;
                 m_systemStringLengthOffset = second.SystemStringLengthOffset;
                 m_systemStringFirstCharOffset = second.SystemStringFirstCharOffset;
+                m_systemVoidStarTypeIndex = second.SystemVoidStarTypeIndex;
             }
             else
             {
                 m_systemStringTypeIndex = -1;
+                m_systemVoidStarTypeIndex = -1;
             }
         }
 
@@ -263,6 +267,8 @@ namespace MemorySnapshotAnalyzer.Analysis
         public override int SystemStringLengthOffset => m_systemStringLengthOffset;
 
         public override int SystemStringFirstCharOffset => m_systemStringFirstCharOffset;
+
+        public override int SystemVoidStarTypeIndex => m_systemVoidStarTypeIndex;
 
         public override IEnumerable<string> DumpStats()
         {
