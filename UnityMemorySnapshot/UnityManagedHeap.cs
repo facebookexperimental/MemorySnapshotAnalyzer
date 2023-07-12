@@ -101,7 +101,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             if (m_unityManagedTypeSystem.IsUnityEngineType(typeIndex))
             {
                 MemoryView objectView = m_segmentedHeap.GetMemoryViewForAddress(address);
-                yield return objectView.ReadPointer(m_unityManagedTypeSystem.UnityEngineCachecPtrFieldOffset, Native);
+                yield return objectView.ReadPointer(m_unityManagedTypeSystem.UnityEngineCachedPtrFieldOffset, Native);
             }
         }
 

@@ -362,7 +362,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return m_unityEngineObjectTypes[typeIndex];
         }
 
-        internal int UnityEngineCachecPtrFieldOffset => m_unityEngineCachedPtrFieldOffset;
+        internal int UnityEngineCachedPtrFieldOffset => m_unityEngineCachedPtrFieldOffset;
 
         public override IEnumerable<string> DumpStats()
         {
