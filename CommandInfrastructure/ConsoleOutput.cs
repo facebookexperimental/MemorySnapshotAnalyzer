@@ -31,6 +31,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             Console.Write(s_prompt);
             m_numberLinesWritten = 0;
+            m_windowHeight = Console.WindowHeight;
             m_cancellationRequested = false;
         }
 
