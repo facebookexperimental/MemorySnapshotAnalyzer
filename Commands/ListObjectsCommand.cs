@@ -18,8 +18,14 @@ namespace MemorySnapshotAnalyzer.Commands
         [FlagArgument("stats")]
         public bool StatisticsOnly;
 
+        [FlagArgument("sortbycount")]
+        public bool SortByCount;
+
         [FlagArgument("sortbysize")]
         public bool SortBySize;
+
+        [FlagArgument("sortbydomsize")]
+        public bool SortByDomSize;
 
         [NamedArgument("type")]
         public CommandLineArgument? TypeIndexOrPattern;
@@ -32,6 +38,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("unowned")]
         public bool Unowned;
+
+        [NamedArgument("dominatedby")]
+        public NativeWord DirectlyDominatedBy;
 
         [NamedArgument("exec")]
         public string? ExecCommandLine;
@@ -51,40 +60,109 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 throw new CommandException("can provide at most one of 'stats or 'exec");
             }
-            else if (SortBySize && !StatisticsOnly)
+
+            SortOrder sortOrder;
+            if (!SortByCount && !SortBySize && !SortByDomSize)
             {
-                throw new CommandException("can only provide 'sortbysize with 'stats");
+                sortOrder = SortOrder.SortByIndex;
+            }
+            else if (SortByCount && !SortBySize && !SortByDomSize)
+            {
+                sortOrder = SortOrder.SortByCount;
+            }
+            else if (!SortByCount && SortBySize && !SortByDomSize)
+            {
+                sortOrder = SortOrder.SortBySize;
+            }
+            else if (!SortByCount && SortByDomSize && !SortBySize)
+            {
+                sortOrder = SortOrder.SortByDomSize;
+            }
+            else
+            {
+                throw new CommandException("at most one of 'sortbycount, 'sortbysize, and `sortbydomsize may be given");
             }
 
-            ListObjects();
+            int domParentNodeIndex;
+            if (DirectlyDominatedBy.Size != 0)
+            {
+                if (DirectlyDominatedBy.Value == ulong.MaxValue)
+                {
+                    domParentNodeIndex = CurrentHeapDom.RootNodeIndex;
+                }
+                else
+                {
+                    domParentNodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(Context.ResolveToPostorderIndex(DirectlyDominatedBy));
+                }
+            }
+            else
+            {
+                domParentNodeIndex = -1;
+            }
+
+            ListObjects(sortOrder, domParentNodeIndex);
         }
 
-        sealed class Statistics
+        enum SortOrder
         {
-            readonly TracedHeap m_tracedHeap;
+            SortByIndex,
+            SortByCount,
+            SortBySize,
+            SortByDomSize,
+        }
+
+        sealed class Selection
+        {
+            readonly Context m_context;
+            readonly SortOrder m_sortOrder;
 
             long m_totalSize;
             int m_numberOfObjects;
-            readonly Dictionary<int, (int Count, long Size)> m_perTypeCounts;
+            readonly Dictionary<int, (int count, long size)> m_perTypeCounts;
+            readonly List<int> m_postorderIndices;
 
-            internal Statistics(TracedHeap tracedHeap)
+            internal Selection(Context context, SortOrder sortOrder)
             {
-                m_tracedHeap = tracedHeap;
+                m_context = context;
+                m_sortOrder = sortOrder;
+
+                if (sortOrder == SortOrder.SortByDomSize)
+                {
+                    m_context.EnsureHeapDom();
+                }
+                else
+                {
+                    m_context.EnsureTracedHeap();
+                }
 
                 m_totalSize = 0;
                 m_numberOfObjects = 0;
                 m_perTypeCounts = new Dictionary<int, (int Count, long Size)>();
+                m_postorderIndices = new List<int>();
+            }
+
+            internal long GetSize(int postorderIndex, int typeIndex)
+            {
+                if (m_sortOrder == SortOrder.SortByDomSize)
+                {
+                    return m_context.CurrentHeapDom!.TreeSize(postorderIndex);
+                }
+                else
+                {
+                    return m_context.CurrentTraceableHeap!.GetObjectSize(m_context.CurrentTracedHeap!.PostorderAddress(postorderIndex), typeIndex, committedOnly: true);
+                }
             }
 
             internal void Add(int postorderIndex)
             {
-                int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+                m_context.EnsureTracedHeap();
+                int typeIndex = m_context.CurrentTracedHeap!.PostorderTypeIndexOrSentinel(postorderIndex);
                 if (typeIndex == -1)
                 {
                     return;
                 }
 
-                long size = m_tracedHeap.RootSet.TraceableHeap.GetObjectSize(m_tracedHeap.PostorderAddress(postorderIndex), typeIndex, committedOnly: true);
+                long size = GetSize(postorderIndex, typeIndex);
                 m_totalSize += size;
                 m_numberOfObjects++;
 
@@ -96,6 +174,8 @@ namespace MemorySnapshotAnalyzer.Commands
                 {
                     m_perTypeCounts[typeIndex] = (1, size);
                 }
+
+                m_postorderIndices.Add(postorderIndex);
             }
 
             internal void DumpSummary(IOutput output)
@@ -105,30 +185,66 @@ namespace MemorySnapshotAnalyzer.Commands
                     m_totalSize);
             }
 
-            internal void Dump(IOutput output, bool sortBySize)
+            internal void DumpStatistics(IOutput output)
             {
-                KeyValuePair<int, (int Count, long Size)>[] kvps = m_perTypeCounts.ToArray();
-                if (sortBySize)
+                KeyValuePair<int, (int count, long size)>[] kvps = m_perTypeCounts.ToArray();
+                switch (m_sortOrder)
                 {
-                    Array.Sort(kvps, (a, b) => b.Value.Size.CompareTo(a.Value.Size));
-                }
-                else
-                {
-                    Array.Sort(kvps, (a, b) => b.Value.Count.CompareTo(a.Value.Count));
+                    case SortOrder.SortByIndex:
+                        Array.Sort(kvps, (a, b) => a.Key.CompareTo(b.Key));
+                        break;
+                    case SortOrder.SortByCount:
+                        Array.Sort(kvps, (a, b) => b.Value.count.CompareTo(a.Value.count));
+                        break;
+                    case SortOrder.SortBySize:
+                    case SortOrder.SortByDomSize:
+                        Array.Sort(kvps, (a, b) => b.Value.size.CompareTo(a.Value.size));
+                        break;
                 }
 
-                foreach (KeyValuePair<int, (int Count, long Size)> kvp in kvps)
+                foreach (KeyValuePair<int, (int count, long size)> kvp in kvps)
                 {
                     output.WriteLine("{0} object(s) of type {1} (type index {2}, total size {3})",
-                        kvp.Value.Count,
-                        m_tracedHeap.RootSet.TraceableHeap.TypeSystem.QualifiedName(kvp.Key),
+                        kvp.Value.count,
+                        m_context.CurrentTracedHeap!.RootSet.TraceableHeap.TypeSystem.QualifiedName(kvp.Key),
                         kvp.Key,
-                        kvp.Value.Size);
+                        kvp.Value.size);
+                }
+            }
+
+            internal IEnumerable<int> ForAll()
+            {
+                switch (m_sortOrder)
+                {
+                    case SortOrder.SortByIndex:
+                        break;
+                    case SortOrder.SortByCount:
+                        m_postorderIndices.Sort((postorderIndex1, postorderIndex2) =>
+                        {
+                            int typeIndex1 = m_context.CurrentTracedHeap!.PostorderTypeIndexOrSentinel(postorderIndex1);
+                            int typeIndex2 = m_context.CurrentTracedHeap!.PostorderTypeIndexOrSentinel(postorderIndex2);
+                            return m_perTypeCounts[typeIndex2].count.CompareTo(m_perTypeCounts[typeIndex1].count);
+                        });
+                        break;
+                    case SortOrder.SortBySize:
+                    case SortOrder.SortByDomSize:
+                        m_postorderIndices.Sort((postorderIndex1, postorderIndex2) =>
+                        {
+                            int typeIndex1 = m_context.CurrentTracedHeap!.PostorderTypeIndexOrSentinel(postorderIndex1);
+                            int typeIndex2 = m_context.CurrentTracedHeap!.PostorderTypeIndexOrSentinel(postorderIndex2);
+                            return GetSize(postorderIndex2, typeIndex2).CompareTo(GetSize(postorderIndex1, typeIndex1));
+                        });
+                        break;
+                }
+
+                foreach (int postorderIndex in m_postorderIndices)
+                {
+                    yield return postorderIndex;
                 }
             }
         }
 
-        void ListObjects()
+        void ListObjects(SortOrder sortOrder, int domParentPostorderIndex)
         {
             // This command can operate in the following modes:
             // - (If neither 'type nor 'owned nor 'unowned are given) List all live objects.
@@ -163,32 +279,40 @@ namespace MemorySnapshotAnalyzer.Commands
                 typeSet = null;
             }
 
-            var statistics = new Statistics(CurrentTracedHeap);
-            SelectObjects(typeSet, postorderIndex => statistics.Add(postorderIndex));
-            statistics.DumpSummary(Output);
+            var selection = new Selection(Context, sortOrder);
+            SelectObjects(typeSet, domParentPostorderIndex, selection);
+            selection.DumpSummary(Output);
 
             if (StatisticsOnly)
             {
-                statistics.Dump(Output, SortBySize);
+                selection.DumpStatistics(Output);
             }
             else if (ExecCommandLine != null)
             {
-                SelectObjects(typeSet, postorderIndex => Repl.RunCommand($"{ExecCommandLine} {postorderIndex}"));
+                foreach (int postorderIndex in selection.ForAll())
+                {
+                    Repl.RunCommand($"{ExecCommandLine} {postorderIndex}");
+                }
             }
             else
             {
                 var sb = new StringBuilder();
-                SelectObjects(typeSet, postorderIndex =>
+                foreach (int postorderIndex in selection.ForAll())
                 {
                     NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
                     DescribeAddress(address, sb);
+                    if (sortOrder == SortOrder.SortByDomSize)
+                    {
+                        int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+                        sb.AppendFormat(" (dom size {0})", selection.GetSize(postorderIndex, typeIndex));
+                    }
                     Output.WriteLine(sb.ToString());
                     sb.Clear();
-                });
+                }
             }
         }
 
-        void SelectObjects(TypeSet? typeSet, Action<int> select)
+        void SelectObjects(TypeSet? typeSet, int domParentPostorderIndex, Selection selection)
         {
             for (int postorderIndex = 0; postorderIndex < CurrentTracedHeap.NumberOfPostorderNodes; postorderIndex++)
             {
@@ -204,15 +328,20 @@ namespace MemorySnapshotAnalyzer.Commands
                     {
                         selected = false;
                     }
+                    else if (domParentPostorderIndex != -1)
+                    {
+                        int domNodeIndex = CurrentHeapDom.GetDominator(CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex));
+                        selected = domParentPostorderIndex == domNodeIndex;
+                    }
 
                     if (selected)
                     {
-                        select(postorderIndex);
+                        selection.Add(postorderIndex);
                     }
                 }
             }
         }
 
-        public override string HelpText => "listobj ['stats ['sortbysize]] ['type <type index> ['includederived]] ['owned | 'unowned]";
+        public override string HelpText => "listobj ['stats] ['type <type index> ['includederived]] ['owned | 'unowned] ['dominatedby <object address or index or -1 for process>] ['sortbycount | 'sortbysize | 'sortbydomsize]";
     }
 }
