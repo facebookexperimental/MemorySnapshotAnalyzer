@@ -1,13 +1,9 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
-using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandProcessing;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -18,30 +14,11 @@ namespace MemorySnapshotAnalyzer.Commands
 #pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value
         [FlagArgument("bysize")]
         public bool OrderBySize;
-
-        [FlagArgument("list")]
-        public bool List;
-
-        [NamedArgument("type")]
-        public CommandLineArgument? TypeIndexOrPattern;
-
-        [FlagArgument("includederived")]
-        public bool IncludeDerived;
-
-        [FlagArgument("memory")]
-        public bool Memory;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
         {
-            if (List)
-            {
-                ListToplevelObjects();
-            }
-            else
-            {
-                DumpStats();
-            }
+            DumpStats();
         }
 
         void DumpStats()
@@ -108,61 +85,6 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        void ListToplevelObjects()
-        {
-            List<int>? children = CurrentHeapDom.GetChildren(CurrentHeapDom.RootNodeIndex);
-            if (children != null)
-            {
-                TypeSet? typeSet;
-                if (TypeIndexOrPattern != null)
-                {
-                    typeSet = TypeIndexOrPattern.ResolveTypeIndexOrPattern(Context, IncludeDerived);
-                }
-                else
-                {
-                    typeSet = null;
-                }
-
-                var indices = new List<int>();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    int nodeIndex = children[i];
-                    if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
-                    {
-                        int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
-                        int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-
-                        if (typeIndex != -1 && (typeSet == null || typeSet.Contains(typeIndex)))
-                        {
-                            indices.Add(postorderIndex);
-                        }
-                    }
-                }
-
-                Output.WriteLine("number of objects found: {0}", indices.Count);
-                indices.Sort(CurrentHeapDom.Comparer);
-
-                var sb = new StringBuilder();
-                foreach (int postorderIndex in indices)
-                {
-                    NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
-                    DescribeAddress(address, sb);
-                    Output.WriteLine(sb.ToString());
-                    sb.Clear();
-
-                    if (Memory)
-                    {
-                        SegmentedHeap? segmentedHeap = CurrentSegmentedHeapOpt;
-                        if (segmentedHeap != null)
-                        {
-                            MemoryView objectView = segmentedHeap.GetMemoryViewForAddress(address);
-                            DumpObjectMemory(address, objectView);
-                        }
-                    }
-                }
-            }
-        }
-
-        public override string HelpText => "heapdomstats ['list ['type <type index or pattern> ['includederived]] ['memory]]";
+        public override string HelpText => "heapdomstats ['bysize]";
     }
 }
