@@ -12,8 +12,18 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             var memorySnapshotFile = new UnityMemorySnapshotFile(filename, fileStream);
             if (memorySnapshotFile.CheckSignature())
             {
-                return memorySnapshotFile.Load();
+                try
+                {
+                    return memorySnapshotFile.Load();
+                }
+                catch (Exception)
+                {
+                    memorySnapshotFile.Dispose();
+                    throw;
+                }
             }
+
+            memorySnapshotFile.Dispose();
             return null;
         }
     }

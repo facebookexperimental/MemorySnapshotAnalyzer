@@ -416,7 +416,8 @@ namespace MemorySnapshotAnalyzer.Commands
                 currentNodeIndex = CurrentHeapDom.GetDominator(currentNodeIndex);
                 i = 1;
             }
-            while (currentNodeIndex != CurrentHeapDom.RootNodeIndex);
+            // Note that with a SingletonRootSet, we may be asked to dump the dominator tree for an unreachable node.
+            while (currentNodeIndex != -1 && currentNodeIndex != CurrentHeapDom.RootNodeIndex);
         }
 
         public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] ['fields] | 'shortestpaths ['stats] | 'mostspecificroots | 'allroots | 'dom] ['fullyqualified]";
