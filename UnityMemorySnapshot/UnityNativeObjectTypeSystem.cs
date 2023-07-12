@@ -127,6 +127,8 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         // Unreachable - no string type
         public override int SystemStringFirstCharOffset => throw new NotImplementedException();
 
+        public override int SystemVoidStarTypeIndex => -1;
+
         public override IEnumerable<string> DumpStats()
         {
             yield return string.Format("Pointer size: {0}", PointerSize);

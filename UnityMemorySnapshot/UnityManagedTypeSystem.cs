@@ -44,6 +44,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         readonly int m_stringTypeIndex;
         readonly int m_stringLengthOffset;
         readonly int m_stringFirstCharOffset;
+        readonly int m_systemVoidStarTypeIndex;
         readonly int m_unityEngineCachedPtrFieldOffset;
         readonly BitArray m_unityEngineObjectTypes;
 
@@ -59,6 +60,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             m_typesByIndex = types;
             m_fieldsByIndex = fields;
             m_stringTypeIndex = -1;
+            m_systemVoidStarTypeIndex = -1;
             int unityEngineTypeIndex = -1;
 
             // Consistency check that the types are sorted by index and indices are contiguous.
@@ -73,7 +75,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
                 if (m_stringTypeIndex == -1
                     && IsInMscorlib(typeIndex)
-                    && QualifiedName(typeIndex) == "System.String")
+                    && QualifiedName(typeIndex).Equals("System.String", StringComparison.Ordinal))
                 {
                     m_stringTypeIndex = typeIndex;
 
@@ -92,9 +94,16 @@ namespace MemorySnapshotAnalyzer.UnityBackend
                     }
                 }
 
+                if (m_systemVoidStarTypeIndex == -1
+                    && IsInMscorlib(typeIndex)
+                    && QualifiedName(typeIndex).Equals("System.Void*", StringComparison.Ordinal))
+                {
+                    m_systemVoidStarTypeIndex = typeIndex;
+                }
+
                 if (unityEngineTypeIndex == -1
-                    && Assembly(typeIndex) == "UnityEngine.CoreModule.dll"
-                    && QualifiedName(typeIndex) == "UnityEngine.Object")
+                    && Assembly(typeIndex).Equals("UnityEngine.CoreModule.dll", StringComparison.Ordinal)
+                    && QualifiedName(typeIndex).Equals("UnityEngine.Object", StringComparison.Ordinal))
                 {
                     unityEngineTypeIndex = typeIndex;
 
@@ -346,12 +355,14 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         public override int SystemStringFirstCharOffset => m_stringFirstCharOffset;
 
+        public override int SystemVoidStarTypeIndex => m_systemVoidStarTypeIndex;
+
         internal bool IsUnityEngineType(int typeIndex)
         {
             return m_unityEngineObjectTypes[typeIndex];
         }
 
-        internal int UnityEngineCachecPtrFieldOffset => m_unityEngineCachedPtrFieldOffset;
+        internal int UnityEngineCachedPtrFieldOffset => m_unityEngineCachedPtrFieldOffset;
 
         public override IEnumerable<string> DumpStats()
         {

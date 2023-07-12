@@ -346,7 +346,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                     }
 
                     string fieldName = typeSystem.FieldName(typeIndex, fieldNumber);
-                    if (fieldNameOpt != null && !fieldName.Equals(fieldNameOpt, StringComparison.InvariantCulture))
+                    if (fieldNameOpt != null && !fieldName.Equals(fieldNameOpt, StringComparison.Ordinal))
                     {
                         continue;
                     }
@@ -394,7 +394,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             TypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
-            if (typeSystem.IsValueType(fieldTypeIndex))
+            if (typeSystem.IsValueType(fieldTypeIndex) && fieldTypeIndex != CurrentTraceableHeap.TypeSystem.SystemVoidStarTypeIndex)
             {
                 DumpValueTypeMemory(objectView, fieldTypeIndex, indent);
             }
@@ -421,10 +421,10 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 }
 
                 string fieldName = typeSystem.FieldName(typeIndex, fieldNumber);
-                    if (fieldNameOpt != null && !fieldName.Equals(fieldNameOpt, StringComparison.InvariantCulture))
-                    {
-                        continue;
-                    }
+                if (fieldNameOpt != null && !fieldName.Equals(fieldNameOpt, StringComparison.Ordinal))
+                {
+                    continue;
+                }
 
                 int fieldOffset = typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: false);
                 int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);

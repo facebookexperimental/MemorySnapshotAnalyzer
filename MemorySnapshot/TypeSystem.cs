@@ -64,6 +64,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract int SystemStringFirstCharOffset { get; }
 
+        public abstract int SystemVoidStarTypeIndex { get; }
+
         public abstract IEnumerable<string> DumpStats();
 
         ValueTuple<int, int> EnsurePointerOffsets(int typeIndex)
