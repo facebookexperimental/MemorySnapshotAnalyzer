@@ -41,7 +41,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 TracedHeap_WeakGCHandles = configuration.GetValue<bool>("WeakGCHandles"),
                 Backtracer_GroupStatics = configuration.GetValue<bool>("GroupStatics"),
                 Backtracer_FuseRoots = configuration.GetValue<bool>("FuseRoots"),
-                Backtracer_WeakDelegates = configuration.GetValue<bool>("WeakReferences")
+                Backtracer_WeakDelegates = configuration.GetValue<bool>("WeakDelegates")
             });
             m_currentContextId = 0;
         }
