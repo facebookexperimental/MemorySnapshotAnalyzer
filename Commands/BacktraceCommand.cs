@@ -102,7 +102,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 return;
             }
 
-            if (DumpBacktraceLine(nodeIndex, ancestors, seen, depth, successorNodeIndex))
+            if (DumpBacktraceLine(nodeIndex, ancestors, seen, depth, successorNodeIndex, prefix: string.Empty))
             {
                 return;
             }
@@ -115,7 +115,7 @@ namespace MemorySnapshotAnalyzer.Commands
             ancestors.Remove(nodeIndex);
         }
 
-        bool DumpBacktraceLine(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int indent, int successorNodeIndex)
+        bool DumpBacktraceLine(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int indent, int successorNodeIndex, string prefix)
         {
             string fields = "";
             if (Fields && successorNodeIndex != -1 && CurrentBacktracer.IsLiveObjectNode(nodeIndex))
@@ -128,11 +128,11 @@ namespace MemorySnapshotAnalyzer.Commands
                 // Back reference to a node that was already printed.
                 if (ancestors.Contains(nodeIndex))
                 {
-                    Output.WriteLineIndented(indent, "^^ {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                    Output.WriteLineIndented(indent, "{0}^^ {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
                 }
                 else
                 {
-                    Output.WriteLineIndented(indent, "~~ {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                    Output.WriteLineIndented(indent, "{0}~~ {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
                 }
                 return true;
             }
@@ -140,15 +140,15 @@ namespace MemorySnapshotAnalyzer.Commands
 
             if (CurrentBacktracer.IsOwned(nodeIndex))
             {
-                Output.WriteLineIndented(indent, "** {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                Output.WriteLineIndented(indent, "{0}** {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
             }
             else if (CurrentBacktracer.IsWeak(nodeIndex))
             {
-                Output.WriteLineIndented(indent, ".. {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                Output.WriteLineIndented(indent, "{0}.. {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
             }
             else
             {
-                Output.WriteLineIndented(indent, "{0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                Output.WriteLineIndented(indent, "{0}{1}{2}", prefix,CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
             }
 
             return false;
@@ -177,6 +177,11 @@ namespace MemorySnapshotAnalyzer.Commands
             return sb.ToString();
         }
 
+        sealed class TrieNode
+        {
+            internal Dictionary<int, TrieNode>? Children;
+        }
+
         void DumpShortestPathsToRoots(int nodeIndex)
         {
             // TODO: as written, this doesn't technically find the shortest paths.
@@ -202,27 +207,61 @@ namespace MemorySnapshotAnalyzer.Commands
             }
             else
             {
+                TrieNode trie = CreateTrie(shortestPaths);
+
                 var ancestors = new HashSet<int>();
                 seen.Clear();
-                foreach (int rootNodeIndex in reachableRoots)
+                DumpTrie(nodeIndex, trie, ancestors, seen, indent: 0, successorNodeIndex: -1, condensed: false, singleChild: true);
+            }
+        }
+
+        static TrieNode CreateTrie(Dictionary<int, int[]> shortestPaths)
+        {
+            TrieNode trie = new();
+            foreach ((int _, int[] path) in shortestPaths)
+            {
+                TrieNode current = trie;
+                for (int i = 1; i < path.Length; i++)
                 {
-                    int[] path = shortestPaths[rootNodeIndex];
-                    int indent = 0;
-                    for (int i = path.Length - 1; i >= 0; i--)
+                    if (current.Children == null)
                     {
-                        int thisNodeIndex = path[i];
-                        int successorNodeIndex = i > 0 ? path[i - 1] : -1;
-                        if (DumpBacktraceLine(thisNodeIndex, ancestors, seen, indent, successorNodeIndex))
-                        {
-                            break;
-                        }
-                        indent = 1;
+                        current.Children = new Dictionary<int, TrieNode>();
                     }
+
+                    int nodeIndex = path[i];
+                    if (!current.Children.TryGetValue(nodeIndex, out TrieNode? child))
+                    {
+                        child = new TrieNode();
+                        current.Children.Add(nodeIndex, child);
+                    }
+
+                    current = child;
+                }
+            }
+            return trie;
+        }
+
+        void DumpTrie(int nodeIndex, TrieNode trie, HashSet<int> ancestors, HashSet<int> seen, int indent, int successorNodeIndex, bool condensed, bool singleChild)
+        {
+            _ = DumpBacktraceLine(nodeIndex, ancestors, seen, indent, successorNodeIndex, prefix: condensed ? @"\ " : string.Empty);
+
+            if (trie.Children != null)
+            {
+                foreach ((int predNodeIndex, TrieNode child) in trie.Children)
+                {
+                    bool newCondense = singleChild && trie.Children.Count == 1;
+                    int newIndent = newCondense ? indent : indent + 1;
+                    DumpTrie(predNodeIndex, child, ancestors, seen, newIndent, nodeIndex, condensed: newCondense, singleChild: trie.Children.Count == 1);
                 }
             }
         }
 
         void ComputeShortestPathsToRoots(int nodeIndex, List<int> currentPath, HashSet<int> seen, Dictionary<int, int[]> shortestPaths)
+        {
+            ComputeShortestPaths(nodeIndex, currentPath, seen, shortestPaths, nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex));
+        }
+
+        void ComputeShortestPaths(int nodeIndex, List<int> currentPath, HashSet<int> seen, Dictionary<int, int[]> shortestPaths, Predicate<int> isDestination)
         {
             currentPath.Add(nodeIndex);
 
@@ -230,7 +269,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 seen.Add(nodeIndex);
 
-                if (CurrentBacktracer.IsRootSentinel(nodeIndex))
+                if (isDestination(nodeIndex))
                 {
                     if (!shortestPaths.TryGetValue(nodeIndex, out int[]? shortestPath)
                         || shortestPath.Length > currentPath.Count)
@@ -240,9 +279,9 @@ namespace MemorySnapshotAnalyzer.Commands
                 }
                 else
                 {
-                    foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
+                    foreach (int predNodeIndex in CurrentBacktracer.Predecessors(nodeIndex))
                     {
-                        ComputeShortestPathsToRoots(predIndex, currentPath, seen, shortestPaths);
+                        ComputeShortestPaths(predNodeIndex, currentPath, seen, shortestPaths, isDestination);
                     }
                 }
             }
