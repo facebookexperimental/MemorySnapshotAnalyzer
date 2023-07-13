@@ -263,7 +263,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 seen.Add(nodeIndex);
 
-                if (isDestination(nodeIndex))
+                if (currentPath.Count > 1 && isDestination(nodeIndex))
                 {
                     // If we found a shorter lifeline to the same destination, only keep the shorter one.
                     if (!lifelines.TryGetValue(nodeIndex, out int[]? lifeline)
