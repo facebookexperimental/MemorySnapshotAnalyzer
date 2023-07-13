@@ -102,6 +102,21 @@ namespace MemorySnapshotAnalyzer.Commands
                 return;
             }
 
+            if (DumpBacktraceLine(nodeIndex, ancestors, seen, depth, successorNodeIndex))
+            {
+                return;
+            }
+
+            ancestors.Add(nodeIndex);
+            foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
+            {
+                DumpBacktraces(predIndex, ancestors, seen, depth + 1, successorNodeIndex: nodeIndex);
+            }
+            ancestors.Remove(nodeIndex);
+        }
+
+        bool DumpBacktraceLine(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int indent, int successorNodeIndex)
+        {
             string fields = "";
             if (Fields && successorNodeIndex != -1 && CurrentBacktracer.IsLiveObjectNode(nodeIndex))
             {
@@ -113,36 +128,30 @@ namespace MemorySnapshotAnalyzer.Commands
                 // Back reference to a node that was already printed.
                 if (ancestors.Contains(nodeIndex))
                 {
-                    Output.WriteLineIndented(depth, "^^ {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                    Output.WriteLineIndented(indent, "^^ {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
                 }
                 else
                 {
-                    Output.WriteLineIndented(depth, "~~ {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                    Output.WriteLineIndented(indent, "~~ {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
                 }
-                return;
+                return true;
             }
-
             seen.Add(nodeIndex);
 
             if (CurrentBacktracer.IsOwned(nodeIndex))
             {
-                Output.WriteLineIndented(depth, "** {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                Output.WriteLineIndented(indent, "** {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
             }
             else if (CurrentBacktracer.IsWeak(nodeIndex))
             {
-                Output.WriteLineIndented(depth, ".. {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                Output.WriteLineIndented(indent, ".. {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
             }
             else
             {
-                Output.WriteLineIndented(depth, "{0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                Output.WriteLineIndented(indent, "{0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
             }
 
-            ancestors.Add(nodeIndex);
-            foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
-            {
-                DumpBacktraces(predIndex, ancestors, seen, depth + 1, successorNodeIndex: nodeIndex);
-            }
-            ancestors.Remove(nodeIndex);
+            return false;
         }
 
         string CollectFields(int nodeIndex, int successorNodeIndex)
@@ -193,23 +202,21 @@ namespace MemorySnapshotAnalyzer.Commands
             }
             else
             {
+                var ancestors = new HashSet<int>();
+                seen.Clear();
                 foreach (int rootNodeIndex in reachableRoots)
                 {
                     int[] path = shortestPaths[rootNodeIndex];
+                    int indent = 0;
                     for (int i = path.Length - 1; i >= 0; i--)
                     {
                         int thisNodeIndex = path[i];
                         int successorNodeIndex = i > 0 ? path[i - 1] : -1;
-
-                        string fields = "";
-                        if (Fields && successorNodeIndex != -1 && CurrentBacktracer.IsLiveObjectNode(thisNodeIndex))
+                        if (DumpBacktraceLine(thisNodeIndex, ancestors, seen, indent, successorNodeIndex))
                         {
-                            fields = CollectFields(thisNodeIndex, successorNodeIndex);
+                            break;
                         }
-
-                        Output.WriteLineIndented(i == path.Length - 1 ? 0 : 1, "{0}{1}",
-                            CurrentBacktracer.DescribeNodeIndex(thisNodeIndex, FullyQualified),
-                            fields);
+                        indent = 1;
                     }
                 }
             }
