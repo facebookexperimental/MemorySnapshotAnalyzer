@@ -23,8 +23,8 @@ namespace MemorySnapshotAnalyzer.Commands
         [FlagArgument("shortestpaths")]
         public bool ShortestPaths;
 
-        [FlagArgument("allroots")]
-        public bool RootsOnly;
+        [FlagArgument("owners")]
+        public bool Owners;
 
         [FlagArgument("dom")]
         public bool Dominators;
@@ -46,20 +46,20 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             int numberOfModes = 0;
             numberOfModes += ShortestPaths ? 1 : 0;
-            numberOfModes += RootsOnly ? 1 : 0;
+            numberOfModes += Owners ? 1 : 0;
             numberOfModes += Dominators ? 1 : 0;
             numberOfModes += OutputDotFilename != null ? 1 : 0;
             if (numberOfModes > 1)
             {
-                throw new CommandException("at most one of a dot filename, 'shortestpaths, 'allroots, or 'dom may be given");
+                throw new CommandException("at most one of a dot filename, 'shortestpaths, 'owners, or 'dom may be given");
             }
 
             int postorderIndex = Context.ResolveToPostorderIndex(AddressOrIndex);
             int nodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex);
 
-            if (ShortestPaths || RootsOnly)
+            if (ShortestPaths || Owners)
             {
-                DumpShortestPathsToRoots(nodeIndex);
+                DumpShortestPaths(nodeIndex);
             }
             else if (Dominators)
             {
@@ -173,7 +173,7 @@ namespace MemorySnapshotAnalyzer.Commands
             internal Dictionary<int, TrieNode>? Children;
         }
 
-        void DumpShortestPathsToRoots(int nodeIndex)
+        void DumpShortestPaths(int nodeIndex)
         {
             // TODO: as written, this doesn't technically find the shortest paths.
             // Perhaps we should find all reachable roots first, then use Diijstra's algorithm.
@@ -182,16 +182,16 @@ namespace MemorySnapshotAnalyzer.Commands
             var currentPath = new List<int>();
             var seen = new HashSet<int>();
             var shortestPaths = new Dictionary<int, int[]>();
-            ComputeShortestPathsToRoots(nodeIndex, currentPath, seen, shortestPaths);
+            ComputeShortestPaths(nodeIndex, currentPath, seen, shortestPaths, nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex));
 
             int[] reachableRoots = shortestPaths.Keys.ToArray();
             Array.Sort(reachableRoots, (a, b) => shortestPaths[a].Length.CompareTo(shortestPaths[b].Length));
 
-            if (RootsOnly)
+            if (Owners)
             {
                 foreach (int rootNodeIndex in reachableRoots)
                 {
-                    Output.WriteLine("{0}: {1}",
+                    Output.WriteLine("{0}: {1} hop(s)",
                         CurrentBacktracer.DescribeNodeIndex(rootNodeIndex, FullyQualified),
                         shortestPaths[rootNodeIndex].Length);
                 }
@@ -245,11 +245,6 @@ namespace MemorySnapshotAnalyzer.Commands
                     DumpTrie(predNodeIndex, child, ancestors, seen, newIndent, nodeIndex, condensed: newCondense, singleChild: trie.Children.Count == 1);
                 }
             }
-        }
-
-        void ComputeShortestPathsToRoots(int nodeIndex, List<int> currentPath, HashSet<int> seen, Dictionary<int, int[]> shortestPaths)
-        {
-            ComputeShortestPaths(nodeIndex, currentPath, seen, shortestPaths, nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex));
         }
 
         void ComputeShortestPaths(int nodeIndex, List<int> currentPath, HashSet<int> seen, Dictionary<int, int[]> shortestPaths, Predicate<int> isDestination)
@@ -335,6 +330,6 @@ namespace MemorySnapshotAnalyzer.Commands
             while (currentNodeIndex != -1 && currentNodeIndex != CurrentHeapDom.RootNodeIndex);
         }
 
-        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] ['fields] | 'shortestpaths ['stats] | 'allroots | 'dom] ['fullyqualified]";
+        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] ['fields] | 'shortestpaths ['stats] | 'owners | 'dom] ['fullyqualified]";
     }
 }
