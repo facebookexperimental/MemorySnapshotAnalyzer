@@ -20,9 +20,6 @@ namespace MemorySnapshotAnalyzer.Commands
         [PositionalArgument(1, optional: true)]
         public string? OutputDotFilename;
 
-        [NamedArgument("depth")]
-        public int MaxDepth;
-
         [FlagArgument("shortestpaths")]
         public bool ShortestPaths;
 
@@ -32,8 +29,8 @@ namespace MemorySnapshotAnalyzer.Commands
         [FlagArgument("dom")]
         public bool Dominators;
 
-        [FlagArgument("stats")]
-        public bool Statistics;
+        [NamedArgument("depth")]
+        public int MaxDepth;
 
         [FlagArgument("fullyqualified")]
         public bool FullyQualified;
@@ -47,20 +44,22 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
+            int numberOfModes = 0;
+            numberOfModes += ShortestPaths ? 1 : 0;
+            numberOfModes += RootsOnly ? 1 : 0;
+            numberOfModes += Dominators ? 1 : 0;
+            numberOfModes += OutputDotFilename != null ? 1 : 0;
+            if (numberOfModes > 1)
+            {
+                throw new CommandException("at most one of a dot filename, 'shortestpaths, 'allroots, or 'dom may be given");
+            }
+
             int postorderIndex = Context.ResolveToPostorderIndex(AddressOrIndex);
             int nodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex);
 
-            if (ShortestPaths)
+            if (ShortestPaths || RootsOnly)
             {
                 DumpShortestPathsToRoots(nodeIndex);
-            }
-            else if (RootsOnly)
-            {
-                Output.WriteLineIndented(0, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
-                foreach (int rootIndex in GetAllReachableRoots(nodeIndex))
-                {
-                    Output.WriteLineIndented(1, CurrentBacktracer.DescribeNodeIndex(rootIndex, FullyQualified));
-                }
             }
             else if (Dominators)
             {
@@ -188,7 +187,7 @@ namespace MemorySnapshotAnalyzer.Commands
             int[] reachableRoots = shortestPaths.Keys.ToArray();
             Array.Sort(reachableRoots, (a, b) => shortestPaths[a].Length.CompareTo(shortestPaths[b].Length));
 
-            if (Statistics)
+            if (RootsOnly)
             {
                 foreach (int rootNodeIndex in reachableRoots)
                 {
@@ -314,34 +313,6 @@ namespace MemorySnapshotAnalyzer.Commands
                     foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
                     {
                         DumpBacktracesToDot(predIndex, nodeIndex, seen, depth + 1);
-                    }
-                }
-            }
-        }
-
-        List<int> GetAllReachableRoots(int nodeIndex)
-        {
-            var seen = new HashSet<int>();
-            var roots = new List<int>();
-            FindReachableRoots(nodeIndex, seen, roots);
-            return roots;
-        }
-
-        void FindReachableRoots(int nodeIndex, HashSet<int> seen, List<int> roots)
-        {
-            if (!seen.Contains(nodeIndex))
-            {
-                seen.Add(nodeIndex);
-
-                if (CurrentBacktracer.IsRootSentinel(nodeIndex))
-                {
-                    roots.Add(nodeIndex);
-                }
-                else
-                {
-                    foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
-                    {
-                        FindReachableRoots(predIndex, seen, roots);
                     }
                 }
             }
