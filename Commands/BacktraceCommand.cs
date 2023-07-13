@@ -198,8 +198,18 @@ namespace MemorySnapshotAnalyzer.Commands
                     int[] path = shortestPaths[rootNodeIndex];
                     for (int i = path.Length - 1; i >= 0; i--)
                     {
-                        Output.WriteLineIndented(i == path.Length - 1 ? 0 : 1,
-                            CurrentBacktracer.DescribeNodeIndex(path[i], FullyQualified));
+                        int thisNodeIndex = path[i];
+                        int successorNodeIndex = i > 0 ? path[i - 1] : -1;
+
+                        string fields = "";
+                        if (Fields && successorNodeIndex != -1 && CurrentBacktracer.IsLiveObjectNode(thisNodeIndex))
+                        {
+                            fields = CollectFields(thisNodeIndex, successorNodeIndex);
+                        }
+
+                        Output.WriteLineIndented(i == path.Length - 1 ? 0 : 1, "{0}{1}",
+                            CurrentBacktracer.DescribeNodeIndex(thisNodeIndex, FullyQualified),
+                            fields);
                     }
                 }
             }
