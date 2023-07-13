@@ -179,16 +179,13 @@ namespace MemorySnapshotAnalyzer.Commands
             // Perhaps we should find all reachable roots first, then use Diijstra's algorithm.
             // Left it here because it's still somewhat useful.
 
-            var currentPath = new List<int>();
-            var seen = new HashSet<int>();
-            var shortestPaths = new Dictionary<int, int[]>();
-            ComputeShortestPaths(nodeIndex, currentPath, seen, shortestPaths, nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex));
-
-            int[] reachableRoots = shortestPaths.Keys.ToArray();
-            Array.Sort(reachableRoots, (a, b) => shortestPaths[a].Length.CompareTo(shortestPaths[b].Length));
+            Dictionary<int, int[]> shortestPaths = ComputeShortestPaths(nodeIndex, nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex) || CurrentBacktracer.IsOwned(nodeIndex));
 
             if (Owners)
             {
+                int[] reachableRoots = shortestPaths.Keys.ToArray();
+                Array.Sort(reachableRoots, (a, b) => shortestPaths[a].Length.CompareTo(shortestPaths[b].Length));
+
                 foreach (int rootNodeIndex in reachableRoots)
                 {
                     Output.WriteLine("{0}: {1} hop(s)",
@@ -200,8 +197,8 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 TrieNode trie = CreateTrie(shortestPaths);
 
-                var ancestors = new HashSet<int>();
-                seen.Clear();
+                HashSet<int> ancestors = new();
+                HashSet<int> seen = new ();
                 DumpTrie(nodeIndex, trie, ancestors, seen, indent: 0, successorNodeIndex: -1, condensed: false, singleChild: true);
             }
         }
@@ -245,6 +242,15 @@ namespace MemorySnapshotAnalyzer.Commands
                     DumpTrie(predNodeIndex, child, ancestors, seen, newIndent, nodeIndex, condensed: newCondense, singleChild: trie.Children.Count == 1);
                 }
             }
+        }
+
+        Dictionary<int, int[]> ComputeShortestPaths(int nodeIndex, Predicate<int> isDestination)
+        {
+            List<int> currentPath = new();
+            HashSet<int> seen = new();
+            Dictionary<int, int[]> shortestPaths = new();
+            ComputeShortestPaths(nodeIndex, currentPath, seen, shortestPaths, isDestination);
+            return shortestPaths;
         }
 
         void ComputeShortestPaths(int nodeIndex, List<int> currentPath, HashSet<int> seen, Dictionary<int, int[]> shortestPaths, Predicate<int> isDestination)
@@ -330,6 +336,6 @@ namespace MemorySnapshotAnalyzer.Commands
             while (currentNodeIndex != -1 && currentNodeIndex != CurrentHeapDom.RootNodeIndex);
         }
 
-        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] ['fields] | 'shortestpaths ['stats] | 'owners | 'dom] ['fullyqualified]";
+        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] | 'shortestpaths | 'owners | 'dom] ['fullyqualified] ['fields]";
     }
 }
