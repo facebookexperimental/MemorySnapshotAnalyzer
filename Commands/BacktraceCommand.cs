@@ -1,7 +1,6 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandProcessing;
 using System;
 using System.Collections.Generic;
@@ -26,9 +25,6 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("shortestpaths")]
         public bool ShortestPaths;
-
-        [FlagArgument("mostspecificroots")]
-        public bool MostSpecificRoots;
 
         [FlagArgument("allroots")]
         public bool RootsOnly;
@@ -57,10 +53,6 @@ namespace MemorySnapshotAnalyzer.Commands
             if (ShortestPaths)
             {
                 DumpShortestPathsToRoots(nodeIndex);
-            }
-            else if (MostSpecificRoots)
-            {
-                DumpSingleMostSpecificRoots(nodeIndex);
             }
             else if (RootsOnly)
             {
@@ -355,110 +347,6 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        void DumpSingleMostSpecificRoots(int nodeIndex)
-        {
-            Output.WriteLineIndented(0, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
-            List<string> rootPath = SingleMostSpecificVirtualRoot(nodeIndex);
-            var sb = new StringBuilder();
-            foreach (string s in rootPath)
-            {
-                if (sb.Length > 0)
-                {
-                    sb.Append(" -> ");
-                }
-                sb.Append(s);
-            }
-            Output.WriteLineIndented(1, sb.ToString());
-        }
-
-        List<string> SingleMostSpecificVirtualRoot(int nodeIndex)
-        {
-            var result = new List<string>();
-
-            List<int> reachableRoots = GetAllReachableRoots(nodeIndex);
-
-            int numberOfGCHandles = 0;
-
-            IRootSet.StaticRootInfo theOne = default;
-            bool allFromOneAssembly = true;
-            bool allFromOneNamespace = true;
-            bool allFromOneClass = true;
-
-            for (int i = 0; i < reachableRoots.Count && allFromOneAssembly; i++)
-            {
-                List<(int rootIndex, PointerInfo<NativeWord> PointerInfo)> rootInfos = CurrentTracedHeap.PostorderRootIndices(CurrentBacktracer.NodeIndexToPostorderIndex(reachableRoots[i]));
-                foreach ((int rootIndex, _) in rootInfos)
-                {
-                    if (CurrentRootSet.IsGCHandle(rootIndex))
-                    {
-                        numberOfGCHandles++;
-                        continue;
-                    }
-
-                    // If roots are a mix of GCHandles and statics, ignore the GCHandles.
-                    IRootSet.StaticRootInfo info = CurrentRootSet.GetStaticRootInfo(rootIndex);
-                    if (info.AssemblyName == null)
-                    {
-                        allFromOneAssembly = false;
-                    }
-
-                    if (allFromOneAssembly)
-                    {
-                        if (theOne.AssemblyName == null)
-                        {
-                            theOne.AssemblyName = info.AssemblyName!;
-                        }
-                        else if (info.AssemblyName != theOne.AssemblyName)
-                        {
-                            allFromOneAssembly = false;
-                        }
-                    }
-
-                    if (allFromOneNamespace)
-                    {
-                        if (theOne.NamespaceName == null)
-                        {
-                            theOne.NamespaceName = info.NamespaceName!;
-                        }
-                        else if (info.NamespaceName != theOne.NamespaceName)
-                        {
-                            allFromOneNamespace = false;
-                        }
-                    }
-
-                    if (allFromOneClass)
-                    {
-                        if (theOne.ClassName == null)
-                        {
-                            theOne.ClassName = info.ClassName!;
-                        }
-                        else if (info.ClassName != theOne.ClassName)
-                        {
-                            allFromOneClass = false;
-                        }
-                    }
-                }
-            }
-
-            if (allFromOneAssembly && theOne.AssemblyName != null)
-            {
-                result.Add(theOne.AssemblyName);
-                if (allFromOneNamespace && theOne.NamespaceName != null)
-                {
-                    result.Add(theOne.NamespaceName);
-                    if (allFromOneClass && theOne.ClassName != null)
-                    {
-                        result.Add(theOne.ClassName);
-                    }
-                }
-            }
-            else if (numberOfGCHandles == reachableRoots.Count)
-            {
-                result.Add("GCHandles");
-            }
-            return result;
-        }
-
         void DumpDominators(int nodeIndex)
         {
             int currentNodeIndex = nodeIndex;
@@ -476,6 +364,6 @@ namespace MemorySnapshotAnalyzer.Commands
             while (currentNodeIndex != -1 && currentNodeIndex != CurrentHeapDom.RootNodeIndex);
         }
 
-        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] ['fields] | 'shortestpaths ['stats] | 'mostspecificroots | 'allroots | 'dom] ['fullyqualified]";
+        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] ['fields] | 'shortestpaths ['stats] | 'allroots | 'dom] ['fullyqualified]";
     }
 }
