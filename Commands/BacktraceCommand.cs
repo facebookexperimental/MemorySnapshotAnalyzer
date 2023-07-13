@@ -20,8 +20,8 @@ namespace MemorySnapshotAnalyzer.Commands
         [PositionalArgument(1, optional: true)]
         public string? OutputDotFilename;
 
-        [FlagArgument("shortestpaths")]
-        public bool ShortestPaths;
+        [FlagArgument("lifelines")]
+        public bool Lifelines;
 
         [FlagArgument("owners")]
         public bool Owners;
@@ -45,21 +45,21 @@ namespace MemorySnapshotAnalyzer.Commands
         public override void Run()
         {
             int numberOfModes = 0;
-            numberOfModes += ShortestPaths ? 1 : 0;
+            numberOfModes += Lifelines ? 1 : 0;
             numberOfModes += Owners ? 1 : 0;
             numberOfModes += Dominators ? 1 : 0;
             numberOfModes += OutputDotFilename != null ? 1 : 0;
             if (numberOfModes > 1)
             {
-                throw new CommandException("at most one of a dot filename, 'shortestpaths, 'owners, or 'dom may be given");
+                throw new CommandException("at most one of a dot filename, 'lifelines, 'owners, or 'dom may be given");
             }
 
             int postorderIndex = Context.ResolveToPostorderIndex(AddressOrIndex);
             int nodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex);
 
-            if (ShortestPaths || Owners)
+            if (Lifelines || Owners)
             {
-                DumpShortestPaths(nodeIndex);
+                DumpLifelines(nodeIndex);
             }
             else if (Dominators)
             {
@@ -173,29 +173,25 @@ namespace MemorySnapshotAnalyzer.Commands
             internal Dictionary<int, TrieNode>? Children;
         }
 
-        void DumpShortestPaths(int nodeIndex)
+        void DumpLifelines(int nodeIndex)
         {
-            // TODO: as written, this doesn't technically find the shortest paths.
-            // Perhaps we should find all reachable roots first, then use Diijstra's algorithm.
-            // Left it here because it's still somewhat useful.
-
-            Dictionary<int, int[]> shortestPaths = ComputeShortestPaths(nodeIndex, nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex) || CurrentBacktracer.IsOwned(nodeIndex));
+            Dictionary<int, int[]> lifelines = ComputeLifelines(nodeIndex, nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex) || CurrentBacktracer.IsOwned(nodeIndex));
 
             if (Owners)
             {
-                int[] reachableRoots = shortestPaths.Keys.ToArray();
-                Array.Sort(reachableRoots, (a, b) => shortestPaths[a].Length.CompareTo(shortestPaths[b].Length));
+                int[] reachableRoots = lifelines.Keys.ToArray();
+                Array.Sort(reachableRoots, (a, b) => lifelines[a].Length.CompareTo(lifelines[b].Length));
 
                 foreach (int rootNodeIndex in reachableRoots)
                 {
                     Output.WriteLine("{0}: {1} hop(s)",
                         CurrentBacktracer.DescribeNodeIndex(rootNodeIndex, FullyQualified),
-                        shortestPaths[rootNodeIndex].Length);
+                        lifelines[rootNodeIndex].Length);
                 }
             }
             else
             {
-                TrieNode trie = CreateTrie(shortestPaths);
+                TrieNode trie = CreateTrie(lifelines);
 
                 HashSet<int> ancestors = new();
                 HashSet<int> seen = new ();
@@ -203,10 +199,10 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        static TrieNode CreateTrie(Dictionary<int, int[]> shortestPaths)
+        static TrieNode CreateTrie(Dictionary<int, int[]> lifelines)
         {
             TrieNode trie = new();
-            foreach ((int _, int[] path) in shortestPaths)
+            foreach ((int _, int[] path) in lifelines)
             {
                 TrieNode current = trie;
                 for (int i = 1; i < path.Length; i++)
@@ -244,16 +240,22 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        Dictionary<int, int[]> ComputeShortestPaths(int nodeIndex, Predicate<int> isDestination)
+        Dictionary<int, int[]> ComputeLifelines(int nodeIndex, Predicate<int> isDestination)
         {
+            // This algorithm produces a cheap-to-compute approximation of "relative short" paths
+            // from the target node to all of its transitive owners (strongly-owned nodes according
+            // to the reference classifier, or roots). If a given object has been leaked (should have
+            // become eligible for garbage collection, but hasn't), the lifelines provide (some)
+            // relatively simple reference chains that need to be broken to make the object unreachable.
+
             List<int> currentPath = new();
             HashSet<int> seen = new();
-            Dictionary<int, int[]> shortestPaths = new();
-            ComputeShortestPaths(nodeIndex, currentPath, seen, shortestPaths, isDestination);
-            return shortestPaths;
+            Dictionary<int, int[]> lifelines = new();
+            ComputeLifelines(nodeIndex, currentPath, seen, lifelines, isDestination);
+            return lifelines;
         }
 
-        void ComputeShortestPaths(int nodeIndex, List<int> currentPath, HashSet<int> seen, Dictionary<int, int[]> shortestPaths, Predicate<int> isDestination)
+        void ComputeLifelines(int nodeIndex, List<int> currentPath, HashSet<int> seen, Dictionary<int, int[]> lifelines, Predicate<int> isDestination)
         {
             currentPath.Add(nodeIndex);
 
@@ -263,17 +265,18 @@ namespace MemorySnapshotAnalyzer.Commands
 
                 if (isDestination(nodeIndex))
                 {
-                    if (!shortestPaths.TryGetValue(nodeIndex, out int[]? shortestPath)
-                        || shortestPath.Length > currentPath.Count)
+                    // If we found a shorter lifeline to the same destination, only keep the shorter one.
+                    if (!lifelines.TryGetValue(nodeIndex, out int[]? lifeline)
+                        || lifeline.Length > currentPath.Count)
                     {
-                        shortestPaths[nodeIndex] = currentPath.ToArray();
+                        lifelines[nodeIndex] = currentPath.ToArray();
                     }
                 }
                 else
                 {
                     foreach (int predNodeIndex in CurrentBacktracer.Predecessors(nodeIndex))
                     {
-                        ComputeShortestPaths(predNodeIndex, currentPath, seen, shortestPaths, isDestination);
+                        ComputeLifelines(predNodeIndex, currentPath, seen, lifelines, isDestination);
                     }
                 }
             }
@@ -336,6 +339,6 @@ namespace MemorySnapshotAnalyzer.Commands
             while (currentNodeIndex != -1 && currentNodeIndex != CurrentHeapDom.RootNodeIndex);
         }
 
-        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] | 'shortestpaths | 'owners | 'dom] ['fullyqualified] ['fields]";
+        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] | 'lifelines | 'owners | 'dom] ['fullyqualified] ['fields]";
     }
 }
