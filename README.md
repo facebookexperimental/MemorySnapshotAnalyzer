@@ -105,6 +105,16 @@ The `'referenceclassifier` option takes the name of a configuration file with th
 
 To help identify where configuring more owning references could be useful, you can use the `heapdomstats` command. When run without arguments, this provides statistics on the most frequent types of objects that have floated all the way to the top of the dominator tree. Running `listobj 'dominatedby -1` (and, optionally, `'type` and a type index or pattern), this lists the specific object instances that have floated to the top. Then use `backtrace 'depth 1` on some of the given object indices to see whether one of the references in the backtrace clearly should be considered the "owning" reference, and add the referring field to the configuration file. To verify the effectiveness of the expanded configuration, reload the updated file by re-issuing `options 'referenceclassifier`, and rerun `heapdomstats` again.
 
+### Tips for Chasing Down Memory Leaks Using Reference Classifiers and Lifelines
+
+When an object on a managed heap is not considered, according to the design of the program, as one that – after this point in time in the program's execution – should no longer be accessed, but that is still reachable in the object graph. The "leaked" object will, in turn, possibly hold a possibly-substantial graph of objects live (the subtree under the object's node in the dominator tree).
+
+Here are some tips that can be helpful for identifying leaked objects and fixing the cause for the leak:
+1. If you suspect objects of a specific type to be leaked, construct a reference classifier configuration file that identifies the "owning references" through which instances of this type would usually be reached, before they are leaked. Then use `listobj 'unowned` to dump instances of this type that are still reachable on the heap, but only in other (unintended) ways than the owning reference.
+2. Use `backtrace 'lifelines` to dump a compressed view of representative, somewhat short paths to either roots or strongly-owned nodes (according to the reference classifier in use).
+3. Inspect the lifeline diagram to find references that should no longer exist (e.g., be nulled out, or removed from a collection).
+4. Modify your program accordingly, rerun your scenario, and run the same analysis on a new memory snapshot. Confirm whether the object has become eligible for garbage collection, or inspect the updated lifeline diagram to find other references to break.
+
 ## Visualization
 
 The output of the `heapdom` command is written to a JavaScript file representing the dominator tree as a JSON data structure.

@@ -1,7 +1,6 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandProcessing;
 using System;
 using System.Collections.Generic;
@@ -21,23 +20,17 @@ namespace MemorySnapshotAnalyzer.Commands
         [PositionalArgument(1, optional: true)]
         public string? OutputDotFilename;
 
-        [NamedArgument("depth")]
-        public int MaxDepth;
+        [FlagArgument("lifelines")]
+        public bool Lifelines;
 
-        [FlagArgument("shortestpaths")]
-        public bool ShortestPaths;
-
-        [FlagArgument("mostspecificroots")]
-        public bool MostSpecificRoots;
-
-        [FlagArgument("allroots")]
-        public bool RootsOnly;
+        [FlagArgument("owners")]
+        public bool Owners;
 
         [FlagArgument("dom")]
         public bool Dominators;
 
-        [FlagArgument("stats")]
-        public bool Statistics;
+        [NamedArgument("depth")]
+        public int MaxDepth;
 
         [FlagArgument("fullyqualified")]
         public bool FullyQualified;
@@ -51,24 +44,22 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
+            int numberOfModes = 0;
+            numberOfModes += Lifelines ? 1 : 0;
+            numberOfModes += Owners ? 1 : 0;
+            numberOfModes += Dominators ? 1 : 0;
+            numberOfModes += OutputDotFilename != null ? 1 : 0;
+            if (numberOfModes > 1)
+            {
+                throw new CommandException("at most one of a dot filename, 'lifelines, 'owners, or 'dom may be given");
+            }
+
             int postorderIndex = Context.ResolveToPostorderIndex(AddressOrIndex);
             int nodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex);
 
-            if (ShortestPaths)
+            if (Lifelines || Owners)
             {
-                DumpShortestPathsToRoots(nodeIndex);
-            }
-            else if (MostSpecificRoots)
-            {
-                DumpSingleMostSpecificRoots(nodeIndex);
-            }
-            else if (RootsOnly)
-            {
-                Output.WriteLineIndented(0, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
-                foreach (int rootIndex in GetAllReachableRoots(nodeIndex))
-                {
-                    Output.WriteLineIndented(1, CurrentBacktracer.DescribeNodeIndex(rootIndex, FullyQualified));
-                }
+                DumpLifelines(nodeIndex);
             }
             else if (Dominators)
             {
@@ -102,6 +93,21 @@ namespace MemorySnapshotAnalyzer.Commands
                 return;
             }
 
+            if (DumpBacktraceLine(nodeIndex, ancestors, seen, depth, successorNodeIndex, prefix: string.Empty))
+            {
+                return;
+            }
+
+            ancestors.Add(nodeIndex);
+            foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
+            {
+                DumpBacktraces(predIndex, ancestors, seen, depth + 1, successorNodeIndex: nodeIndex);
+            }
+            ancestors.Remove(nodeIndex);
+        }
+
+        bool DumpBacktraceLine(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int indent, int successorNodeIndex, string prefix)
+        {
             string fields = "";
             if (Fields && successorNodeIndex != -1 && CurrentBacktracer.IsLiveObjectNode(nodeIndex))
             {
@@ -113,36 +119,30 @@ namespace MemorySnapshotAnalyzer.Commands
                 // Back reference to a node that was already printed.
                 if (ancestors.Contains(nodeIndex))
                 {
-                    Output.WriteLineIndented(depth, "^^ {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                    Output.WriteLineIndented(indent, "{0}^^ {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
                 }
                 else
                 {
-                    Output.WriteLineIndented(depth, "~~ {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                    Output.WriteLineIndented(indent, "{0}~~ {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
                 }
-                return;
+                return true;
             }
-
             seen.Add(nodeIndex);
 
             if (CurrentBacktracer.IsOwned(nodeIndex))
             {
-                Output.WriteLineIndented(depth, "** {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                Output.WriteLineIndented(indent, "{0}** {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
             }
             else if (CurrentBacktracer.IsWeak(nodeIndex))
             {
-                Output.WriteLineIndented(depth, ".. {0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                Output.WriteLineIndented(indent, "{0}.. {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
             }
             else
             {
-                Output.WriteLineIndented(depth, "{0}{1}", CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                Output.WriteLineIndented(indent, "{0}{1}{2}", prefix,CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
             }
 
-            ancestors.Add(nodeIndex);
-            foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
-            {
-                DumpBacktraces(predIndex, ancestors, seen, depth + 1, successorNodeIndex: nodeIndex);
-            }
-            ancestors.Remove(nodeIndex);
+            return false;
         }
 
         string CollectFields(int nodeIndex, int successorNodeIndex)
@@ -168,54 +168,94 @@ namespace MemorySnapshotAnalyzer.Commands
             return sb.ToString();
         }
 
-        void DumpShortestPathsToRoots(int nodeIndex)
+        sealed class TrieNode
         {
-            // TODO: as written, this doesn't technically find the shortest paths.
-            // Perhaps we should find all reachable roots first, then use Diijstra's algorithm.
-            // Left it here because it's still somewhat useful.
+            internal Dictionary<int, TrieNode>? Children;
+        }
 
-            var currentPath = new List<int>();
-            var seen = new HashSet<int>();
-            var shortestPaths = new Dictionary<int, int[]>();
-            ComputeShortestPathsToRoots(nodeIndex, currentPath, seen, shortestPaths);
+        void DumpLifelines(int nodeIndex)
+        {
+            Dictionary<int, int[]> lifelines = ComputeLifelines(nodeIndex, nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex) || CurrentBacktracer.IsOwned(nodeIndex));
 
-            int[] reachableRoots = shortestPaths.Keys.ToArray();
-            Array.Sort(reachableRoots, (a, b) => shortestPaths[a].Length.CompareTo(shortestPaths[b].Length));
-
-            if (Statistics)
+            if (Owners)
             {
+                int[] reachableRoots = lifelines.Keys.ToArray();
+                Array.Sort(reachableRoots, (a, b) => lifelines[a].Length.CompareTo(lifelines[b].Length));
+
                 foreach (int rootNodeIndex in reachableRoots)
                 {
-                    Output.WriteLine("{0}: {1}",
+                    Output.WriteLine("{0}: {1} hop(s)",
                         CurrentBacktracer.DescribeNodeIndex(rootNodeIndex, FullyQualified),
-                        shortestPaths[rootNodeIndex].Length);
+                        lifelines[rootNodeIndex].Length);
                 }
             }
             else
             {
-                foreach (int rootNodeIndex in reachableRoots)
+                TrieNode trie = CreateTrie(lifelines);
+
+                HashSet<int> ancestors = new();
+                HashSet<int> seen = new ();
+                DumpTrie(nodeIndex, trie, ancestors, seen, indent: 0, successorNodeIndex: -1, condensed: false, singleChild: true);
+            }
+        }
+
+        static TrieNode CreateTrie(Dictionary<int, int[]> lifelines)
+        {
+            TrieNode trie = new();
+            foreach ((int _, int[] path) in lifelines)
+            {
+                TrieNode current = trie;
+                for (int i = 1; i < path.Length; i++)
                 {
-                    int[] path = shortestPaths[rootNodeIndex];
-                    for (int i = path.Length - 1; i >= 0; i--)
+                    if (current.Children == null)
                     {
-                        int thisNodeIndex = path[i];
-                        int successorNodeIndex = i > 0 ? path[i - 1] : -1;
-
-                        string fields = "";
-                        if (Fields && successorNodeIndex != -1 && CurrentBacktracer.IsLiveObjectNode(thisNodeIndex))
-                        {
-                            fields = CollectFields(thisNodeIndex, successorNodeIndex);
-                        }
-
-                        Output.WriteLineIndented(i == path.Length - 1 ? 0 : 1, "{0}{1}",
-                            CurrentBacktracer.DescribeNodeIndex(thisNodeIndex, FullyQualified),
-                            fields);
+                        current.Children = new Dictionary<int, TrieNode>();
                     }
+
+                    int nodeIndex = path[i];
+                    if (!current.Children.TryGetValue(nodeIndex, out TrieNode? child))
+                    {
+                        child = new TrieNode();
+                        current.Children.Add(nodeIndex, child);
+                    }
+
+                    current = child;
+                }
+            }
+            return trie;
+        }
+
+        void DumpTrie(int nodeIndex, TrieNode trie, HashSet<int> ancestors, HashSet<int> seen, int indent, int successorNodeIndex, bool condensed, bool singleChild)
+        {
+            _ = DumpBacktraceLine(nodeIndex, ancestors, seen, indent, successorNodeIndex, prefix: condensed ? @"\ " : string.Empty);
+
+            if (trie.Children != null)
+            {
+                foreach ((int predNodeIndex, TrieNode child) in trie.Children)
+                {
+                    bool newCondense = singleChild && trie.Children.Count == 1;
+                    int newIndent = newCondense ? indent : indent + 1;
+                    DumpTrie(predNodeIndex, child, ancestors, seen, newIndent, nodeIndex, condensed: newCondense, singleChild: trie.Children.Count == 1);
                 }
             }
         }
 
-        void ComputeShortestPathsToRoots(int nodeIndex, List<int> currentPath, HashSet<int> seen, Dictionary<int, int[]> shortestPaths)
+        Dictionary<int, int[]> ComputeLifelines(int nodeIndex, Predicate<int> isDestination)
+        {
+            // This algorithm produces a cheap-to-compute approximation of "relative short" paths
+            // from the target node to all of its transitive owners (strongly-owned nodes according
+            // to the reference classifier, or roots). If a given object has been leaked (should have
+            // become eligible for garbage collection, but hasn't), the lifelines provide (some)
+            // relatively simple reference chains that need to be broken to make the object unreachable.
+
+            List<int> currentPath = new();
+            HashSet<int> seen = new();
+            Dictionary<int, int[]> lifelines = new();
+            ComputeLifelines(nodeIndex, currentPath, seen, lifelines, isDestination);
+            return lifelines;
+        }
+
+        void ComputeLifelines(int nodeIndex, List<int> currentPath, HashSet<int> seen, Dictionary<int, int[]> lifelines, Predicate<int> isDestination)
         {
             currentPath.Add(nodeIndex);
 
@@ -223,19 +263,20 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 seen.Add(nodeIndex);
 
-                if (CurrentBacktracer.IsRootSentinel(nodeIndex))
+                if (currentPath.Count > 1 && isDestination(nodeIndex))
                 {
-                    if (!shortestPaths.TryGetValue(nodeIndex, out int[]? shortestPath)
-                        || shortestPath.Length > currentPath.Count)
+                    // If we found a shorter lifeline to the same destination, only keep the shorter one.
+                    if (!lifelines.TryGetValue(nodeIndex, out int[]? lifeline)
+                        || lifeline.Length > currentPath.Count)
                     {
-                        shortestPaths[nodeIndex] = currentPath.ToArray();
+                        lifelines[nodeIndex] = currentPath.ToArray();
                     }
                 }
                 else
                 {
-                    foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
+                    foreach (int predNodeIndex in CurrentBacktracer.Predecessors(nodeIndex))
                     {
-                        ComputeShortestPathsToRoots(predIndex, currentPath, seen, shortestPaths);
+                        ComputeLifelines(predNodeIndex, currentPath, seen, lifelines, isDestination);
                     }
                 }
             }
@@ -281,138 +322,6 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        List<int> GetAllReachableRoots(int nodeIndex)
-        {
-            var seen = new HashSet<int>();
-            var roots = new List<int>();
-            FindReachableRoots(nodeIndex, seen, roots);
-            return roots;
-        }
-
-        void FindReachableRoots(int nodeIndex, HashSet<int> seen, List<int> roots)
-        {
-            if (!seen.Contains(nodeIndex))
-            {
-                seen.Add(nodeIndex);
-
-                if (CurrentBacktracer.IsRootSentinel(nodeIndex))
-                {
-                    roots.Add(nodeIndex);
-                }
-                else
-                {
-                    foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
-                    {
-                        FindReachableRoots(predIndex, seen, roots);
-                    }
-                }
-            }
-        }
-
-        void DumpSingleMostSpecificRoots(int nodeIndex)
-        {
-            Output.WriteLineIndented(0, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
-            List<string> rootPath = SingleMostSpecificVirtualRoot(nodeIndex);
-            var sb = new StringBuilder();
-            foreach (string s in rootPath)
-            {
-                if (sb.Length > 0)
-                {
-                    sb.Append(" -> ");
-                }
-                sb.Append(s);
-            }
-            Output.WriteLineIndented(1, sb.ToString());
-        }
-
-        List<string> SingleMostSpecificVirtualRoot(int nodeIndex)
-        {
-            var result = new List<string>();
-
-            List<int> reachableRoots = GetAllReachableRoots(nodeIndex);
-
-            int numberOfGCHandles = 0;
-
-            IRootSet.StaticRootInfo theOne = default;
-            bool allFromOneAssembly = true;
-            bool allFromOneNamespace = true;
-            bool allFromOneClass = true;
-
-            for (int i = 0; i < reachableRoots.Count && allFromOneAssembly; i++)
-            {
-                List<(int rootIndex, PointerInfo<NativeWord> PointerInfo)> rootInfos = CurrentTracedHeap.PostorderRootIndices(CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex));
-                foreach ((int rootIndex, _) in rootInfos)
-                {
-                    if (CurrentRootSet.IsGCHandle(rootIndex))
-                    {
-                        numberOfGCHandles++;
-                        continue;
-                    }
-
-                    // If roots are a mix of GCHandles and statics, ignore the GCHandles.
-                    IRootSet.StaticRootInfo info = CurrentRootSet.GetStaticRootInfo(rootIndex);
-                    if (info.AssemblyName == null)
-                    {
-                        allFromOneAssembly = false;
-                    }
-
-                    if (allFromOneAssembly)
-                    {
-                        if (theOne.AssemblyName == null)
-                        {
-                            theOne.AssemblyName = info.AssemblyName!;
-                        }
-                        else if (info.AssemblyName != theOne.AssemblyName)
-                        {
-                            allFromOneAssembly = false;
-                        }
-                    }
-
-                    if (allFromOneNamespace)
-                    {
-                        if (theOne.NamespaceName == null)
-                        {
-                            theOne.NamespaceName = info.NamespaceName!;
-                        }
-                        else if (info.NamespaceName != theOne.NamespaceName)
-                        {
-                            allFromOneNamespace = false;
-                        }
-                    }
-
-                    if (allFromOneClass)
-                    {
-                        if (theOne.ClassName == null)
-                        {
-                            theOne.ClassName = info.ClassName!;
-                        }
-                        else if (info.ClassName != theOne.ClassName)
-                        {
-                            allFromOneClass = false;
-                        }
-                    }
-                }
-            }
-
-            if (allFromOneAssembly && theOne.AssemblyName != null)
-            {
-                result.Add(theOne.AssemblyName);
-                if (allFromOneNamespace && theOne.NamespaceName != null)
-                {
-                    result.Add(theOne.NamespaceName);
-                    if (allFromOneClass && theOne.ClassName != null)
-                    {
-                        result.Add(theOne.ClassName);
-                    }
-                }
-            }
-            else if (numberOfGCHandles == reachableRoots.Count)
-            {
-                result.Add("GCHandles");
-            }
-            return result;
-        }
-
         void DumpDominators(int nodeIndex)
         {
             int currentNodeIndex = nodeIndex;
@@ -430,6 +339,6 @@ namespace MemorySnapshotAnalyzer.Commands
             while (currentNodeIndex != -1 && currentNodeIndex != CurrentHeapDom.RootNodeIndex);
         }
 
-        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] ['fields] | 'shortestpaths ['stats] | 'mostspecificroots | 'allroots | 'dom] ['fullyqualified]";
+        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] | 'lifelines | 'owners | 'dom] ['fullyqualified] ['fields]";
     }
 }
