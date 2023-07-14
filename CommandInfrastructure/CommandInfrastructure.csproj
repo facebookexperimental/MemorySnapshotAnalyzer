@@ -1,15 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <ImplicitUsings>disable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  </PropertyGroup>
+  <Import Project="..\Common.props" />
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.0" />
-    <PackageReference Include="ReadLine" Version="2.0.1" />
+    <PackageReference Include="ReadLine" Version="2.0.1" Condition="'$(IsWindows)'!='true'" />
   </ItemGroup>
 
   <ItemGroup>
