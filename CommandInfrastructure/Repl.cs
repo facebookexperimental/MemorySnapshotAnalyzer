@@ -125,11 +125,17 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         public void Run()
         {
+#if !WINDOWS
             ReadLine.HistoryEnabled = true;
+#endif
             while (true)
             {
                 Output.Prompt();
+#if WINDOWS
+                string? line = Console.ReadLine();
+#else
                 string? line = ReadLine.Read();
+#endif
                 if (line == null)
                 {
                     continue;

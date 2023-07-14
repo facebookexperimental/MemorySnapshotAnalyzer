@@ -1,6 +1,8 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace MemorySnapshotAnalyzer.UnityBackend

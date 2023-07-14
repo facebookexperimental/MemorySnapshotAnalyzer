@@ -1,17 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <IsWindows Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))'=='true'">true</IsWindows>
-    <TargetFramework Condition="'$(IsWindows)'=='true'">net6.0-windows</TargetFramework>
-    <TargetFramework Condition="'$(IsWindows)'==''">net6.0</TargetFramework>
-    <UseWindowsForms Condition="'$(IsWindows)'=='true'">true</UseWindowsForms>
-    <ImplicitUsings>disable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(IsWindows)'=='true'">
-    <DefineConstants>Windows</DefineConstants>
-  </PropertyGroup>
+  <Import Project="..\Common.props" />
 
   <ItemGroup>
     <ProjectReference Include="..\Analysis\Analysis.csproj" />

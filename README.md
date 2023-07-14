@@ -4,9 +4,9 @@ MemorySnapshotanalyzer is an analyzer for memory snapshots. While designed to su
 
 ## Building and Running
 
-MemorySnapshotAnalyzer was developed in C# and only tested with Visual Studio 2022 and .NET 6.0 on Windows.
+MemorySnapshotAnalyzer was developed in C# and tested with both Visual Studio 2022 and .NET 6.0 on Windows, as well as VSCode and .NET 7.0 on MacOS X.
 
-Use the solution file `MemorySnapshotAnalyzer.sln` to build and run the console application.
+Use the solution file `MemorySnapshotAnalyzer.sln` to build and run the console application. On MacOS/Linux, you can build and run from the shell using the `./run.sh` script.
 
 ## The Read-Eval Print Loop
 
