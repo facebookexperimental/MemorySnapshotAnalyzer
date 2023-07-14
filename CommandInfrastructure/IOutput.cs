@@ -4,7 +4,13 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 {
     public interface IOutput
     {
+        void SetPrompt(string prompt);
+
         void Prompt();
+
+        void ExecutionStart();
+
+        void ExecutionEnd(int exitCode);
 
         void Clear();
 
