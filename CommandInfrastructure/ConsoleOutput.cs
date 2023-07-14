@@ -7,16 +7,30 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 {
     sealed class ConsoleOutput : IOutput
     {
-        static readonly string s_prompt = "> ";
+        // https://code.visualstudio.com/docs/terminal/shell-integration#_vs-code-custom-sequences-osc-633-st
+        readonly string s_markPromptStart = "\u001b]633;A\u0007";
+        readonly string s_markPromptEnd = "\u001b]633;B\u0007";
+        readonly string s_preExecution = "\u001b]633;C\u0007";
+        readonly string s_executionFinished_exitCode = "\u001b]633;D;{0}\u0007";
 
+        string m_prompt;
         readonly Dictionary<int, string> m_indents;
+        readonly bool m_useSemanticPrompt;
         int m_windowHeight;
         int m_numberLinesWritten;
         bool m_cancellationRequested;
 
         public ConsoleOutput()
         {
+            m_prompt = "> ";
             m_indents = new Dictionary<int, string>();
+
+            string? termProgram = Environment.GetEnvironmentVariable("TERM_PROGRAM");
+            if (termProgram != null && termProgram.Equals("vscode", StringComparison.Ordinal))
+            {
+                m_useSemanticPrompt = true;
+            }
+
             m_windowHeight = Console.WindowHeight;
             m_numberLinesWritten = 0;
             m_cancellationRequested = false;
@@ -27,12 +41,44 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 };
         }
 
+        void IOutput.SetPrompt(string prompt)
+        {
+            m_prompt = prompt;
+        }
+
         void IOutput.Prompt()
         {
-            Console.Write(s_prompt);
+            if (m_useSemanticPrompt)
+            {
+                Console.Write("{0}{1}{2}",
+                    s_markPromptStart,
+                    m_prompt,
+                    s_markPromptEnd);
+            }
+            else
+            {
+                Console.Write(m_prompt);
+            }
+
             m_numberLinesWritten = 0;
             m_windowHeight = Console.WindowHeight;
             m_cancellationRequested = false;
+        }
+
+        void IOutput.ExecutionStart()
+        {
+            if (m_useSemanticPrompt)
+            {
+                Console.Write(s_preExecution);
+            }
+        }
+
+        void IOutput.ExecutionEnd(int exitCode)
+        {
+            if (m_useSemanticPrompt)
+            {
+                Console.Write(s_executionFinished_exitCode, exitCode);
+            }
         }
 
         void IOutput.Clear()

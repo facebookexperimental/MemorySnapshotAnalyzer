@@ -29,7 +29,19 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
+        void IOutput.SetPrompt(string prompt)
+        {
+        }
+
         void IOutput.Prompt()
+        {
+        }
+
+        void IOutput.ExecutionStart()
+        {
+        }
+
+        void IOutput.ExecutionEnd(int exitCode)
         {
         }
 

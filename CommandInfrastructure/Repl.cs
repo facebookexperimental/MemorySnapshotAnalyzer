@@ -44,6 +44,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 Backtracer_WeakDelegates = configuration.GetValue<bool>("WeakDelegates")
             });
             m_currentContextId = 0;
+            Output.SetPrompt("[0]> ");
         }
 
         public void Dispose()
@@ -96,6 +97,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 m_contexts.Add(id, Context.WithSameOptionsAs(m_contexts[m_currentContextId], id));
             }
             m_currentContextId = id;
+            Output.SetPrompt($"[{id}]> ");
             return m_contexts[id];
         }
 
@@ -123,10 +125,11 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         public void Run()
         {
+            ReadLine.HistoryEnabled = true;
             while (true)
             {
                 Output.Prompt();
-                string? line = Console.ReadLine();
+                string? line = ReadLine.Read();
                 if (line == null)
                 {
                     continue;
@@ -143,19 +146,24 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
             try
             {
+                Output.ExecutionStart();
                 RunCommand(line);
+                Output.ExecutionEnd(0);
             }
             catch (OperationCanceledException)
             {
                 Output.WriteLine("canceled");
+                Output.ExecutionEnd(1);
             }
             catch (InvalidSnapshotFormatException ex)
             {
                 Output.WriteLine(ex.Message);
+                Output.ExecutionEnd(1);
             }
             catch (CommandException ex)
             {
                 Output.WriteLine(ex.Message);
+                Output.ExecutionEnd(1);
             }
 
             m_currentCommandLine = null;
