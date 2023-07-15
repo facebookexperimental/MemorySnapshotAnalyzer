@@ -1,21 +1,20 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
-using MemorySnapshotAnalyzer.CommandProcessing;
 using System;
 using System.Collections.Generic;
 using System.IO;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
-    public static class ReferenceClassifierLoader
+    static class ReferenceClassifierLoader
     {
         static readonly char[] s_assemblySeparator = new char[] { ',', ':' };
 
-        public static RuleBasedReferenceClassifierFactory Load(string filename)
+        internal static Dictionary<string, List<Rule>> Load(string filename)
         {
             try
             {
-                var configurationEntries = new List<Rule>();
+                var rules = new List<Rule>();
                 int lineNumber = 1;
                 foreach (string line in File.ReadAllLines(filename))
                 {
@@ -26,13 +25,13 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         int lastComma = lineTrimmed.LastIndexOf(',');
                         if (firstComma < 0 || lastComma < 0 || firstComma == lastComma)
                         {
-                            throw new CommandException($"invalid syntax on line {lineNumber}");
+                            throw new FileFormatException($"invalid syntax on line {lineNumber}");
                         }
 
                         List<string> fieldPattern = ParseFieldPattern(lineTrimmed[(lastComma + 1)..].Trim(), lineNumber);
                         if (fieldPattern.Count == 1)
                         {
-                            configurationEntries.Add(new FieldPatternRule
+                            rules.Add(new FieldPatternRule
                             {
                                 Spec = new ClassSpec
                                 {
@@ -44,7 +43,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         }
                         else
                         {
-                            configurationEntries.Add(new FieldPathRule
+                            rules.Add(new FieldPathRule
                             {
                                 Spec = new ClassSpec
                                 {
@@ -59,11 +58,14 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     lineNumber++;
                 }
 
-                return new RuleBasedReferenceClassifierFactory(filename, configurationEntries);
+                return new Dictionary<string, List<Rule>>
+                {
+                    { "defaultGroup", rules }
+                };
             }
             catch (IOException ex)
             {
-                throw new CommandException(ex.Message);
+                throw new FileFormatException(ex.Message);
             }
         }
 
@@ -77,7 +79,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 {
                     if (i + 1 == fieldPattern.Length || fieldPattern[i + 1] != ']')
                     {
-                        throw new CommandException($"invalid field pattern syntax on line {lineNumber}; '[' must be immediately followed by ']'");
+                        throw new FileFormatException($"invalid field pattern syntax on line {lineNumber}; '[' must be immediately followed by ']'");
                     }
 
                     if (i > startIndex)

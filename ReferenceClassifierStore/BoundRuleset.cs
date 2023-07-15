@@ -6,13 +6,13 @@ using System;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
-    public sealed class BoundRuleset
+    sealed class BoundRuleset
     {
         readonly TypeSystem m_typeSystem;
         readonly HashSet<(int typeIndex, int fieldNumber)> m_owningReferences;
         readonly Dictionary<(int typeIndex, int fieldNumber), List<(int typeIndex, int fieldNumber)[]>> m_conditionAnchors;
 
-        public BoundRuleset(TypeSystem typeSystem, List<Rule> rules)
+        internal BoundRuleset(TypeSystem typeSystem, List<Rule> rules)
         {
             m_typeSystem = typeSystem;
             m_owningReferences = new HashSet<(int typeIndex, int fieldNumber)>();
@@ -136,17 +136,17 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             }
         }
 
-        public bool IsOwningReference(int typeIndex, int fieldNumber)
+        internal bool IsOwningReference(int typeIndex, int fieldNumber)
         {
             return m_owningReferences.Contains((typeIndex, fieldNumber));
         }
 
-        public bool IsConditionAnchor(int typeIndex, int fieldNumber)
+        internal bool IsConditionAnchor(int typeIndex, int fieldNumber)
         {
             return m_conditionAnchors.ContainsKey((typeIndex, fieldNumber));
         }
 
-        public List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
+        internal List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
         {
             return m_conditionAnchors[(typeIndex, fieldNumber)];
         }

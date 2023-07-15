@@ -3,7 +3,7 @@
   <Import Project="..\Common.props" />
 
   <ItemGroup>
-    <ProjectReference Include="..\CommandInfrastructure\CommandInfrastructure.csproj" />
+    <ProjectReference Include="..\MemorySnapshot\MemorySnapshot.csproj" />
   </ItemGroup>
 
 </Project>

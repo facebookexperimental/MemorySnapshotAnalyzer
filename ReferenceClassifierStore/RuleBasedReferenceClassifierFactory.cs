@@ -5,11 +5,11 @@ using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
-    public sealed class RuleBasedReferenceClassifier : ReferenceClassifier
+    internal sealed class RuleBasedReferenceClassifier : ReferenceClassifier
     {
         readonly BoundRuleset m_boundRuleset;
 
-        public RuleBasedReferenceClassifier(BoundRuleset boundRuleset)
+        internal RuleBasedReferenceClassifier(BoundRuleset boundRuleset)
         {
             m_boundRuleset = boundRuleset;
         }
@@ -32,20 +32,18 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
     public sealed class RuleBasedReferenceClassifierFactory : ReferenceClassifierFactory
     {
-        readonly string m_description;
-        readonly List<Rule> m_configurationEntries;
+        readonly ReferenceClassifierStore m_store;
 
-        public RuleBasedReferenceClassifierFactory(string description, List<Rule> configurationEntries)
+        public RuleBasedReferenceClassifierFactory(ReferenceClassifierStore store)
         {
-            m_description = description;
-            m_configurationEntries = configurationEntries;
+            m_store = store;
         }
 
         public override ReferenceClassifier Build(TypeSystem typeSystem)
         {
-            return new RuleBasedReferenceClassifier(new BoundRuleset(typeSystem, m_configurationEntries));
+            return new RuleBasedReferenceClassifier(m_store.Bind(typeSystem));
         }
 
-        public override string Description => m_description;
+        public override string Description => m_store.Description;
     }
 }
