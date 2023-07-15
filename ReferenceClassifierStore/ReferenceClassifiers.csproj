@@ -3,6 +3,10 @@
   <Import Project="..\Common.props" />
 
   <ItemGroup>
+    <PackageReference Include="System.IO.Packaging" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MemorySnapshot\MemorySnapshot.csproj" />
   </ItemGroup>
 
