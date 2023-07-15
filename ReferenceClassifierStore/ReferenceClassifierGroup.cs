@@ -8,29 +8,16 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
     {
         readonly string m_name;
         readonly List<Rule> m_rules;
-        bool m_enabled;
 
         public ReferenceClassifierGroup(string name)
         {
             m_name = name;
-            m_enabled = true;
             m_rules = new();
         }
 
         public string Name => m_name;
 
-        public bool SetIsEnabled(bool newEnabled)
-        {
-            if (m_enabled == newEnabled)
-            {
-                return false;
-            }
-            else
-            {
-                m_enabled = newEnabled;
-                return true;
-            }
-        }
+        public int NumberOfRules => m_rules.Count;
 
         public void Add(IEnumerable<Rule> rules)
         {

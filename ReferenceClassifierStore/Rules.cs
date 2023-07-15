@@ -1,6 +1,7 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using System;
+using System.Text;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
@@ -30,6 +31,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 return assemblySpan;
             }
         }
+
+        public override string ToString()
+        {
+            return $"{Assembly}:{ClassName}";
+        }
     }
 
     public abstract class Rule
@@ -41,6 +47,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
     {
         // A field name, or (if ending in "*") a field prefix.
         public string? FieldPattern;
+
+        public override string ToString()
+        {
+            return $"{Spec} {FieldPattern}";
+        }
     }
 
     public sealed class FieldPathRule : Rule
@@ -48,5 +59,20 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         // Path of fields to dereference. Note that these are full field names, not patterns.
         // The special field name "[]" represents array indexing (covering all elements of the array).
         public string[]? FieldNames;
+
+        public override string ToString()
+        {
+            StringBuilder sb = new(Spec.ToString());
+            sb.Append(' ');
+            foreach (string fieldName in FieldNames!)
+            {
+                if (sb.Length > 0 && !fieldName.Equals("[]", StringComparison.Ordinal))
+                {
+                    sb.Append('.');
+                }
+                sb.Append(fieldName);
+            }
+            return sb.ToString();
+        }
     }
 }

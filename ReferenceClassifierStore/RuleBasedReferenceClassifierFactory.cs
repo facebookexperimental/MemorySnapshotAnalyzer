@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
-    internal sealed class RuleBasedReferenceClassifier : ReferenceClassifier
+    sealed class RuleBasedReferenceClassifier : ReferenceClassifier
     {
         readonly BoundRuleset m_boundRuleset;
 
@@ -33,17 +33,17 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
     public sealed class RuleBasedReferenceClassifierFactory : ReferenceClassifierFactory
     {
         readonly ReferenceClassifierStore m_store;
+        readonly SortedSet<string> m_enabledGroups;
 
-        public RuleBasedReferenceClassifierFactory(ReferenceClassifierStore store)
+        public RuleBasedReferenceClassifierFactory(ReferenceClassifierStore store, SortedSet<string> enabledGroups)
         {
             m_store = store;
+            m_enabledGroups = enabledGroups;
         }
 
         public override ReferenceClassifier Build(TypeSystem typeSystem)
         {
-            return new RuleBasedReferenceClassifier(m_store.Bind(typeSystem));
+            return new RuleBasedReferenceClassifier(m_store.Bind(typeSystem, m_enabledGroups));
         }
-
-        public override string Description => m_store.Description;
     }
 }

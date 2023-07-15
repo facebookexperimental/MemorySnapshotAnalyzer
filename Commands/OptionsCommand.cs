@@ -20,9 +20,6 @@ namespace MemorySnapshotAnalyzer.Commands
         [FlagArgument("fuseobjectpairs")]
         public int FuseObjectPairs = -1;
 
-        [NamedArgument("loadreferenceclassifier")]
-        public string? ReferenceClassifierFilename;
-
         [FlagArgument("referenceclassifier")]
         public int ReferenceClassifierEnabled = -1;
 
@@ -68,12 +65,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
             if (ReferenceClassifierEnabled != -1)
             {
-                Context.TraceableHeap_ReferenceClassificationEnabled = ReferenceClassifierEnabled != 0;
-            }
-
-            if (ReferenceClassifierFilename != null)
-            {
-                Context.LoadReferenceClassifierFile(ReferenceClassifierFilename);
+                Context.TraceableHeap_ReferenceClassification_Enabled = ReferenceClassifierEnabled != 0;
             }
 
             if (WeakGCHandles != -1)

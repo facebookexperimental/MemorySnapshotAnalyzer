@@ -5,7 +5,7 @@ using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.ReferenceClassifiers;
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Text;
 
 namespace MemorySnapshotAnalyzer.CommandProcessing
 {
@@ -13,6 +13,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
     {
         readonly int m_id;
         readonly IOutput m_output;
+        readonly ReferenceClassifierStore m_referenceClassifierStore;
 
         public enum TraceableHeapKind
         {
@@ -21,12 +22,11 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             Stitched,
         }
 
-        ReferenceClassifierStore m_referenceClassifierStore;
-
         // Options for TraceableHeap
         TraceableHeapKind m_traceableHeap_kind;
         bool m_traceableHeap_fuseObjectPairs;
         bool m_traceableHeap_referenceClassificationEnabled;
+        readonly SortedSet<string> m_traceableHeap_referenceClassificationGroups;
         // Options for RootSet
         NativeWord m_rootSet_singletonRootAddress;
         // Options for TracedHeap
@@ -43,26 +43,30 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         IBacktracer? m_currentBacktracer;
         HeapDom? m_currentHeapDom;
 
-        public Context(int id, IOutput output)
+        public Context(int id, IOutput output, ReferenceClassifierStore referenceClassifierStore)
         {
             m_id = id;
             m_output = output;
-            m_referenceClassifierStore = new();
+            m_referenceClassifierStore = referenceClassifierStore;
+
+            m_traceableHeap_referenceClassificationEnabled = true;
+            m_traceableHeap_referenceClassificationGroups = new();
         }
 
         public static Context WithSameOptionsAs(Context other, int newId)
         {
-            var newContext = new Context(newId, other.m_output)
+            var newContext = new Context(newId, other.m_output, other.m_referenceClassifierStore)
             {
                 TraceableHeap_Kind = other.TraceableHeap_Kind,
                 TraceableHeap_FuseObjectPairs = other.TraceableHeap_FuseObjectPairs,
-                TraceableHeap_ReferenceClassificationEnabled = other.TraceableHeap_ReferenceClassificationEnabled,
+                TraceableHeap_ReferenceClassification_Enabled = other.TraceableHeap_ReferenceClassification_Enabled,
                 RootSet_SingletonRootAddress = other.RootSet_SingletonRootAddress,
                 TracedHeap_WeakGCHandles = other.TracedHeap_WeakGCHandles,
                 Backtracer_GroupStatics = other.Backtracer_GroupStatics,
                 Backtracer_FuseRoots = other.Backtracer_FuseRoots,
                 Backtracer_WeakDelegates = other.Backtracer_WeakDelegates
             };
+            newContext.m_traceableHeap_referenceClassificationGroups.UnionWith(other.m_traceableHeap_referenceClassificationGroups);
             return newContext;
         }
 
@@ -230,7 +234,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public bool TraceableHeap_ReferenceClassificationEnabled
+        public bool TraceableHeap_ReferenceClassification_Enabled
         {
             get { return m_traceableHeap_referenceClassificationEnabled; }
             set
@@ -243,19 +247,28 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public void LoadReferenceClassifierFile(string filename)
+        public void TraceableHeap_ReferenceClassifier_OnModifiedGroup(string groupName)
         {
-            try
+            if (TraceableHeap_ReferenceClassification_Enabled && m_traceableHeap_referenceClassificationGroups.Contains(groupName))
             {
-                m_referenceClassifierStore.Load(filename);
+                ClearTraceableHeap();
             }
-            catch (FileFormatException ex)
-            {
-                throw new CommandException(ex.Message);
-            }
+        }
 
+        public void TraceableHeap_ReferenceClassifier_AddGroup(string groupName)
+        {
+            bool added = m_traceableHeap_referenceClassificationGroups.Add(groupName);
+            if (added && m_traceableHeap_referenceClassificationEnabled)
+            {
+                ClearTraceableHeap();
+            }
+        }
+
+        public void OnReferenceClassifierStoreUpdated(List<string> affectedGroups)
+        {
             if (m_traceableHeap_referenceClassificationEnabled)
             {
+                // TODO: check whether any of the groups enabled for this context are part of affectedGroups
                 ClearTraceableHeap();
             }
         }
@@ -264,11 +277,25 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             if (m_traceableHeap_referenceClassificationEnabled)
             {
-                return m_referenceClassifierStore.Description;
+                StringBuilder sb = new();
+                foreach (string groupName in m_traceableHeap_referenceClassificationGroups)
+                {
+                    if (sb.Length > 0)
+                    {
+                        sb.Append('+');
+                    }
+                    sb.Append(groupName);
+
+                    if (m_referenceClassifierStore.TryGetGroup(groupName, out ReferenceClassifierGroup? group))
+                    {
+                        sb.AppendFormat("({0})", group!.NumberOfRules);
+                    }
+                }
+                return $"enabled[{sb}]";
             }
             else
             {
-                return "not set";
+                return "disabled";
             }
         }
 
@@ -286,9 +313,11 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 m_output.Write("[context {0}] selecting traceable heap {1} ...", m_id, m_traceableHeap_kind);
 
                 ReferenceClassifierFactory referenceClassifierFactory;
-                if (m_traceableHeap_referenceClassificationEnabled)
+                if (m_traceableHeap_referenceClassificationEnabled && m_traceableHeap_referenceClassificationGroups.Count > 0)
                 {
-                    referenceClassifierFactory = new RuleBasedReferenceClassifierFactory(m_referenceClassifierStore);
+                    referenceClassifierFactory = new RuleBasedReferenceClassifierFactory
+                        (m_referenceClassifierStore,
+                        m_traceableHeap_referenceClassificationGroups);
                 }
                 else
                 {

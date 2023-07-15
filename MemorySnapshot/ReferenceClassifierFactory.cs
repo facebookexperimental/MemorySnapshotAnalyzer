@@ -18,8 +18,6 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
     public abstract class ReferenceClassifierFactory
     {
         public abstract ReferenceClassifier Build(TypeSystem typeSystem);
-
-        public abstract string Description { get; }
     }
 
     public class DefaultReferenceClassifier : ReferenceClassifier
@@ -53,7 +51,5 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         {
             return new DefaultReferenceClassifier();
         }
-
-        public override string Description => "not set";
     }
 }

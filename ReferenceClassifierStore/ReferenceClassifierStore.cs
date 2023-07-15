@@ -1,23 +1,18 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
     public sealed class ReferenceClassifierStore
     {
-        private readonly SortedDictionary<string, ReferenceClassifierGroup> m_referenceClassifierGroups;
+        readonly SortedDictionary<string, ReferenceClassifierGroup> m_referenceClassifierGroups;
 
         public ReferenceClassifierStore()
         {
             m_referenceClassifierGroups = new();
         }
-
-        // TODO: have some descriptive information about groups and rules
-        public string Description => "reference classifier store";
 
         public IEnumerable<ReferenceClassifierGroup> AllGroups()
         {
@@ -27,14 +22,19 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             }
         }
 
-        public ReferenceClassifierGroup GetExistingGroup(string groupName)
+        public void Clear()
         {
-            if (!m_referenceClassifierGroups.TryGetValue(groupName, out ReferenceClassifierGroup? group))
-            {
-                throw new ArgumentException($"unknown reference classifier group \"{groupName}\"");
-            }
+            m_referenceClassifierGroups.Clear();
+        }
 
-            return group;
+        public void ClearGroup(string groupName)
+        {
+            m_referenceClassifierGroups.Remove(groupName);
+        }
+
+        public bool TryGetGroup(string groupName, out ReferenceClassifierGroup? group)
+        {
+            return m_referenceClassifierGroups.TryGetValue(groupName, out group);
         }
 
         public ReferenceClassifierGroup GetOrCreateGroup(string groupName)
@@ -48,23 +48,30 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             return group;
         }
 
-        public void Load(string filename)
+        public HashSet<string> Load(string filename, string? overrideGroupName)
         {
             Dictionary<string, List<Rule>> groupedRules = ReferenceClassifierLoader.Load(filename);
+            HashSet<string> loadedGroups = new();
             foreach ((string groupName, List<Rule> rules) in groupedRules)
             {
-                GetOrCreateGroup(groupName).Add(rules);
+                string effectiveGroupName = overrideGroupName ?? groupName;
+                GetOrCreateGroup(effectiveGroupName).Add(rules);
+                loadedGroups.Add(effectiveGroupName);
             }
+            return loadedGroups;
         }
 
-        internal BoundRuleset Bind(TypeSystem typeSystem)
+        internal BoundRuleset Bind(TypeSystem typeSystem, SortedSet<string> activeGroups)
         {
             List<Rule> rules = new();
             foreach ((string groupName, ReferenceClassifierGroup group) in m_referenceClassifierGroups)
             {
-                foreach (Rule rule in group.GetRules())
+                if (activeGroups.Contains(groupName))
                 {
-                    rules.Add(rule);
+                    foreach (Rule rule in group.GetRules())
+                    {
+                        rules.Add(rule);
+                    }
                 }
             }
             return new BoundRuleset(typeSystem, rules);

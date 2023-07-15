@@ -1,9 +1,11 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using MemorySnapshotAnalyzer.ReferenceClassifiers;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 
 namespace MemorySnapshotAnalyzer.CommandProcessing
@@ -22,6 +24,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         readonly List<MemorySnapshotLoader> m_memorySnapshotLoaders;
         readonly SortedDictionary<string, Type> m_commands;
         readonly Dictionary<Type, Dictionary<string, NamedArgumentKind>> m_commandNamedArgumentNames;
+        readonly ReferenceClassifierStore m_referenceClassifierStore;
         readonly SortedDictionary<int, Context> m_contexts;
         string? m_currentCommandLine;
         int m_currentContextId;
@@ -30,11 +33,12 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             m_configuration = configuration;
             m_output = new ConsoleOutput();
-            m_memorySnapshotLoaders = new List<MemorySnapshotLoader>();
-            m_commands = new SortedDictionary<string, Type>();
-            m_commandNamedArgumentNames = new Dictionary<Type, Dictionary<string, NamedArgumentKind>>();
-            m_contexts = new SortedDictionary<int, Context>();
-            m_contexts.Add(0, new Context(0, m_output)
+            m_memorySnapshotLoaders = new();
+            m_commands = new();
+            m_referenceClassifierStore = new();
+            m_commandNamedArgumentNames = new();
+            m_contexts = new();
+            m_contexts.Add(0, new Context(0, m_output, m_referenceClassifierStore)
             {
                 // TODO: read TraceableHeap_Kind value
                 TraceableHeap_FuseObjectPairs = configuration.GetValue<bool>("FuseObjectPairs"),
@@ -88,6 +92,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
         public string CurrentCommandLine => m_currentCommandLine!;
 
+        public ReferenceClassifierStore ReferenceClassifierStore => m_referenceClassifierStore;
+
         public Context CurrentContext => m_contexts[m_currentContextId];
 
         public Context SwitchToContext(int id)
@@ -120,6 +126,14 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             else
             {
                 return null;
+            }
+        }
+
+        public void ForAllContexts(Action<Context> action)
+        {
+            foreach ((_, Context context) in m_contexts)
+            {
+                action(context);
             }
         }
 
