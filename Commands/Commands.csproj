@@ -6,6 +6,7 @@
     <ProjectReference Include="..\Analysis\Analysis.csproj" />
     <ProjectReference Include="..\CommandInfrastructure\CommandInfrastructure.csproj" />
     <ProjectReference Include="..\MemorySnapshot\MemorySnapshot.csproj" />
+    <ProjectReference Include="..\ReferenceClassifierStore\ReferenceClassifiers.csproj" />
   </ItemGroup>
 
 </Project>

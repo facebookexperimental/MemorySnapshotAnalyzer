@@ -43,7 +43,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             m_id = id;
             m_output = output;
-            m_traceableHeap_referenceClassifier = new ReferenceClassifierFactory();
+            m_traceableHeap_referenceClassifier = new DefaultReferenceClassifierFactory();
         }
 
         public static Context WithSameOptionsAs(Context other, int newId)

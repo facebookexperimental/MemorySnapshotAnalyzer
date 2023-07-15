@@ -11,7 +11,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         readonly List<PointerInfo<int>> m_offsets;
         readonly Dictionary<int, (int, int)> m_typeIndexToIndexAndCount;
 
-        ReferenceClassifierFactory.ReferenceClassifier? m_referenceClassifier;
+        ReferenceClassifier? m_referenceClassifier;
 
         protected TypeSystem(ReferenceClassifierFactory referenceClassifierFactory)
         {
