@@ -14,24 +14,14 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             m_boundRuleset = boundRuleset;
         }
 
-        public override bool IsOwningReference(int typeIndex, int fieldNumber)
+        public override PointerFlags GetPointerFlags(int typeIndex, int fieldNumber)
         {
-            return m_boundRuleset.IsOwningReference(typeIndex, fieldNumber);
-        }
-
-        public override bool IsConditionAnchor(int typeIndex, int fieldNumber)
-        {
-            return m_boundRuleset.IsConditionAnchor(typeIndex, fieldNumber);
+            return m_boundRuleset.GetPointerFlags(typeIndex, fieldNumber);
         }
 
         public override List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
         {
             return m_boundRuleset.GetConditionalAnchorFieldPaths(typeIndex, fieldNumber);
-        }
-
-        public override bool IsWeakReference(int typeIndex, int fieldNumber)
-        {
-            return m_boundRuleset.IsWeakReference(typeIndex, fieldNumber);
         }
     }
 

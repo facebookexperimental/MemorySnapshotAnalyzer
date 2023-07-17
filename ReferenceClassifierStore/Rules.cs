@@ -172,11 +172,22 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
     public sealed class WeakRule : Rule
     {
-        public WeakRule(TypeSpec typeSpec) : base(typeSpec) { }
+        // A field name, or (if ending in "*") a field prefix.
+        public string FieldPattern { get; private set; }
+
+        public WeakRule(TypeSpec typeSpec, string fieldPattern) : base(typeSpec)
+        {
+            FieldPattern = fieldPattern;
+        }
+
+        public static WeakRule Parse(TypeSpec typeSpec, string value)
+        {
+            return new WeakRule(typeSpec, value);
+        }
 
         public override string ToString()
         {
-            return $"{TypeSpec} WEAK;";
+            return $"{TypeSpec} WEAK \"{FieldPattern}\";";
         }
     }
 }

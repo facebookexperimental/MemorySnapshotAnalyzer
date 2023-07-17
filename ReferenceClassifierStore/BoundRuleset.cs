@@ -11,36 +11,37 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         readonly TypeSystem m_typeSystem;
         readonly HashSet<(int typeIndex, int fieldNumber)> m_owningReferences;
         readonly Dictionary<(int typeIndex, int fieldNumber), List<(int typeIndex, int fieldNumber)[]>> m_conditionAnchors;
-        readonly TypeSet m_weakTypes;
+        readonly HashSet<(int typeIndex, int fieldNumber)> m_weakReferences;
 
         internal BoundRuleset(TypeSystem typeSystem, List<Rule> rules)
         {
             m_typeSystem = typeSystem;
-            m_owningReferences = new HashSet<(int typeIndex, int fieldNumber)>();
-            m_conditionAnchors = new Dictionary<(int typeIndex, int fieldNumber), List<(int typeIndex, int fieldNumber)[]>>();
-            m_weakTypes = new TypeSet(typeSystem);
+            m_owningReferences = new();
+            m_conditionAnchors = new();
+            m_weakReferences = new();
 
             var shallowSpecs = new List<(TypeSpec spec, string fieldPattern, int ruleNumber)>();
             var deepSpecs = new List<(TypeSpec spec, string fieldName, int ruleNumber)>();
-            var weakSpecs = new List<TypeSpec>();
+            var weakSpecs = new List<(TypeSpec spec, string fieldName, int ruleNumber)>();
             for (int ruleNumber = 0; ruleNumber < rules.Count; ruleNumber++)
             {
                 if (rules[ruleNumber] is OwnsFieldPatternRule fieldPatternRule)
                 {
-                    shallowSpecs.Add((rules[ruleNumber].TypeSpec, fieldPatternRule.FieldPattern!, ruleNumber));
+                    shallowSpecs.Add((fieldPatternRule.TypeSpec, fieldPatternRule.FieldPattern, ruleNumber));
                 }
                 else if (rules[ruleNumber] is OwnsFieldPathRule fieldPathRule)
                 {
-                    deepSpecs.Add((rules[ruleNumber].TypeSpec, fieldPathRule.Selector![0], ruleNumber));
+                    deepSpecs.Add((fieldPathRule.TypeSpec, fieldPathRule.Selector[0], ruleNumber));
                 }
                 else if (rules[ruleNumber] is WeakRule weakRule)
                 {
-                    weakSpecs.Add(weakRule.TypeSpec);
+                    weakSpecs.Add((weakRule.TypeSpec, weakRule.FieldPattern, ruleNumber));
                 }
             }
 
             var owningReferenceMatcher = new Matcher(m_typeSystem, shallowSpecs);
             var anchorMatcher = new Matcher(m_typeSystem, deepSpecs);
+            var weakMatcher = new Matcher(m_typeSystem, weakSpecs);
 
             for (int typeIndex = 0; typeIndex < typeSystem.NumberOfTypeIndices; typeIndex++)
             {
@@ -72,20 +73,13 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         });
                 }
 
-                ReadOnlySpan<char> typeAssembly = TypeSpec.WithoutExtension(m_typeSystem.Assembly(typeIndex));
-                foreach (TypeSpec weakTypeSpec in weakSpecs)
+                var weakFieldPatterns = weakMatcher.GetFieldPatterns(typeIndex);
+                if (weakFieldPatterns != null)
                 {
-                    if (weakTypeSpec.AssemblyMatches(typeAssembly))
-                    {
-                        if (weakTypeSpec.TypeName.Equals(m_typeSystem.QualifiedName(typeIndex), StringComparison.Ordinal))
-                        {
-                            m_weakTypes.Add(typeIndex);
-                        }
-                    }
+                    ClassifyFields(typeIndex, weakFieldPatterns,
+                        (fieldNumber, ruleNumber) => m_weakReferences.Add((typeIndex, fieldNumber)));
                 }
             }
-
-            m_weakTypes.AddDerivedTypes();
         }
 
         static readonly int s_fieldIsArraySentinel = Int32.MaxValue;
@@ -156,24 +150,30 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             }
         }
 
-        internal bool IsOwningReference(int typeIndex, int fieldNumber)
+        internal PointerFlags GetPointerFlags(int typeIndex, int fieldNumber)
         {
-            return m_owningReferences.Contains((typeIndex, fieldNumber));
-        }
+            PointerFlags pointerFlags = PointerFlags.None;
+            if (m_owningReferences.Contains((typeIndex, fieldNumber)))
+            {
+                pointerFlags |= PointerFlags.IsOwningReference;
+            }
 
-        internal bool IsConditionAnchor(int typeIndex, int fieldNumber)
-        {
-            return m_conditionAnchors.ContainsKey((typeIndex, fieldNumber));
+            if (m_conditionAnchors.ContainsKey((typeIndex, fieldNumber)))
+            {
+                pointerFlags |= PointerFlags.IsConditionAnchor;
+            }
+
+            if (m_weakReferences.Contains((typeIndex, fieldNumber)))
+            {
+                pointerFlags |= PointerFlags.IsWeakReference;
+            }
+
+            return pointerFlags;
         }
 
         internal List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
         {
             return m_conditionAnchors[(typeIndex, fieldNumber)];
-        }
-
-        internal bool IsWeakReference(int typeIndex, int fieldNumber)
-        {
-            return m_weakTypes.Contains(typeIndex);
         }
     }
 }

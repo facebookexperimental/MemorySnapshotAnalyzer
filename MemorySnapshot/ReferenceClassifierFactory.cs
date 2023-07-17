@@ -8,13 +8,9 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
     {
         protected ReferenceClassifier() { }
 
-        public abstract bool IsOwningReference(int typeIndex, int fieldNumber);
-
-        public abstract bool IsConditionAnchor(int typeIndex, int fieldNumber);
+        public abstract PointerFlags GetPointerFlags(int typeIndex, int fieldNumber);
 
         public abstract List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber);
-
-        public abstract bool IsWeakReference(int typeIndex, int fieldNumber);
     }
 
     public abstract class ReferenceClassifierFactory
@@ -31,24 +27,14 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             m_emptyList = new List<(int typeIndex, int fieldNumber)[]>();
         }
 
-        public override bool IsOwningReference(int typeIndex, int fieldNumber)
+        public override PointerFlags GetPointerFlags(int typeIndex, int fieldNumber)
         {
-            return false;
-        }
-
-        public override bool IsConditionAnchor(int typeIndex, int fieldNumber)
-        {
-            return false;
+            return PointerFlags.None;
         }
 
         public override List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
         {
             return m_emptyList;
-        }
-
-        public override bool IsWeakReference(int typeIndex, int fieldNumber)
-        {
-            return false;
         }
     }
 
