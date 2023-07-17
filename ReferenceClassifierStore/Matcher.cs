@@ -24,8 +24,8 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             Dictionary<string, List<(string fieldPattern, int ruleNumber)>> assemblyConfiguration = AssemblyConfiguration(typeIndex);
 
-            string className = m_typeSystem.QualifiedName(typeIndex);
-            if (assemblyConfiguration.TryGetValue(className, out List<(string fieldPattern, int ruleNumber)>? fieldPatterns))
+            string typeName = m_typeSystem.QualifiedName(typeIndex);
+            if (assemblyConfiguration.TryGetValue(typeName, out List<(string fieldPattern, int ruleNumber)>? fieldPatterns))
             {
                 return fieldPatterns;
             }

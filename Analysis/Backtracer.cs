@@ -16,14 +16,12 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly List<int>[] m_predecessors;
         readonly HashSet<int> m_ownedNodes;
         readonly HashSet<int> m_strongNodes;
-        readonly TypeSet m_weakTypes;
 
         public enum Options
         {
             None = 0,
             FuseRoots = 1 << 0,
             WeakGCHandles = 1 << 1,
-            WeakReferenceClassifiers = 1 << 2,
         }
 
         public Backtracer(TracedHeap tracedHeap, Options options)
@@ -40,14 +38,6 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_predecessors = new List<int>[m_rootNodeIndex + 1];
             m_ownedNodes = new HashSet<int>();
             m_strongNodes = new HashSet<int>();
-
-            m_weakTypes = new TypeSet(m_traceableHeap.TypeSystem);
-            if ((options & Options.WeakReferenceClassifiers) != 0)
-            {
-                // TODO: replace by reference classifiers
-                m_weakTypes.AddTypesByName(@"mscorlib.dll:^System\.Delegate$");
-                m_weakTypes.AddDerivedTypes();
-            }
 
             ComputePredecessors(options);
         }
@@ -211,9 +201,14 @@ namespace MemorySnapshotAnalyzer.Analysis
                         }
                     }
 
+                    if (isGCHandle)
+                    {
+                        pointerFlags |= PointerFlags.IsWeakReference;
+                    }
+
                     // If this parent index represents a (set of) root nodes, PostOrderAddress above returned the target.
                     int childPostorderIndex = m_tracedHeap.ObjectAddressToPostorderIndex(address);
-                    AddPredecessor(childPostorderIndex, parentPostorderIndex, pointerFlags, isWeak: isGCHandle);
+                    AddPredecessor(childPostorderIndex, parentPostorderIndex, pointerFlags);
                 }
                 else
                 {
@@ -228,7 +223,6 @@ namespace MemorySnapshotAnalyzer.Analysis
                         }
                     }
 
-                    bool isWeak = m_weakTypes.Contains(typeIndex);
                     foreach (PointerInfo<NativeWord> pointerInfo in m_traceableHeap.GetIntraHeapPointers(address, typeIndex))
                     {
                         int childPostorderIndex = m_tracedHeap.ObjectAddressToPostorderIndex(pointerInfo.Value);
@@ -240,16 +234,17 @@ namespace MemorySnapshotAnalyzer.Analysis
                                 ProcessConditionAnchor(address, pointerInfo);
                             }
 
-                            AddPredecessor(childPostorderIndex, resolvedParentPostorderIndex, pointerInfo.PointerFlags, isWeak: isWeak);
+                            AddPredecessor(childPostorderIndex, resolvedParentPostorderIndex, pointerInfo.PointerFlags);
                         }
                     }
                 }
             }
         }
 
-        void AddPredecessor(int childNodeIndex, int parentNodeIndex, PointerFlags pointerFlags, bool isWeak)
+        void AddPredecessor(int childNodeIndex, int parentNodeIndex, PointerFlags pointerFlags)
         {
             bool isOwningReference = (pointerFlags & PointerFlags.IsOwningReference) != 0;
+            bool isStrongReference = (pointerFlags & PointerFlags.IsWeakReference) == 0;
             bool clearPreviousReferences;
 
             bool warnAboutMultipleOwningReferences = false;
@@ -267,31 +262,26 @@ namespace MemorySnapshotAnalyzer.Analysis
                     warnAboutMultipleOwningReferences = true;
                 }
             }
-            else
+            else if (m_ownedNodes.Contains(childNodeIndex))
             {
                 // Ignore non-owning references to nodes for which we already found owning references.
-                if (m_ownedNodes.Contains(childNodeIndex))
-                {
-                    return;
-                }
-
-                if (isWeak)
-                {
-                    // Ignore weak, non-owning references to nodes for which we already found strong references.
-                    if (m_strongNodes.Contains(childNodeIndex))
-                    {
-                        return;
-                    }
-
-                    clearPreviousReferences = false;
-                }
-                else
-                {
-                    // If this is the first strong reference to this node (and we have not found owning references),
-                    // clear previous references (which must all have been weak). Also, this marks the node
-                    // as being strongly referenced.
-                    clearPreviousReferences = m_strongNodes.Add(childNodeIndex);
-                }
+                return;
+            }
+            else if (isStrongReference)
+            {
+                // If this is the first strong reference to this node (and we have not found owning references),
+                // clear previous references (which must all have been weak). Also, this marks the node
+                // as being strongly referenced.
+                clearPreviousReferences = m_strongNodes.Add(childNodeIndex);
+            }
+            else if (m_strongNodes.Contains(childNodeIndex))
+            {
+                // Ignore weak, non-owning references to nodes for which we already found strong references.
+                return;
+            }
+            else
+            {
+                clearPreviousReferences = false;
             }
 
             List<int>? parentNodeIndices = m_predecessors[childNodeIndex];
@@ -328,7 +318,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
                 if (childPostorderIndex != -1)
                 {
-                    AddPredecessor(childPostorderIndex, parentPostorderIndex, PointerFlags.IsOwningReference, isWeak: false);
+                    AddPredecessor(childPostorderIndex, parentPostorderIndex, PointerFlags.IsOwningReference);
                 }
             }
         }

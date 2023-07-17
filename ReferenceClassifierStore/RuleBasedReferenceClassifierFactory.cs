@@ -29,9 +29,9 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             return m_boundRuleset.GetConditionalAnchorFieldPaths(typeIndex, fieldNumber);
         }
 
-        public override TypeSet GetWeakTypes()
+        public override bool IsWeakReference(int typeIndex, int fieldNumber)
         {
-            return m_boundRuleset.GetWeakTypes();
+            return m_boundRuleset.IsWeakReference(typeIndex, fieldNumber);
         }
     }
 

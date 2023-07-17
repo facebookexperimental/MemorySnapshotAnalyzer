@@ -14,7 +14,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber);
 
-        public abstract TypeSet GetWeakTypes();
+        public abstract bool IsWeakReference(int typeIndex, int fieldNumber);
     }
 
     public abstract class ReferenceClassifierFactory
@@ -25,12 +25,10 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
     public class DefaultReferenceClassifier : ReferenceClassifier
     {
         readonly List<(int typeIndex, int fieldNumber)[]> m_emptyList;
-        readonly TypeSet m_emptyTypeSet;
 
-        public DefaultReferenceClassifier(TypeSystem typeSystem)
+        public DefaultReferenceClassifier()
         {
             m_emptyList = new List<(int typeIndex, int fieldNumber)[]>();
-            m_emptyTypeSet = new TypeSet(typeSystem);
         }
 
         public override bool IsOwningReference(int typeIndex, int fieldNumber)
@@ -48,9 +46,9 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             return m_emptyList;
         }
 
-        public override TypeSet GetWeakTypes()
+        public override bool IsWeakReference(int typeIndex, int fieldNumber)
         {
-            return m_emptyTypeSet;
+            return false;
         }
     }
 
@@ -58,7 +56,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
     {
         public override ReferenceClassifier Build(TypeSystem typeSystem)
         {
-            return new DefaultReferenceClassifier(typeSystem);
+            return new DefaultReferenceClassifier();
         }
     }
 }

@@ -123,22 +123,34 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
         }
 
+        ReferenceClassifier ReferenceClassifier
+        {
+            get
+            {
+                if (m_referenceClassifier == null)
+                {
+                    m_referenceClassifier = m_referenceClassifierFactory.Build(this);
+                }
+                return m_referenceClassifier;
+            }
+        }
+
         PointerFlags ClassifyField(int typeIndex, int fieldNumber)
         {
-            if (m_referenceClassifier == null)
-            {
-                m_referenceClassifier = m_referenceClassifierFactory.Build(this);
-            }
-
             PointerFlags pointerFlags = PointerFlags.None;
-            if (m_referenceClassifier.IsOwningReference(typeIndex, fieldNumber))
+            if (ReferenceClassifier.IsOwningReference(typeIndex, fieldNumber))
             {
                 pointerFlags |= PointerFlags.IsOwningReference;
             }
 
-            if (m_referenceClassifier.IsConditionAnchor(typeIndex, fieldNumber))
+            if (ReferenceClassifier.IsConditionAnchor(typeIndex, fieldNumber))
             {
                 pointerFlags |= PointerFlags.IsConditionAnchor;
+            }
+
+            if (ReferenceClassifier.IsWeakReference(typeIndex, fieldNumber))
+            {
+                pointerFlags |= PointerFlags.IsWeakReference;
             }
 
             return pointerFlags;

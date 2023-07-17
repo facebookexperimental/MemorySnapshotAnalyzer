@@ -2,10 +2,6 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandProcessing;
-using MemorySnapshotAnalyzer.ReferenceClassifiers;
-using System;
-using System.Collections.Generic;
-using System.IO;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -20,9 +16,6 @@ namespace MemorySnapshotAnalyzer.Commands
         [FlagArgument("fuseobjectpairs")]
         public int FuseObjectPairs = -1;
 
-        [FlagArgument("referenceclassifier")]
-        public int ReferenceClassifierEnabled = -1;
-
         [FlagArgument("weakgchandles")]
         public int WeakGCHandles = -1;
 
@@ -34,9 +27,6 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("fuseroots")]
         public int FuseRoots = -1;
-
-        [FlagArgument("enableweakreferenceclassifiers")]
-        public int EnableWeakReferenceClassifiers = -1;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
@@ -63,11 +53,6 @@ namespace MemorySnapshotAnalyzer.Commands
                 Context.TraceableHeap_FuseObjectPairs = FuseObjectPairs != 0;
             }
 
-            if (ReferenceClassifierEnabled != -1)
-            {
-                Context.TraceableHeap_ReferenceClassification_Enabled = ReferenceClassifierEnabled != 0;
-            }
-
             if (WeakGCHandles != -1)
             {
                 Context.TracedHeap_WeakGCHandles = WeakGCHandles != 0;
@@ -88,15 +73,10 @@ namespace MemorySnapshotAnalyzer.Commands
                 Context.Backtracer_FuseRoots = FuseRoots != 0;
             }
 
-            if (EnableWeakReferenceClassifiers != -1)
-            {
-                Context.Backtracer_EnableWeakReferenceClassifiers = EnableWeakReferenceClassifiers != 0;
-            }
-
             Output.WriteLine("* [{0}]", Context.Id);
             Context.Dump(indent: 1);
         }
 
-        public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['fuseobjectpairs] ['weakgchandles] ['rootobject <address or index>] ['groupstatics] ['fuseroots] ['enableweakreferenceclassifiers]";
+        public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['fuseobjectpairs] ['weakgchandles] ['rootobject <address or index>] ['groupstatics] ['fuseroots]";
     }
 }

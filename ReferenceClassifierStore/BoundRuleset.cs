@@ -22,6 +22,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
             var shallowSpecs = new List<(TypeSpec spec, string fieldPattern, int ruleNumber)>();
             var deepSpecs = new List<(TypeSpec spec, string fieldName, int ruleNumber)>();
+            var weakSpecs = new List<TypeSpec>();
             for (int ruleNumber = 0; ruleNumber < rules.Count; ruleNumber++)
             {
                 if (rules[ruleNumber] is OwnsFieldPatternRule fieldPatternRule)
@@ -34,7 +35,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 }
                 else if (rules[ruleNumber] is WeakRule weakRule)
                 {
-                    // TODO: m_weakTypes.Add(weakRule.TypeSpec);
+                    weakSpecs.Add(weakRule.TypeSpec);
                 }
             }
 
@@ -70,7 +71,21 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                             }
                         });
                 }
+
+                ReadOnlySpan<char> typeAssembly = TypeSpec.WithoutExtension(m_typeSystem.Assembly(typeIndex));
+                foreach (TypeSpec weakTypeSpec in weakSpecs)
+                {
+                    if (weakTypeSpec.AssemblyMatches(typeAssembly))
+                    {
+                        if (weakTypeSpec.TypeName.Equals(m_typeSystem.QualifiedName(typeIndex), StringComparison.Ordinal))
+                        {
+                            m_weakTypes.Add(typeIndex);
+                        }
+                    }
+                }
             }
+
+            m_weakTypes.AddDerivedTypes();
         }
 
         static readonly int s_fieldIsArraySentinel = Int32.MaxValue;
@@ -156,9 +171,9 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             return m_conditionAnchors[(typeIndex, fieldNumber)];
         }
 
-        internal TypeSet GetWeakTypes()
+        internal bool IsWeakReference(int typeIndex, int fieldNumber)
         {
-            return m_weakTypes;
+            return m_weakTypes.Contains(typeIndex);
         }
     }
 }
