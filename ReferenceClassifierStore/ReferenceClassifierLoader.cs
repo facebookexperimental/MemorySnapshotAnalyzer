@@ -1,67 +1,34 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
-    static class ReferenceClassifierLoader
+    sealed class ReferenceClassifierLoader
     {
         static readonly char[] s_assemblySeparator = new char[] { ',', ':' };
+
+        readonly ReferenceClassifierFileTokenizer m_tokenizer;
+        readonly IEnumerator<(ReferenceClassifierFileTokenizer.Token token, string value)> m_enumerator;
+        readonly Dictionary<string, List<Rule>> m_result;
+        string m_groupName;
+
+        ReferenceClassifierLoader(string filename)
+        {
+            m_tokenizer = new(filename);
+            m_enumerator = m_tokenizer.GetTokens().GetEnumerator();
+            m_result = new();
+            m_groupName = "anonymous";
+        }
 
         internal static Dictionary<string, List<Rule>> Load(string filename)
         {
             try
             {
-                var rules = new List<Rule>();
-                int lineNumber = 1;
-                foreach (string line in File.ReadAllLines(filename))
-                {
-                    string lineTrimmed = line.Trim();
-                    if (lineTrimmed.Length > 0 && !lineTrimmed.StartsWith("#", StringComparison.OrdinalIgnoreCase))
-                    {
-                        int firstComma = lineTrimmed.IndexOfAny(s_assemblySeparator);
-                        int lastComma = lineTrimmed.LastIndexOf(',');
-                        if (firstComma < 0 || lastComma < 0 || firstComma == lastComma)
-                        {
-                            throw new FileFormatException($"invalid syntax on line {lineNumber}");
-                        }
-
-                        List<string> fieldPattern = ParseFieldPattern(lineTrimmed[(lastComma + 1)..].Trim(), lineNumber);
-                        if (fieldPattern.Count == 1)
-                        {
-                            rules.Add(new FieldPatternRule
-                            {
-                                Spec = new ClassSpec
-                                {
-                                    Assembly = lineTrimmed[..firstComma].Trim(),
-                                    ClassName = lineTrimmed[(firstComma + 1)..lastComma].Trim()
-                                },
-                                FieldPattern = fieldPattern[0]
-                            });
-                        }
-                        else
-                        {
-                            rules.Add(new FieldPathRule
-                            {
-                                Spec = new ClassSpec
-                                {
-                                    Assembly = lineTrimmed[..firstComma].Trim(),
-                                    ClassName = lineTrimmed[(firstComma + 1)..lastComma].Trim()
-                                },
-                                FieldNames = fieldPattern.ToArray()
-                            }); ;
-                        }
-                    }
-
-                    lineNumber++;
-                }
-
-                return new Dictionary<string, List<Rule>>
-                {
-                    { "defaultGroup", rules }
-                };
+                ReferenceClassifierLoader loader = new(filename);
+                loader.Parse();
+                return loader.m_result;
             }
             catch (IOException ex)
             {
@@ -69,45 +36,76 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             }
         }
 
-        static List<string> ParseFieldPattern(string fieldPattern, int lineNumber)
+        void Parse()
         {
-            var pieces = new List<string>();
-            int startIndex = 0;
-            for (int i = 0; i < fieldPattern.Length; i++)
+            try
             {
-                if (fieldPattern[i] == '[')
+                while (m_enumerator.MoveNext())
                 {
-                    if (i + 1 == fieldPattern.Length || fieldPattern[i + 1] != ']')
+                    if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.Group)
                     {
-                        throw new FileFormatException($"invalid field pattern syntax on line {lineNumber}; '[' must be immediately followed by ']'");
+                        m_groupName = m_enumerator.Current.value;
                     }
-
-                    if (i > startIndex)
+                    else if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.String)
                     {
-                        pieces.Add(fieldPattern[startIndex..i]);
+                        TypeSpec typeSpec = TypeSpec.Parse(m_enumerator.Current.value);
+                        if (m_enumerator.MoveNext())
+                        {
+                            ParseRules(typeSpec);
+                        }
+                        else
+                        {
+                            throw new FileFormatException("found EOF after type spec");
+                        }
                     }
-
-                    pieces.Add("[]");
-                    startIndex = i + 2;
-                    i++;
-                }
-                else if (fieldPattern[i] == '.')
-                {
-                    if (i > startIndex)
-                    {
-                        pieces.Add(fieldPattern[startIndex..i]);
-                    }
-
-                    startIndex = i + 1;
                 }
             }
-
-            if (startIndex != fieldPattern.Length)
+            catch (FileFormatException ex)
             {
-                pieces.Add(fieldPattern[startIndex..]);
+                throw new FileFormatException($"{ex.Message} on line {m_tokenizer.LineNumber}");
             }
+        }
 
-            return pieces;
+        void ParseRules(TypeSpec typeSpec)
+        {
+            do
+            {
+                switch (m_enumerator.Current.token)
+                {
+                    case ReferenceClassifierFileTokenizer.Token.Owns:
+                        if (!m_enumerator.MoveNext() || m_enumerator.Current.token != ReferenceClassifierFileTokenizer.Token.String)
+                        {
+                            throw new FileFormatException("OWNS must be followed by field pattern or selector");
+                        }
+                        AddRule(OwnsRule.Parse(typeSpec, m_enumerator.Current.value));
+                        break;
+                    case ReferenceClassifierFileTokenizer.Token.Weak:
+                    case ReferenceClassifierFileTokenizer.Token.External:
+                    case ReferenceClassifierFileTokenizer.Token.FuseWith:
+                    case ReferenceClassifierFileTokenizer.Token.TagIfZero:
+                    case ReferenceClassifierFileTokenizer.Token.TagIfNonZero:
+                        // TODO: provide more kinds of rules
+                        throw new FileFormatException($"{m_enumerator.Current.token} rule not yet implemented");
+                    default:
+                        throw new FileFormatException($"unexpected token {m_enumerator.Current.token}");
+                }
+
+                if (!m_enumerator.MoveNext())
+                {
+                    throw new FileFormatException("unterminated rule");
+                }
+            }
+            while (m_enumerator.Current.token != ReferenceClassifierFileTokenizer.Token.Semicolon);
+        }
+
+        void AddRule(Rule rule)
+        {
+            if (!m_result.TryGetValue(m_groupName, out List<Rule>? rules))
+            {
+                rules = new();
+                m_result.Add(m_groupName, rules);
+            }
+            rules.Add(rule);
         }
     }
 }

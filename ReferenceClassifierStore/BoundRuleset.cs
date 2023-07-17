@@ -18,18 +18,18 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             m_owningReferences = new HashSet<(int typeIndex, int fieldNumber)>();
             m_conditionAnchors = new Dictionary<(int typeIndex, int fieldNumber), List<(int typeIndex, int fieldNumber)[]>>();
 
-            var shallowSpecs = new List<(ClassSpec spec, string fieldPattern, int ruleNumber)>();
-            var deepSpecs = new List<(ClassSpec spec, string fieldName, int ruleNumber)>();
+            var shallowSpecs = new List<(TypeSpec spec, string fieldPattern, int ruleNumber)>();
+            var deepSpecs = new List<(TypeSpec spec, string fieldName, int ruleNumber)>();
             for (int ruleNumber = 0; ruleNumber < rules.Count; ruleNumber++)
             {
-                if (rules[ruleNumber] is FieldPatternRule fieldPatternRule)
+                if (rules[ruleNumber] is OwnsFieldPatternRule fieldPatternRule)
                 {
-                    shallowSpecs.Add((rules[ruleNumber].Spec, fieldPatternRule.FieldPattern!, ruleNumber));
+                    shallowSpecs.Add((rules[ruleNumber].TypeSpec, fieldPatternRule.FieldPattern!, ruleNumber));
                 }
                 else
                 {
-                    var fieldPathRule = (FieldPathRule)rules[ruleNumber];
-                    deepSpecs.Add((rules[ruleNumber].Spec, fieldPathRule.FieldNames![0], ruleNumber));
+                    var fieldPathRule = (OwnsFieldPathRule)rules[ruleNumber];
+                    deepSpecs.Add((rules[ruleNumber].TypeSpec, fieldPathRule.Selector![0], ruleNumber));
                 }
             }
 
@@ -51,8 +51,8 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     ClassifyFields(typeIndex, anchorFieldPatterns,
                         (fieldNumber, ruleNumber) =>
                         {
-                            var fieldPathRule = (FieldPathRule)rules[ruleNumber];
-                            var fieldPath = FindFieldPath(typeIndex, fieldPathRule.FieldNames!);
+                            var fieldPathRule = (OwnsFieldPathRule)rules[ruleNumber];
+                            var fieldPath = FindFieldPath(typeIndex, fieldPathRule.Selector!);
                             if (fieldPath != null)
                             {
                                 if (!m_conditionAnchors.TryGetValue((typeIndex, fieldNumber), out List<(int typeIndex, int fieldNumber)[]>? fieldPaths))

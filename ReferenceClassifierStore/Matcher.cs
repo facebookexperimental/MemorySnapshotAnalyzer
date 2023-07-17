@@ -11,10 +11,10 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
     sealed class Matcher
     {
         readonly TypeSystem m_typeSystem;
-        readonly List<(ClassSpec spec, string fieldPattern, int ruleNumber)> m_specs;
+        readonly List<(TypeSpec spec, string fieldPattern, int ruleNumber)> m_specs;
         readonly Dictionary<string, Dictionary<string, List<(string fieldPattern, int ruleNumber)>>> m_assemblyToConfiguration;
 
-        internal Matcher(TypeSystem typeSystem, List<(ClassSpec spec, string fieldPattern, int ruleNumber)> specs)
+        internal Matcher(TypeSystem typeSystem, List<(TypeSpec spec, string fieldPattern, int ruleNumber)> specs)
         {
             m_typeSystem = typeSystem;
             m_specs = specs;
@@ -66,20 +66,20 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             {
                 // We have discovered a new assembly name. Filter the list of configuration entries that apply to the given assembly,
                 // and add them to the lookup structure.
-                ReadOnlySpan<char> typeAssembly = ClassSpec.WithoutExtension(m_typeSystem.Assembly(typeIndex));
+                ReadOnlySpan<char> typeAssembly = TypeSpec.WithoutExtension(m_typeSystem.Assembly(typeIndex));
 
                 assemblyConfiguration = new Dictionary<string, List<(string fieldPattern, int ruleNumber)>>();
-                foreach ((ClassSpec spec, string fieldPattern, int ruleNumber) in m_specs)
+                foreach ((TypeSpec spec, string fieldPattern, int ruleNumber) in m_specs)
                 {
                     if (spec.AssemblyMatches(typeAssembly))
                     {
-                        if (assemblyConfiguration.TryGetValue(spec.ClassName, out List<(string fieldPattern, int ruleNumber)>? configurationFieldPatterns))
+                        if (assemblyConfiguration.TryGetValue(spec.TypeName, out List<(string fieldPattern, int ruleNumber)>? configurationFieldPatterns))
                         {
                             configurationFieldPatterns!.Add((fieldPattern, ruleNumber));
                         }
                         else
                         {
-                            assemblyConfiguration.Add(spec.ClassName, new List<(string fieldPattern, int ruleNumber)>() { (fieldPattern, ruleNumber) });
+                            assemblyConfiguration.Add(spec.TypeName, new List<(string fieldPattern, int ruleNumber)>() { (fieldPattern, ruleNumber) });
                         }
                     }
                 }
