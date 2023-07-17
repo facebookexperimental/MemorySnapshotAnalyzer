@@ -11,12 +11,14 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         readonly TypeSystem m_typeSystem;
         readonly HashSet<(int typeIndex, int fieldNumber)> m_owningReferences;
         readonly Dictionary<(int typeIndex, int fieldNumber), List<(int typeIndex, int fieldNumber)[]>> m_conditionAnchors;
+        readonly TypeSet m_weakTypes;
 
         internal BoundRuleset(TypeSystem typeSystem, List<Rule> rules)
         {
             m_typeSystem = typeSystem;
             m_owningReferences = new HashSet<(int typeIndex, int fieldNumber)>();
             m_conditionAnchors = new Dictionary<(int typeIndex, int fieldNumber), List<(int typeIndex, int fieldNumber)[]>>();
+            m_weakTypes = new TypeSet(typeSystem);
 
             var shallowSpecs = new List<(TypeSpec spec, string fieldPattern, int ruleNumber)>();
             var deepSpecs = new List<(TypeSpec spec, string fieldName, int ruleNumber)>();
@@ -26,10 +28,13 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 {
                     shallowSpecs.Add((rules[ruleNumber].TypeSpec, fieldPatternRule.FieldPattern!, ruleNumber));
                 }
-                else
+                else if (rules[ruleNumber] is OwnsFieldPathRule fieldPathRule)
                 {
-                    var fieldPathRule = (OwnsFieldPathRule)rules[ruleNumber];
                     deepSpecs.Add((rules[ruleNumber].TypeSpec, fieldPathRule.Selector![0], ruleNumber));
+                }
+                else if (rules[ruleNumber] is WeakRule weakRule)
+                {
+                    // TODO: m_weakTypes.Add(weakRule.TypeSpec);
                 }
             }
 
@@ -149,6 +154,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         internal List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
         {
             return m_conditionAnchors[(typeIndex, fieldNumber)];
+        }
+
+        internal TypeSet GetWeakTypes()
+        {
+            return m_weakTypes;
         }
     }
 }

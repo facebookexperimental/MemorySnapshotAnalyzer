@@ -35,8 +35,8 @@ namespace MemorySnapshotAnalyzer.Commands
         [FlagArgument("fuseroots")]
         public int FuseRoots = -1;
 
-        [FlagArgument("weakdelegates")]
-        public int WeakDelegates = -1;
+        [FlagArgument("enableweakreferenceclassifiers")]
+        public int EnableWeakReferenceClassifiers = -1;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
@@ -88,15 +88,15 @@ namespace MemorySnapshotAnalyzer.Commands
                 Context.Backtracer_FuseRoots = FuseRoots != 0;
             }
 
-            if (WeakDelegates != -1)
+            if (EnableWeakReferenceClassifiers != -1)
             {
-                Context.Backtracer_WeakDelegates = WeakDelegates != 0;
+                Context.Backtracer_EnableWeakReferenceClassifiers = EnableWeakReferenceClassifiers != 0;
             }
 
             Output.WriteLine("* [{0}]", Context.Id);
             Context.Dump(indent: 1);
         }
 
-        public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['fuseobjectpairs] ['weakgchandles] ['rootobject <address or index>] ['groupstatics] ['fuseroots] ['weakdelegates]";
+        public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['fuseobjectpairs] ['weakgchandles] ['rootobject <address or index>] ['groupstatics] ['fuseroots] ['enableweakreferenceclassifiers]";
     }
 }

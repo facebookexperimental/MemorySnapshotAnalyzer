@@ -50,7 +50,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         public HashSet<string> Load(string filename, string? overrideGroupName)
         {
-            Dictionary<string, List<Rule>> groupedRules = ReferenceClassifierLoader.Load(filename);
+            Dictionary<string, List<Rule>> groupedRules = ReferenceClassifierParser.Load(filename);
             HashSet<string> loadedGroups = new();
             foreach ((string groupName, List<Rule> rules) in groupedRules)
             {

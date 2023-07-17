@@ -28,6 +28,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             return m_boundRuleset.GetConditionalAnchorFieldPaths(typeIndex, fieldNumber);
         }
+
+        public override TypeSet GetWeakTypes()
+        {
+            return m_boundRuleset.GetWeakTypes();
+        }
     }
 
     public sealed class RuleBasedReferenceClassifierFactory : ReferenceClassifierFactory

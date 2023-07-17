@@ -5,7 +5,7 @@ using System.IO;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
-    sealed class ReferenceClassifierLoader
+    sealed class ReferenceClassifierParser
     {
         static readonly char[] s_assemblySeparator = new char[] { ',', ':' };
 
@@ -14,7 +14,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         readonly Dictionary<string, List<Rule>> m_result;
         string m_groupName;
 
-        ReferenceClassifierLoader(string filename)
+        ReferenceClassifierParser(string filename)
         {
             m_tokenizer = new(filename);
             m_enumerator = m_tokenizer.GetTokens().GetEnumerator();
@@ -26,7 +26,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             try
             {
-                ReferenceClassifierLoader loader = new(filename);
+                ReferenceClassifierParser loader = new(filename);
                 loader.Parse();
                 return loader.m_result;
             }
@@ -80,6 +80,8 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         AddRule(OwnsRule.Parse(typeSpec, m_enumerator.Current.value));
                         break;
                     case ReferenceClassifierFileTokenizer.Token.Weak:
+                        AddRule(new WeakRule(typeSpec));
+                        break;
                     case ReferenceClassifierFileTokenizer.Token.External:
                     case ReferenceClassifierFileTokenizer.Token.FuseWith:
                     case ReferenceClassifierFileTokenizer.Token.TagIfZero:

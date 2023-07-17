@@ -34,7 +34,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         // Options for Backtracer
         bool m_backtracer_groupStatics;
         bool m_backtracer_fuseRoots;
-        bool m_backtracer_weakDelegates;
+        bool m_backtracer_enableWeakReferenceClassifiers;
 
         MemorySnapshot? m_currentMemorySnapshot;
         TraceableHeap? m_currentTraceableHeap;
@@ -64,7 +64,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 TracedHeap_WeakGCHandles = other.TracedHeap_WeakGCHandles,
                 Backtracer_GroupStatics = other.Backtracer_GroupStatics,
                 Backtracer_FuseRoots = other.Backtracer_FuseRoots,
-                Backtracer_WeakDelegates = other.Backtracer_WeakDelegates
+                Backtracer_EnableWeakReferenceClassifiers = other.Backtracer_EnableWeakReferenceClassifiers
             };
             newContext.m_traceableHeap_referenceClassificationGroups.UnionWith(other.m_traceableHeap_referenceClassificationGroups);
             return newContext;
@@ -148,17 +148,17 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
             if (m_currentBacktracer == null)
             {
-                yield return string.Format("Backtracer[groupstatics={0}, fuseroots={1}, weakdelegates={2}] not computed",
+                yield return string.Format("Backtracer[groupstatics={0}, fuseroots={1}, enableweakreferenceclassifiers={2}] not computed",
                     m_backtracer_groupStatics,
                     m_backtracer_fuseRoots,
-                    m_backtracer_weakDelegates);
+                    m_backtracer_enableWeakReferenceClassifiers);
             }
             else
             {
-                yield return string.Format("Backtracer[groupstatics={0}, fuseroots={1}, weakdelegates={2}]",
+                yield return string.Format("Backtracer[groupstatics={0}, fuseroots={1}, enableweakreferenceclassifiers={2}]",
                     m_backtracer_groupStatics,
                     m_backtracer_fuseRoots,
-                    m_backtracer_weakDelegates);
+                    m_backtracer_enableWeakReferenceClassifiers);
             }
 
             if (m_currentHeapDom == null)
@@ -463,14 +463,14 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public bool Backtracer_WeakDelegates
+        public bool Backtracer_EnableWeakReferenceClassifiers
         {
-            get { return m_backtracer_weakDelegates; }
+            get { return m_backtracer_enableWeakReferenceClassifiers; }
             set
             {
-                if (m_backtracer_weakDelegates != value)
+                if (m_backtracer_enableWeakReferenceClassifiers != value)
                 {
-                    m_backtracer_weakDelegates = value;
+                    m_backtracer_enableWeakReferenceClassifiers = value;
                     ClearBacktracer();
                 }
             }
@@ -497,9 +497,9 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                     backtracerOptions |= Backtracer.Options.WeakGCHandles;
                 }
 
-                if (m_backtracer_weakDelegates)
+                if (m_backtracer_enableWeakReferenceClassifiers)
                 {
-                    backtracerOptions |= Backtracer.Options.WeakDelegates;
+                    backtracerOptions |= Backtracer.Options.WeakReferenceClassifiers;
                 }
 
                 IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, backtracerOptions);

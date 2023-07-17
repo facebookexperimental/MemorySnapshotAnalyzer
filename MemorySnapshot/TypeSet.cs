@@ -1,11 +1,10 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
-using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-namespace MemorySnapshotAnalyzer.Analysis
+namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
     public sealed class TypeSet
     {

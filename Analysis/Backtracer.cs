@@ -23,7 +23,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             None = 0,
             FuseRoots = 1 << 0,
             WeakGCHandles = 1 << 1,
-            WeakDelegates = 1 << 2,
+            WeakReferenceClassifiers = 1 << 2,
         }
 
         public Backtracer(TracedHeap tracedHeap, Options options)
@@ -42,8 +42,9 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_strongNodes = new HashSet<int>();
 
             m_weakTypes = new TypeSet(m_traceableHeap.TypeSystem);
-            if ((options & Options.WeakDelegates) != 0)
+            if ((options & Options.WeakReferenceClassifiers) != 0)
             {
+                // TODO: replace by reference classifiers
                 m_weakTypes.AddTypesByName(@"mscorlib.dll:^System\.Delegate$");
                 m_weakTypes.AddDerivedTypes();
             }

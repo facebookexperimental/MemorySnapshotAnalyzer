@@ -138,7 +138,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         public override string ToString()
         {
-            return $"{TypeSpec} OWNS \"{FieldPattern}\"";
+            return $"{TypeSpec} OWNS \"{FieldPattern}\";";
         }
     }
 
@@ -165,8 +165,18 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 }
                 sb.Append(fieldName);
             }
-            sb.Append('"');
+            sb.Append("\";");
             return sb.ToString();
+        }
+    }
+
+    public sealed class WeakRule : Rule
+    {
+        public WeakRule(TypeSpec typeSpec) : base(typeSpec) { }
+
+        public override string ToString()
+        {
+            return $"{TypeSpec} WEAK;";
         }
     }
 }
