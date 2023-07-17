@@ -38,7 +38,7 @@ namespace MemorySnapshotAnalyzer.Commands
             }
 #endif
 
-            MemorySnapshot? memorySnapshot = Repl.TryLoad(Filename!);
+            MemorySnapshot? memorySnapshot = Repl.TryLoadMemorySnapshot(Filename!);
             if (memorySnapshot == null)
             {
                 throw new CommandException("unable to detect memory snapshot file format");

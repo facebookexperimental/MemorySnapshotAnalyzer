@@ -37,6 +37,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             m_commands = new();
             m_referenceClassifierStore = new();
             m_commandNamedArgumentNames = new();
+
             m_contexts = new();
             m_contexts.Add(0, new Context(0, m_output, m_referenceClassifierStore)
             {
@@ -49,6 +50,19 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             });
             m_currentContextId = 0;
             Output.SetPrompt("[0]> ");
+
+            string? initialReferenceClassifierFile = configuration.GetValue<string>("InitialReferenceClassifierFile");
+            if (initialReferenceClassifierFile != null)
+            {
+                try
+                {
+                    LoadReferenceClassifierFile(initialReferenceClassifierFile, overrideGroupName: null);
+                }
+                catch (FileFormatException ex)
+                {
+                    Output.WriteLine($"error loading initial reference classifier file \"{initialReferenceClassifierFile}\": {ex.Message}");
+                }
+            }
         }
 
         public void Dispose()
@@ -64,7 +78,17 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             m_memorySnapshotLoaders.Add(loader);
         }
 
-        public MemorySnapshot? TryLoad(string filename)
+        public void LoadReferenceClassifierFile(string filename, string? overrideGroupName)
+        {
+            HashSet<string> loadedGroups = m_referenceClassifierStore.Load(filename, overrideGroupName);
+            foreach (string groupName in loadedGroups)
+            {
+                ForAllContexts(context => context.TraceableHeap_ReferenceClassifier_OnModifiedGroup(groupName));
+                CurrentContext.TraceableHeap_ReferenceClassifier_AddGroup(groupName);
+            }
+        }
+
+        public MemorySnapshot? TryLoadMemorySnapshot(string filename)
         {
             foreach (MemorySnapshotLoader loader in m_memorySnapshotLoaders)
             {

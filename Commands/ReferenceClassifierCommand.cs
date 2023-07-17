@@ -2,7 +2,6 @@
 
 using MemorySnapshotAnalyzer.CommandProcessing;
 using MemorySnapshotAnalyzer.ReferenceClassifiers;
-using System.Collections.Generic;
 using System.IO;
 
 namespace MemorySnapshotAnalyzer.Commands
@@ -23,6 +22,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("list")]
         public bool List;
+
+        [FlagArgument("verbose")]
+        public bool Verbose;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
@@ -45,13 +47,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 try
                 {
-                    HashSet<string> loadedGroups = store.Load(ReferenceClassifierFilename, GroupName);
-                    foreach (string groupName in loadedGroups)
-                    {
-                        Repl.ForAllContexts(context => context.TraceableHeap_ReferenceClassifier_OnModifiedGroup(groupName));
-                        Context.TraceableHeap_ReferenceClassifier_AddGroup(groupName);
-                    }
-
+                    Repl.LoadReferenceClassifierFile(ReferenceClassifierFilename, GroupName);
                     Output.WriteLine("* [{0}]", Context.Id);
                     Context.Dump(indent: 1);
                 }
@@ -67,11 +63,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 {
                     if (store.TryGetGroup(GroupName, out ReferenceClassifierGroup? group))
                     {
-                        Output.WriteLine("reference classifier group \"{0}\": {1} rule(s)", GroupName, group!.NumberOfRules);
-                        foreach (Rule rule in group.GetRules())
-                        {
-                            Output.WriteLine("  {0}", rule);
-                        }
+                        DumpGroup(group!, verbose: true);
                     }
                     else
                     {
@@ -82,12 +74,24 @@ namespace MemorySnapshotAnalyzer.Commands
                 {
                     foreach (ReferenceClassifierGroup group in store.AllGroups())
                     {
-                        Output.WriteLine("reference classifier group \"{0}\": {1} rule(s)", group.Name, group.NumberOfRules);
+                        DumpGroup(group, Verbose);
                     }
                 }
             }
         }
 
-        public override string HelpText => "referenceclassifier ['clear ['group <name>]] ['load <filename> ['group <name>]] ['list ['group <name>]]";
+        void DumpGroup(ReferenceClassifierGroup group, bool verbose)
+        {
+            Output.WriteLine("reference classifier group \"{0}\": {1} rule(s)", group.Name, group.NumberOfRules);
+            if (verbose)
+            {
+                foreach (Rule rule in group.GetRules())
+                {
+                    Output.WriteLine("  {0}", rule);
+                }
+            }
+        }
+
+        public override string HelpText => "referenceclassifier ['clear ['group <name>]] ['load <filename> ['group <name>]] ['list ['verbose | 'group <name>]]";
     }
 }

@@ -1,0 +1,44 @@
+##
+## Reference classifiers for third-party frameworks
+##
+
+[thirdparty.dotnet]
+
+##
+## Web
+##
+
+# TODO: consider using a selector starting from the specific static field
+#"System.dll:System.Net.ServicePointManager"
+#  OWNS "servicePoints._tables._buckets[]._next"
+#  OWNS "servicePoints._tables._buckets[]._value";
+"mscorlib.dll:System.Collections.Concurrent.ConcurrentDictionary.Node<System.Net.ServicePointManager.SPKey,System.Net.ServicePoint>"
+  OWNS "_next"
+  OWNS "_value";
+
+"System.dll:System.Net.ServicePoint" OWNS "<Scheduler>k__BackingField";
+"System.dll:System.Net.ServicePointScheduler"
+  OWNS "defaultGroup"
+  OWNS "groups._entries[].value";
+"System.dll:System.Net.ServicePointScheduler.ConnectionGroup" OWNS "connections.head";
+"System.dll:System.Net.Security.SslStream" OWNS "impl";
+"System.dll:System.Collections.Generic.LinkedListNode<System.Net.WebConnection>" OWNS "item";
+
+[thirdparty.mono]
+
+"System.dll:System.Net.WebConnection" OWNS "monoTlsStream";
+"System.dll:Mono.Net.Security.MonoTlsStream" OWNS "sslStream";
+
+[thirdparty.unity]
+
+##
+## Input
+##
+
+"Unity.InputSystem.dll:UnityEngine.InputSystem.InputSystem"
+  OWNS "s_Manager"
+  OWNS "s_Remote"
+  OWNS "s_RemoteConnection";
+"Unity.InputSystem.dll:UnityEngine.InputSystem.InputManager" OWNS "layoutMatchers";
+
+"Unity.Addressables.dll:UnityEngine.AddressableAssets.ResourceLocators.ResourceLocationMap" OWNS "locations._entries[].value";
