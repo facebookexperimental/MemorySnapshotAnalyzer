@@ -2,7 +2,7 @@
 
 using System;
 
-namespace MemorySnapshotAnalyzer.CommandProcessing
+namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
     [AttributeUsage(AttributeTargets.Field)]
     public sealed class FlagArgumentAttribute : Attribute

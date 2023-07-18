@@ -5,11 +5,11 @@ VisualStudioVersion = 17.5.33516.290
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MemorySnapshotAnalyzer", "MemorySnapshotAnalyzer\MemorySnapshotAnalyzer.csproj", "{A63A6621-4DEF-4E60-AB0C-1AB5D360BC02}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MemorySnapshot", "MemorySnapshot\MemorySnapshot.csproj", "{12024A92-D344-4133-B61B-9F2A557A8B66}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AbstractMemorySnapshot", "AbstractMemorySnapshot\AbstractMemorySnapshot.csproj", "{12024A92-D344-4133-B61B-9F2A557A8B66}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TreemapViewer", "TreemapViewer\TreemapViewer.csproj", "{D1FFA9C8-A2DC-4CF1-878D-B517A45133E2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnityMemorySnapshot", "UnityMemorySnapshot\UnityMemorySnapshot.csproj", "{0BC0BC0E-0202-4E65-BA16-3100AB41F15F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnityBackend", "UnityBackend\UnityBackend.csproj", "{0BC0BC0E-0202-4E65-BA16-3100AB41F15F}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Analysis", "Analysis\Analysis.csproj", "{174DA817-B460-4F00-88D8-B39942F1C5CA}"
 EndProject
@@ -20,11 +20,13 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{DE51E368-BE1A-4EF0-BCFA-DA972CA48155}"
 	ProjectSection(SolutionItems) = preProject
 		CHANGELOG.md = CHANGELOG.md
-		CONTRIBUTING.md = CONTRIBUTING.md
 		Common.props = Common.props
+		CONTRIBUTING.md = CONTRIBUTING.md
 		LICENSE = LICENSE
 		README.md = README.md
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReferenceClassifiers", "ReferenceClassifiers\ReferenceClassifiers.csproj", "{70B65ED6-7A51-4C41-BE82-EAE10AEB1D6A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -60,6 +62,10 @@ Global
 		{161B4C96-366E-4A08-B179-E54229C198FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{161B4C96-366E-4A08-B179-E54229C198FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{161B4C96-366E-4A08-B179-E54229C198FF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{70B65ED6-7A51-4C41-BE82-EAE10AEB1D6A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{70B65ED6-7A51-4C41-BE82-EAE10AEB1D6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{70B65ED6-7A51-4C41-BE82-EAE10AEB1D6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{70B65ED6-7A51-4C41-BE82-EAE10AEB1D6A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

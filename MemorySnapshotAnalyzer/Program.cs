@@ -1,6 +1,6 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
-using MemorySnapshotAnalyzer.CommandProcessing;
+using MemorySnapshotAnalyzer.CommandInfrastructure;
 using MemorySnapshotAnalyzer.Commands;
 using MemorySnapshotAnalyzer.UnityBackend;
 using Microsoft.Extensions.Configuration;
@@ -23,6 +23,7 @@ static class Program
         repl.AddCommand(typeof(HelpCommand), "help");
         repl.AddCommand(typeof(ExitCommand), "exit");
         repl.AddCommand(typeof(ClearConsoleCommand), "cls");
+        repl.AddCommand(typeof(ReferenceClassifierCommand), "referenceclassifier", "rc");
         repl.AddCommand(typeof(ContextCommand), "context");
         repl.AddCommand(typeof(OptionsCommand), "options");
         repl.AddCommand(typeof(LoadCommand), "load");

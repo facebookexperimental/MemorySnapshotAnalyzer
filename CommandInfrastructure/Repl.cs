@@ -1,12 +1,14 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using MemorySnapshotAnalyzer.ReferenceClassifiers;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 
-namespace MemorySnapshotAnalyzer.CommandProcessing
+namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
     public sealed class Repl : IDisposable
     {
@@ -22,6 +24,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         readonly List<MemorySnapshotLoader> m_memorySnapshotLoaders;
         readonly SortedDictionary<string, Type> m_commands;
         readonly Dictionary<Type, Dictionary<string, NamedArgumentKind>> m_commandNamedArgumentNames;
+        readonly ReferenceClassifierStore m_referenceClassifierStore;
         readonly SortedDictionary<int, Context> m_contexts;
         string? m_currentCommandLine;
         int m_currentContextId;
@@ -30,21 +33,35 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         {
             m_configuration = configuration;
             m_output = new ConsoleOutput();
-            m_memorySnapshotLoaders = new List<MemorySnapshotLoader>();
-            m_commands = new SortedDictionary<string, Type>();
-            m_commandNamedArgumentNames = new Dictionary<Type, Dictionary<string, NamedArgumentKind>>();
-            m_contexts = new SortedDictionary<int, Context>();
-            m_contexts.Add(0, new Context(0, m_output)
+            m_memorySnapshotLoaders = new();
+            m_commands = new();
+            m_referenceClassifierStore = new();
+            m_commandNamedArgumentNames = new();
+
+            m_contexts = new();
+            m_contexts.Add(0, new Context(0, m_output, m_referenceClassifierStore)
             {
                 // TODO: read TraceableHeap_Kind value
                 TraceableHeap_FuseObjectPairs = configuration.GetValue<bool>("FuseObjectPairs"),
                 TracedHeap_WeakGCHandles = configuration.GetValue<bool>("WeakGCHandles"),
                 Backtracer_GroupStatics = configuration.GetValue<bool>("GroupStatics"),
-                Backtracer_FuseRoots = configuration.GetValue<bool>("FuseRoots"),
-                Backtracer_WeakDelegates = configuration.GetValue<bool>("WeakDelegates")
+                Backtracer_FuseRoots = configuration.GetValue<bool>("FuseRoots")
             });
             m_currentContextId = 0;
             Output.SetPrompt("[0]> ");
+
+            string? initialReferenceClassifierFile = configuration.GetValue<string>("InitialReferenceClassifierFile");
+            if (initialReferenceClassifierFile != null)
+            {
+                try
+                {
+                    LoadReferenceClassifierFile(initialReferenceClassifierFile, overrideGroupName: null);
+                }
+                catch (FileFormatException ex)
+                {
+                    Output.WriteLine($"error loading initial reference classifier file \"{initialReferenceClassifierFile}\": {ex.Message}");
+                }
+            }
         }
 
         public void Dispose()
@@ -60,7 +77,17 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             m_memorySnapshotLoaders.Add(loader);
         }
 
-        public MemorySnapshot? TryLoad(string filename)
+        public void LoadReferenceClassifierFile(string filename, string? overrideGroupName)
+        {
+            HashSet<string> loadedGroups = m_referenceClassifierStore.Load(filename, overrideGroupName);
+            foreach (string groupName in loadedGroups)
+            {
+                ForAllContexts(context => context.TraceableHeap_ReferenceClassifier_OnModifiedGroup(groupName));
+                CurrentContext.TraceableHeap_ReferenceClassifier_EnableGroup(groupName);
+            }
+        }
+
+        public MemorySnapshot? TryLoadMemorySnapshot(string filename)
         {
             foreach (MemorySnapshotLoader loader in m_memorySnapshotLoaders)
             {
@@ -87,6 +114,8 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         public IOutput Output => m_output;
 
         public string CurrentCommandLine => m_currentCommandLine!;
+
+        public ReferenceClassifierStore ReferenceClassifierStore => m_referenceClassifierStore;
 
         public Context CurrentContext => m_contexts[m_currentContextId];
 
@@ -120,6 +149,14 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             else
             {
                 return null;
+            }
+        }
+
+        public void ForAllContexts(Action<Context> action)
+        {
+            foreach ((_, Context context) in m_contexts)
+            {
+                action(context);
             }
         }
 
@@ -220,6 +257,12 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                     kvp.Value.Id);
                 kvp.Value.Dump(indent: 1);
             }
+        }
+
+        public void DumpCurrentContext()
+        {
+            Output.WriteLine("* [{0}]", m_currentContextId);
+            CurrentContext.Dump(indent: 1);
         }
 
         void CheckValidityOfArgumentDeclarations(Type commandType)

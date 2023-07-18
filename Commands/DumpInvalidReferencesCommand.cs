@@ -1,9 +1,7 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using MemorySnapshotAnalyzer.Analysis;
-using MemorySnapshotAnalyzer.CommandProcessing;
-using System;
+using MemorySnapshotAnalyzer.CommandInfrastructure;
 using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.Commands
@@ -91,6 +89,6 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        public override string HelpText => "dumpinvalidrefs ['invalid|'nonheap]";
+        public override string HelpText => "dumpinvalidrefs ['invalid|'nonheap] ['roots] ['objects]";
     }
 }

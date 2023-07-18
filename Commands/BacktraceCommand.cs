@@ -1,7 +1,7 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using MemorySnapshotAnalyzer.CommandProcessing;
+using MemorySnapshotAnalyzer.CommandInfrastructure;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -17,7 +17,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly int m_systemVoidStarTypeIndex;
 
         public StitchedTypeSystem(TypeSystem first, TypeSystem second)
-            : base(new ReferenceClassifierFactory())
+            : base(new DefaultReferenceClassifierFactory())
         {
             if (first.PointerSize != second.PointerSize)
             {

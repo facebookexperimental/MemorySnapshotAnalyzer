@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace MemorySnapshotAnalyzer.CommandProcessing
+namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
     sealed class ConsoleOutput : IOutput
     {

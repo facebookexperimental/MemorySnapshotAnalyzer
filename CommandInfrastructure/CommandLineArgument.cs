@@ -1,12 +1,11 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using MemorySnapshotAnalyzer.Analysis;
 using System;
 using System.Linq;
 using System.Text;
 
-namespace MemorySnapshotAnalyzer.CommandProcessing
+namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
     public sealed class CommandLineArgument
     {

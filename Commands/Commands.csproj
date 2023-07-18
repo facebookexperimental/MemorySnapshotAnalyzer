@@ -1,11 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="..\Common.props" />
+  <PropertyGroup>
+    <RootNamespace>MemorySnapshotAnalyzer.Commands</RootNamespace>
+  </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AbstractMemorySnapshot\AbstractMemorySnapshot.csproj" />
     <ProjectReference Include="..\Analysis\Analysis.csproj" />
+    <ProjectReference Include="..\ReferenceClassifiers\ReferenceClassifiers.csproj" />
     <ProjectReference Include="..\CommandInfrastructure\CommandInfrastructure.csproj" />
-    <ProjectReference Include="..\MemorySnapshot\MemorySnapshot.csproj" />
   </ItemGroup>
 
 </Project>

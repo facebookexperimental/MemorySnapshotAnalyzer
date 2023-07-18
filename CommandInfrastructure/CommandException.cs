@@ -2,7 +2,7 @@
 
 using System;
 
-namespace MemorySnapshotAnalyzer.CommandProcessing
+namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
     public class CommandException : Exception
     {

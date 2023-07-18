@@ -2,15 +2,18 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.Analysis;
+using MemorySnapshotAnalyzer.ReferenceClassifiers;
 using System;
 using System.Collections.Generic;
+using System.Text;
 
-namespace MemorySnapshotAnalyzer.CommandProcessing
+namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
     public sealed class Context : IDisposable
     {
         readonly int m_id;
         readonly IOutput m_output;
+        readonly ReferenceClassifierStore m_referenceClassifierStore;
 
         public enum TraceableHeapKind
         {
@@ -22,7 +25,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         // Options for TraceableHeap
         TraceableHeapKind m_traceableHeap_kind;
         bool m_traceableHeap_fuseObjectPairs;
-        ReferenceClassifierFactory m_traceableHeap_referenceClassifier;
+        readonly SortedSet<string> m_traceableHeap_referenceClassificationGroups;
         // Options for RootSet
         NativeWord m_rootSet_singletonRootAddress;
         // Options for TracedHeap
@@ -30,7 +33,6 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         // Options for Backtracer
         bool m_backtracer_groupStatics;
         bool m_backtracer_fuseRoots;
-        bool m_backtracer_weakDelegates;
 
         MemorySnapshot? m_currentMemorySnapshot;
         TraceableHeap? m_currentTraceableHeap;
@@ -39,26 +41,27 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         IBacktracer? m_currentBacktracer;
         HeapDom? m_currentHeapDom;
 
-        public Context(int id, IOutput output)
+        public Context(int id, IOutput output, ReferenceClassifierStore referenceClassifierStore)
         {
             m_id = id;
             m_output = output;
-            m_traceableHeap_referenceClassifier = new ReferenceClassifierFactory();
+            m_referenceClassifierStore = referenceClassifierStore;
+
+            m_traceableHeap_referenceClassificationGroups = new();
         }
 
         public static Context WithSameOptionsAs(Context other, int newId)
         {
-            var newContext = new Context(newId, other.m_output)
+            var newContext = new Context(newId, other.m_output, other.m_referenceClassifierStore)
             {
-                TracedHeap_WeakGCHandles = other.TracedHeap_WeakGCHandles,
-                RootSet_SingletonRootAddress = other.RootSet_SingletonRootAddress,
                 TraceableHeap_Kind = other.TraceableHeap_Kind,
                 TraceableHeap_FuseObjectPairs = other.TraceableHeap_FuseObjectPairs,
-                TraceableHeap_ReferenceClassifier = other.TraceableHeap_ReferenceClassifier,
+                RootSet_SingletonRootAddress = other.RootSet_SingletonRootAddress,
+                TracedHeap_WeakGCHandles = other.TracedHeap_WeakGCHandles,
                 Backtracer_GroupStatics = other.Backtracer_GroupStatics,
-                Backtracer_FuseRoots = other.Backtracer_FuseRoots,
-                Backtracer_WeakDelegates = other.Backtracer_WeakDelegates
+                Backtracer_FuseRoots = other.Backtracer_FuseRoots
             };
+            newContext.m_traceableHeap_referenceClassificationGroups.UnionWith(other.m_traceableHeap_referenceClassificationGroups);
             return newContext;
         }
 
@@ -95,14 +98,14 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 yield return string.Format("TraceableHeap[kind={0}, fuseobjectpairs={1}, referenceclassifier={2}] not computed",
                     m_traceableHeap_kind,
                     m_traceableHeap_fuseObjectPairs,
-                    m_traceableHeap_referenceClassifier.Description);
+                    GetReferenceClassifierDescription());
             }
             else
             {
                 yield return string.Format("TraceableHeap[kind={0}, fuseobjectpairs={1}, referenceclassifier={2}] {3} ({4} type indices, {5} object pairs, {6})",
                     m_traceableHeap_kind,
                     m_traceableHeap_fuseObjectPairs,
-                    m_traceableHeap_referenceClassifier.Description,
+                    GetReferenceClassifierDescription(),
                     m_currentTraceableHeap.Description,
                     m_currentTraceableHeap.TypeSystem.NumberOfTypeIndices,
                     m_currentTraceableHeap.NumberOfObjectPairs,
@@ -140,17 +143,15 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
 
             if (m_currentBacktracer == null)
             {
-                yield return string.Format("Backtracer[groupstatics={0}, fuseroots={1}, weakdelegates={2}] not computed",
+                yield return string.Format("Backtracer[groupstatics={0}, fuseroots={1}] not computed",
                     m_backtracer_groupStatics,
-                    m_backtracer_fuseRoots,
-                    m_backtracer_weakDelegates);
+                    m_backtracer_fuseRoots);
             }
             else
             {
-                yield return string.Format("Backtracer[groupstatics={0}, fuseroots={1}, weakdelegates={2}]",
+                yield return string.Format("Backtracer[groupstatics={0}, fuseroots={1}]",
                     m_backtracer_groupStatics,
-                    m_backtracer_fuseRoots,
-                    m_backtracer_weakDelegates);
+                    m_backtracer_fuseRoots);
             }
 
             if (m_currentHeapDom == null)
@@ -226,14 +227,50 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public ReferenceClassifierFactory TraceableHeap_ReferenceClassifier
+        public void TraceableHeap_ReferenceClassifier_OnModifiedGroup(string groupName)
         {
-            get { return m_traceableHeap_referenceClassifier; }
-            set
+            if (m_traceableHeap_referenceClassificationGroups.Contains(groupName))
             {
-                m_traceableHeap_referenceClassifier = value;
                 ClearTraceableHeap();
             }
+        }
+
+        public void TraceableHeap_ReferenceClassifier_EnableGroup(string groupName)
+        {
+            bool added = m_traceableHeap_referenceClassificationGroups.Add(groupName);
+            if (added)
+            {
+                ClearTraceableHeap();
+            }
+        }
+
+        public void TraceableHeap_ReferenceClassifier_DisableGroup(string groupName)
+        {
+            bool removed = m_traceableHeap_referenceClassificationGroups.Remove(groupName);
+            if (removed)
+            {
+                ClearTraceableHeap();
+            }
+        }
+
+        string GetReferenceClassifierDescription()
+        {
+            StringBuilder sb = new();
+            foreach (string groupName in m_traceableHeap_referenceClassificationGroups)
+            {
+                if (sb.Length > 0)
+                {
+                    sb.Append('+');
+                }
+                sb.Append(groupName);
+
+                if (m_referenceClassifierStore.TryGetGroup(groupName, out ReferenceClassifierGroup? group))
+                {
+                    sb.AppendFormat("({0})", group!.NumberOfRules);
+                }
+            }
+
+            return sb.Length == 0 ? "none" : sb.ToString();
         }
 
         public TraceableHeap? CurrentTraceableHeap => m_currentTraceableHeap;
@@ -248,18 +285,31 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             if (m_currentTraceableHeap == null)
             {
                 m_output.Write("[context {0}] selecting traceable heap {1} ...", m_id, m_traceableHeap_kind);
+
+                ReferenceClassifierFactory referenceClassifierFactory;
+                if (m_traceableHeap_referenceClassificationGroups.Count > 0)
+                {
+                    referenceClassifierFactory = new RuleBasedReferenceClassifierFactory
+                        (m_referenceClassifierStore,
+                        m_traceableHeap_referenceClassificationGroups);
+                }
+                else
+                {
+                    referenceClassifierFactory = new DefaultReferenceClassifierFactory();
+                }
+
                 switch (m_traceableHeap_kind)
                 {
                     case TraceableHeapKind.Managed:
-                        m_currentTraceableHeap = m_currentMemorySnapshot.ManagedHeap(m_traceableHeap_referenceClassifier);
+                        m_currentTraceableHeap = m_currentMemorySnapshot.ManagedHeap(referenceClassifierFactory);
                         break;
                     case TraceableHeapKind.Native:
-                        m_currentTraceableHeap = m_currentMemorySnapshot.NativeHeap(m_traceableHeap_referenceClassifier);
+                        m_currentTraceableHeap = m_currentMemorySnapshot.NativeHeap(referenceClassifierFactory);
                         break;
                     case TraceableHeapKind.Stitched:
                         m_currentTraceableHeap = new StitchedTraceableHeap(
-                            m_currentMemorySnapshot.ManagedHeap(m_traceableHeap_referenceClassifier),
-                            m_currentMemorySnapshot.NativeHeap(m_traceableHeap_referenceClassifier),
+                            m_currentMemorySnapshot.ManagedHeap(referenceClassifierFactory),
+                            m_currentMemorySnapshot.NativeHeap(referenceClassifierFactory),
                             m_traceableHeap_fuseObjectPairs);
                         break;
                     default:
@@ -387,19 +437,6 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public bool Backtracer_WeakDelegates
-        {
-            get { return m_backtracer_weakDelegates; }
-            set
-            {
-                if (m_backtracer_weakDelegates != value)
-                {
-                    m_backtracer_weakDelegates = value;
-                    ClearBacktracer();
-                }
-            }
-        }
-
         public IBacktracer? CurrentBacktracer => m_currentBacktracer;
 
         public void EnsureBacktracer()
@@ -419,11 +456,6 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 if (m_tracedHeap_weakGCHandles)
                 {
                     backtracerOptions |= Backtracer.Options.WeakGCHandles;
-                }
-
-                if (m_backtracer_weakDelegates)
-                {
-                    backtracerOptions |= Backtracer.Options.WeakDelegates;
                 }
 
                 IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, backtracerOptions);

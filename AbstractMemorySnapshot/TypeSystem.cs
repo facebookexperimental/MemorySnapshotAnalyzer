@@ -11,7 +11,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         readonly List<PointerInfo<int>> m_offsets;
         readonly Dictionary<int, (int, int)> m_typeIndexToIndexAndCount;
 
-        ReferenceClassifierFactory.ReferenceClassifier? m_referenceClassifier;
+        ReferenceClassifier? m_referenceClassifier;
 
         protected TypeSystem(ReferenceClassifierFactory referenceClassifierFactory)
         {
@@ -110,7 +110,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     }
                     else
                     {
-                        PointerFlags pointerFlags = ClassifyField(typeIndex, fieldNumber);
+                        PointerFlags pointerFlags = ReferenceClassifier.GetPointerFlags(typeIndex, fieldNumber);
                         m_offsets.Add(new PointerInfo<int>
                         {
                             Value = baseOffset + fieldOffset,
@@ -123,25 +123,16 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
         }
 
-        PointerFlags ClassifyField(int typeIndex, int fieldNumber)
+        ReferenceClassifier ReferenceClassifier
         {
-            if (m_referenceClassifier == null)
+            get
             {
-                m_referenceClassifier = m_referenceClassifierFactory.Build(this);
+                if (m_referenceClassifier == null)
+                {
+                    m_referenceClassifier = m_referenceClassifierFactory.Build(this);
+                }
+                return m_referenceClassifier;
             }
-
-            PointerFlags pointerFlags = PointerFlags.None;
-            if (m_referenceClassifier.IsOwningReference(typeIndex, fieldNumber))
-            {
-                pointerFlags |= PointerFlags.IsOwningReference;
-            }
-
-            if (m_referenceClassifier.IsConditionAnchor(typeIndex, fieldNumber))
-            {
-                pointerFlags |= PointerFlags.IsConditionAnchor;
-            }
-
-            return pointerFlags;
         }
 
         public IEnumerable<PointerInfo<int>> GetPointerOffsets(int typeIndex, int baseOffset)
@@ -166,7 +157,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
             else
             {
-                PointerFlags pointerFlags = ClassifyField(typeIndex, fieldNumber);
+                PointerFlags pointerFlags = ReferenceClassifier.GetPointerFlags(typeIndex, fieldNumber);
                 yield return new PointerInfo<int>
                 {
                     Value = baseOffset,

@@ -1,6 +1,6 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
-namespace MemorySnapshotAnalyzer.CommandProcessing
+namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
     public enum CommandLineArgumentType
     {

@@ -5,7 +5,7 @@ using MemorySnapshotAnalyzer.Analysis;
 using System;
 using System.Text;
 
-namespace MemorySnapshotAnalyzer.CommandProcessing
+namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
     public abstract class Command
     {

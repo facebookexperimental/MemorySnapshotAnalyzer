@@ -6,7 +6,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
     {
         None = 0,
         IsOwningReference = 1 << 0,
-        IsConditionAnchor = 1 << 1
+        IsConditionAnchor = 1 << 1,
+        IsWeakReference = 1 << 2,
     }
 
     public struct PointerInfo<T>

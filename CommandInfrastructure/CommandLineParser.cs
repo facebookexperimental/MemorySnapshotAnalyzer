@@ -1,13 +1,12 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
-using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 
-namespace MemorySnapshotAnalyzer.CommandProcessing
+namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
     // context-free grammar:
     //
