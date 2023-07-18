@@ -41,6 +41,12 @@ namespace MemorySnapshotAnalyzer.Commands
         [NamedArgument("dominatedby")]
         public NativeWord DirectlyDominatedBy;
 
+        [NamedArgument("tagged")]
+        public string? WithTag;
+
+        [NamedArgument("nottagged")]
+        public string? WithoutTag;
+
         [NamedArgument("exec")]
         public string? ExecCommandLine;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
@@ -333,6 +339,16 @@ namespace MemorySnapshotAnalyzer.Commands
                         selected = domParentPostorderIndex == domNodeIndex;
                     }
 
+                    if (selected && WithTag != null)
+                    {
+                        selected = HasTag(CurrentTracedHeap.PostorderAddress(postorderIndex), WithTag);
+                    }
+
+                    if (selected && WithoutTag != null)
+                    {
+                        selected = !HasTag(CurrentTracedHeap.PostorderAddress(postorderIndex), WithoutTag);
+                    }
+
                     if (selected)
                     {
                         selection.Add(postorderIndex);
@@ -341,6 +357,18 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        public override string HelpText => "listobj ['stats] ['type <type index> ['includederived]] ['owned | 'unowned] ['dominatedby <object address or index or -1 for process>] ['sortbycount | 'sortbysize | 'sortbydomsize]";
+        bool HasTag(NativeWord address, string selectTag)
+        {
+            foreach (string tag in CurrentTracedHeap.TagsForAddress(address))
+            {
+                if (tag == selectTag)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public override string HelpText => "listobj ['stats] ['type <type index> ['includederived]] ['owned | 'unowned] ['dominatedby <object address or index or -1 for process>] ['tagged <tag> | 'nottagged <tag>] ['sortbycount | 'sortbysize | 'sortbydomsize]";
     }
 }
