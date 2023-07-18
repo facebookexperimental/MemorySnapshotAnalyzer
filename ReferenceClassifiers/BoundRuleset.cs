@@ -11,12 +11,14 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         readonly TypeSystem m_typeSystem;
         readonly Dictionary<(int typeIndex, int fieldNumber), PointerFlags> m_specialReferences;
         readonly Dictionary<(int typeIndex, int fieldNumber), List<(int typeIndex, int fieldNumber)[]>> m_conditionAnchors;
+        readonly Dictionary<(int typeIndex, int fieldNumber), (string? zeroTag, string? nonZeroTag)> m_tags;
 
         internal BoundRuleset(TypeSystem typeSystem, List<Rule> rules)
         {
             m_typeSystem = typeSystem;
             m_specialReferences = new();
             m_conditionAnchors = new();
+            m_tags = new();
 
             List<(TypeSpec spec, string fieldPattern, (int ruleNumber, PointerFlags pointerFlags))> specs = new();
             for (int ruleNumber = 0; ruleNumber < rules.Count; ruleNumber++)
@@ -37,13 +39,29 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 {
                     specs.Add((externalRule.TypeSpec, externalRule.FieldPattern, (ruleNumber, PointerFlags.IsExternalReference)));
                 }
+                else if (rules[ruleNumber] is TagRule tagRule)
+                {
+                    PointerFlags pointerFlags = tagRule.TagIfNonZero ? PointerFlags.TagIfNonZero : PointerFlags.TagIfZero;
+                    specs.Add((tagRule.TypeSpec, tagRule.FieldPattern, (ruleNumber, pointerFlags)));
+                }
             }
 
             var matcher = new Matcher<(int ruleNumber, PointerFlags pointerFlags)>(m_typeSystem, specs);
 
             var processField = (int typeIndex, int fieldNumber, (int ruleNumber, PointerFlags pointerFlags) data) =>
             {
-                m_specialReferences.Add((typeIndex, fieldNumber), data.pointerFlags);
+                _ = m_specialReferences.TryGetValue((typeIndex, fieldNumber), out PointerFlags existingPointerFlags);
+                PointerFlags newPointerFlags = existingPointerFlags | data.pointerFlags;
+                if ((newPointerFlags & PointerFlags.IsExternalReference) != 0)
+                {
+                    newPointerFlags &= ~PointerFlags.Untraced;
+                }
+                else if (m_typeSystem.IsValueType(m_typeSystem.FieldType(typeIndex, fieldNumber)))
+                {
+                    newPointerFlags |= PointerFlags.Untraced;
+                }
+
+                m_specialReferences[(typeIndex, fieldNumber)] = newPointerFlags;
 
                 if (rules[data.ruleNumber] is OwnsFieldPathRule ownsFieldPathRule)
                 {
@@ -58,6 +76,30 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     {
                         fieldPaths.Add(fieldPath);
                     }
+                }
+                else if (rules[data.ruleNumber] is TagRule tagRule)
+                {
+                    _ = m_tags.TryGetValue((typeIndex, fieldNumber), out (string? zeroTag, string? nonZeroTag) tags);
+
+                    string? existingTag;
+                    if (tagRule.TagIfNonZero)
+                    {
+                        existingTag = tags.nonZeroTag;
+                        tags.nonZeroTag = tagRule.Tag;
+                    }
+                    else
+                    {
+                        existingTag = tags.zeroTag;
+                        tags.zeroTag = tagRule.Tag;
+                    }
+
+                    if (existingTag != null)
+                    {
+                        // TODO: better warning management
+                        Console.Error.WriteLine($"field is assigned multiple tags for the same condition - ignoring tag \"{existingTag}\"");
+                    }
+
+                    m_tags[(typeIndex, fieldNumber)] = tags;
                 }
             };
 
@@ -136,6 +178,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         internal List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
         {
             return m_conditionAnchors[(typeIndex, fieldNumber)];
+        }
+
+        internal (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber)
+        {
+            return m_tags[(typeIndex, fieldNumber)];
         }
     }
 }

@@ -178,11 +178,6 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             FieldPattern = fieldPattern;
         }
 
-        public static WeakRule Parse(TypeSpec typeSpec, string value)
-        {
-            return new WeakRule(typeSpec, value);
-        }
-
         public override string ToString()
         {
             return $"{TypeSpec} WEAK \"{FieldPattern}\";";
@@ -199,14 +194,36 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             FieldPattern = fieldPattern;
         }
 
-        public static ExternalRule Parse(TypeSpec typeSpec, string value)
+        public override string ToString()
         {
-            return new ExternalRule(typeSpec, value);
+            return $"{TypeSpec} EXTERNAL \"{FieldPattern}\";";
+        }
+    }
+
+    public sealed class TagRule : Rule
+    {
+        // A field name, or (if ending in "*") a field prefix.
+        public string FieldPattern { get; private set; }
+        public string Tag { get; private set; }
+        public bool TagIfNonZero { get; private set; }
+
+        public TagRule(TypeSpec typeSpec, string fieldPattern, string tag, bool tagIfNonZero) : base(typeSpec)
+        {
+            FieldPattern = fieldPattern;
+            Tag = tag;
+            TagIfNonZero = tagIfNonZero;
         }
 
         public override string ToString()
         {
-            return $"{TypeSpec} EXTERNAL \"{FieldPattern}\";";
+            if (TagIfNonZero)
+            {
+                return $"{TypeSpec} TAG_IF_NONZERO({Tag}) \"{FieldPattern}\";";
+            }
+            else
+            {
+                return $"{TypeSpec} TAG_IF_ZERO({Tag}) \"{FieldPattern}\";";
+            }
         }
     }
 }

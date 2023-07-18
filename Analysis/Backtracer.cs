@@ -223,7 +223,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                         }
                     }
 
-                    foreach (PointerInfo<NativeWord> pointerInfo in m_traceableHeap.GetIntraHeapPointers(address, typeIndex))
+                    foreach (PointerInfo<NativeWord> pointerInfo in m_traceableHeap.GetPointers(address, typeIndex))
                     {
                         int childPostorderIndex = m_tracedHeap.ObjectAddressToPostorderIndex(pointerInfo.Value);
                         if (childPostorderIndex != -1)

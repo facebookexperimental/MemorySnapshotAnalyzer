@@ -55,8 +55,45 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             {
                 foreach (PointerInfo<int> pointerInfo in m_typeSystem.GetPointerOffsets(typeIndex, m_typeSystem.ObjectHeaderSize(typeIndex)))
                 {
-                    yield return pointerInfo.WithValue(objectView.ReadPointer(pointerInfo.Value, m_native));
+                    yield return pointerInfo.WithValue(ReadValue(objectView, pointerInfo));
                 }
+            }
+        }
+
+        public NativeWord ReadValue(MemoryView objectView, PointerInfo<int> pointerInfo)
+        {
+            if ((pointerInfo.PointerFlags & PointerFlags.Untraced) != 0)
+            {
+                int typeIndex = m_typeSystem.FieldType(pointerInfo.TypeIndex, pointerInfo.FieldNumber);
+                int fieldSize = m_typeSystem.BaseSize(typeIndex);
+                switch (fieldSize)
+                {
+                    case 1:
+                        {
+                            objectView.Read<byte>(pointerInfo.Value, out byte value);
+                            return new NativeWord(1, value);
+                        }
+                    case 2:
+                        {
+                            objectView.Read<ushort>(pointerInfo.Value, out ushort value);
+                            return new NativeWord(2, value);
+                        }
+                    case 4:
+                        {
+                            objectView.Read<uint>(pointerInfo.Value, out uint value);
+                            return new NativeWord(4, value);
+                        }
+                    case 8:
+                    default:
+                        {
+                            objectView.Read<ulong>(pointerInfo.Value, out ulong value);
+                            return new NativeWord(8, value);
+                        }
+                }
+            }
+            else
+            {
+                return objectView.ReadPointer(pointerInfo.Value, m_native);
             }
         }
 

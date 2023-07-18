@@ -102,7 +102,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
                     bool isValueType = IsValueType(fieldTypeIndex);
                     PointerFlags pointerFlags = ReferenceClassifier.GetPointerFlags(typeIndex, fieldNumber);
-                    if (!isValueType || (pointerFlags & PointerFlags.IsExternalReference) != 0)
+                    if (!isValueType || pointerFlags != PointerFlags.None)
                     {
                         m_offsets.Add(new PointerInfo<int>
                         {
@@ -206,6 +206,11 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         public List<(int offset, int typeIndex)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
         {
             return m_referenceClassifier!.GetConditionalAnchorFieldPaths(typeIndex, fieldNumber);
+        }
+
+        public (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber)
+        {
+            return m_referenceClassifier!.GetTags(typeIndex, fieldNumber);
         }
     }
 }

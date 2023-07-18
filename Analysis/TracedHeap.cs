@@ -35,6 +35,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly IRootSet m_rootSet;
         readonly TraceableHeap m_traceableHeap;
         readonly Native m_native;
+        readonly Dictionary<ulong, List<string>> m_tags;
         readonly List<PostorderEntry> m_postorderEntries;
         readonly Dictionary<ulong, int> m_numberOfPredecessors;
         readonly Dictionary<ulong, List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)>> m_objectAddressToRootIndices;
@@ -50,15 +51,16 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_traceableHeap = rootSet.TraceableHeap;
             m_native = m_traceableHeap.Native;
 
-            m_postorderEntries = new List<PostorderEntry>();
-            m_numberOfPredecessors = new Dictionary<ulong, int>();
-            m_markStack = new Stack<MarkStackEntry>();
+            m_tags = new();
+            m_postorderEntries = new();
+            m_numberOfPredecessors = new();
+            m_markStack = new();
 
-            m_invalidRoots = new List<(int rootIndex, ulong invalidReference)>();
-            m_invalidPointers = new List<(ulong reference, ulong objectAddress)>();
+            m_invalidRoots = new();
+            m_invalidPointers = new();
 
             // Group all the roots that reference each individual target objects into a single node.
-            m_objectAddressToRootIndices = new Dictionary<ulong, List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)>>();
+            m_objectAddressToRootIndices = new();
             for (int rootIndex = 0; rootIndex < rootSet.NumberOfRoots; rootIndex++)
             {
                 PointerInfo<NativeWord> pointerInfo = rootSet.GetRoot(rootIndex);
@@ -250,6 +252,17 @@ namespace MemorySnapshotAnalyzer.Analysis
             sb.Append('}');
         }
 
+        public IEnumerable<string> TagsForAddress(NativeWord address)
+        {
+            if (m_tags.TryGetValue(address.Value, out List<string>? tags))
+            {
+                foreach (string tag in tags)
+                {
+                    yield return tag;
+                }
+            }
+        }
+
         void Mark(NativeWord reference, NativeWord referrer)
         {
             ulong address = reference.Value;
@@ -321,11 +334,44 @@ namespace MemorySnapshotAnalyzer.Analysis
 
                 // Push all of the node's children that are nodes we haven't encountered previously.
                 NativeWord address = m_native.From(entry.Address);
-                foreach (PointerInfo<NativeWord> pointerInfo in m_traceableHeap.GetIntraHeapPointers(address, entry.TypeIndex))
+                foreach (PointerInfo<NativeWord> pointerInfo in m_traceableHeap.GetPointers(address, entry.TypeIndex))
                 {
-                    Mark(pointerInfo.Value, address);
+                    if ((pointerInfo.PointerFlags & (PointerFlags.TagIfZero | PointerFlags.TagIfNonZero)) != 0)
+                    {
+                        CheckTag(pointerInfo, address);
+                    }
+
+                    if ((pointerInfo.PointerFlags & PointerFlags.Untraced) == 0)
+                    {
+                        Mark(pointerInfo.Value, address);
+                    }
                 }
             }
+        }
+
+        void CheckTag(PointerInfo<NativeWord> pointerInfo, NativeWord address)
+        {
+            (string? zeroTag, string? nonZeroTag) = m_traceableHeap.TypeSystem.GetTags(pointerInfo.TypeIndex, pointerInfo.FieldNumber);
+            if ((pointerInfo.PointerFlags & PointerFlags.TagIfZero) != 0 && pointerInfo.Value.Value == 0)
+            {
+                RecordTag(address, zeroTag!);
+            }
+
+            if ((pointerInfo.PointerFlags & PointerFlags.TagIfNonZero) != 0 && pointerInfo.Value.Value != 0)
+            {
+                RecordTag(address, nonZeroTag!);
+            }
+        }
+
+        void RecordTag(NativeWord address, string tag)
+        {
+            if (!m_tags.TryGetValue(address.Value, out List<string>? tags))
+            {
+                tags = new();
+                m_tags.Add(address.Value, tags);
+            }
+
+            tags.Add(tag);
         }
     }
 }

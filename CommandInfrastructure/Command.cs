@@ -238,6 +238,32 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                     }
                 }
             }
+
+            AppendTags(objectAddress, sb);
+        }
+
+        protected void AppendTags(NativeWord address, StringBuilder sb)
+        {
+            bool first = true;
+            foreach (string tag in CurrentTracedHeap.TagsForAddress(address))
+            {
+                if (first)
+                {
+                    sb.Append(" tags(");
+                    first = false;
+                }
+                else
+                {
+                    sb.Append(',');
+                }
+
+                sb.Append(tag);
+            }
+
+            if (!first)
+            {
+                sb.Append(')');
+            }
         }
 
         protected void DumpObjectPointers(NativeWord address)
