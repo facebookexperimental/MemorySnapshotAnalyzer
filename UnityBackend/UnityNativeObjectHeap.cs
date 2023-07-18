@@ -90,7 +90,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return m_nativeObjectsByAddress[objectAddress.Value].Name;
         }
 
-        public override IEnumerable<PointerInfo<NativeWord>> GetIntraHeapPointers(NativeWord address, int typeIndex)
+        public override IEnumerable<PointerInfo<NativeWord>> GetPointers(NativeWord address, int typeIndex)
         {
             int instanceId = m_nativeObjectsByAddress[address.Value].InstanceId;
             if (m_connections.TryGetValue(instanceId, out List<int>? successorInstanceIds))
@@ -106,11 +106,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
                     };
                 }
             }
-        }
-
-        public override IEnumerable<NativeWord> GetInterHeapPointers(NativeWord address, int typeIndex)
-        {
-            return Array.Empty<NativeWord>();
         }
 
         public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
