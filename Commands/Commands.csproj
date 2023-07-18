@@ -1,6 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="..\Common.props" />
+  <PropertyGroup>
+    <RootNamespace>MemorySnapshotAnalyzer.Commands</RootNamespace>
+  </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Analysis\Analysis.csproj" />

@@ -2,7 +2,7 @@
 
 using System.Text;
 
-namespace MemorySnapshotAnalyzer.CommandProcessing
+namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
     sealed class CommandLineTokenizer
     {

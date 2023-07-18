@@ -1,6 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="..\Common.props" />
+  <PropertyGroup>
+    <RootNamespace>MemorySnapshotAnalyzer.UnityBackend</RootNamespace>
+  </PropertyGroup>
 
   <PropertyGroup>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>

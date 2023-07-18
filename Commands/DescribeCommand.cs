@@ -2,7 +2,7 @@
 
 using System.Text;
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using MemorySnapshotAnalyzer.CommandProcessing;
+using MemorySnapshotAnalyzer.CommandInfrastructure;
 
 namespace MemorySnapshotAnalyzer.Commands
 {

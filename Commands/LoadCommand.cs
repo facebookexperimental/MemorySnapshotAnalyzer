@@ -1,7 +1,7 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using MemorySnapshotAnalyzer.CommandProcessing;
+using MemorySnapshotAnalyzer.CommandInfrastructure;
 using Microsoft.Extensions.Configuration;
 #if Windows
 using System.Windows.Forms;

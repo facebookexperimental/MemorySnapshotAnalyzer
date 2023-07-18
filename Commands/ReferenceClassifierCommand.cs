@@ -1,6 +1,6 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
-using MemorySnapshotAnalyzer.CommandProcessing;
+using MemorySnapshotAnalyzer.CommandInfrastructure;
 using MemorySnapshotAnalyzer.ReferenceClassifiers;
 using System.Collections.Generic;
 using System.IO;
