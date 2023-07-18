@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MemorySnapshot\MemorySnapshot.csproj" />
+    <ProjectReference Include="..\AbstractMemorySnapshot\AbstractMemorySnapshot.csproj" />
   </ItemGroup>
 
 </Project>

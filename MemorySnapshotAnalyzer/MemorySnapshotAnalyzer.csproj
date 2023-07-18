@@ -9,7 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CommandInfrastructure\CommandInfrastructure.csproj" />
     <ProjectReference Include="..\Commands\Commands.csproj" />
-    <ProjectReference Include="..\UnityMemorySnapshot\UnityMemorySnapshot.csproj" />
+    <ProjectReference Include="..\UnityBackend\UnityBackend.csproj" />
   </ItemGroup>
 
   <ItemGroup>
