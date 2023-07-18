@@ -87,6 +87,12 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         AddRule(WeakRule.Parse(typeSpec, m_enumerator.Current.value));
                         break;
                     case ReferenceClassifierFileTokenizer.Token.External:
+                        if (!m_enumerator.MoveNext() || m_enumerator.Current.token != ReferenceClassifierFileTokenizer.Token.String)
+                        {
+                            throw new FileFormatException("EXTERNAL must be followed by field pattern");
+                        }
+                        AddRule(ExternalRule.Parse(typeSpec, m_enumerator.Current.value));
+                        break;
                     case ReferenceClassifierFileTokenizer.Token.FuseWith:
                     case ReferenceClassifierFileTokenizer.Token.TagIfZero:
                     case ReferenceClassifierFileTokenizer.Token.TagIfNonZero:

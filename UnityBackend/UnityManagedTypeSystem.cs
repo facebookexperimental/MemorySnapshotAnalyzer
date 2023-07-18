@@ -47,8 +47,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         readonly int m_stringLengthOffset;
         readonly int m_stringFirstCharOffset;
         readonly int m_systemVoidStarTypeIndex;
-        readonly int m_unityEngineCachedPtrFieldOffset;
-        readonly BitArray m_unityEngineObjectTypes;
 
         readonly TypeDescription[] m_typesByAddress;
 
@@ -63,11 +61,9 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             m_fieldsByIndex = fields;
             m_stringTypeIndex = -1;
             m_systemVoidStarTypeIndex = -1;
-            int unityEngineTypeIndex = -1;
 
             // Consistency check that the types are sorted by index and indices are contiguous.
             // Also, locate the System.String type and determine offset of length field/first char.
-            // Also, locate the UnityEngine.Object type and determine offset of cached pointer field.
             for (int typeIndex = 0; typeIndex < m_typesByIndex.Length; typeIndex++)
             {
                 if (m_typesByIndex[typeIndex].TypeIndex != typeIndex)
@@ -102,32 +98,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
                 {
                     m_systemVoidStarTypeIndex = typeIndex;
                 }
-
-                if (unityEngineTypeIndex == -1
-                    && Assembly(typeIndex).Equals("UnityEngine.CoreModule.dll", StringComparison.Ordinal)
-                    && QualifiedName(typeIndex).Equals("UnityEngine.Object", StringComparison.Ordinal))
-                {
-                    unityEngineTypeIndex = typeIndex;
-
-                    int numberOfFields = NumberOfFields(typeIndex);
-                    for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
-                    {
-                        if (FieldName(typeIndex, fieldNumber) == "m_CachedPtr")
-                        {
-                            m_unityEngineCachedPtrFieldOffset = FieldOffset(typeIndex, fieldNumber, withHeader: true);
-                            break;
-                        }
-                    }
-                }
-            }
-
-            m_unityEngineObjectTypes = new BitArray(m_typesByIndex.Length);
-            for (int typeIndex = 0; typeIndex < m_typesByIndex.Length; typeIndex++)
-            {
-                if (HasBaseType(typeIndex, unityEngineTypeIndex))
-                {
-                    m_unityEngineObjectTypes[typeIndex] = true;
-                }
             }
 
             m_typesByAddress = new TypeDescription[types.Length];
@@ -141,22 +111,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         {
             string assembly = Assembly(typeIndex);
             return assembly == "mscorlib" || assembly == "mscorlib.dll";
-        }
-
-        bool HasBaseType(int typeIndex, int baseTypeIndex)
-        {
-            if (typeIndex == baseTypeIndex)
-            {
-                return true;
-            }
-
-            int baseOrElementTypeIndex = BaseOrElementTypeIndex(typeIndex);
-            if (baseOrElementTypeIndex >= 0)
-            {
-                return HasBaseType(baseOrElementTypeIndex, baseTypeIndex);
-            }
-
-            return false;
         }
 
         public override int PointerSize => m_virtualMachineInformation.PointerSize;
@@ -358,13 +312,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         public override int SystemStringFirstCharOffset => m_stringFirstCharOffset;
 
         public override int SystemVoidStarTypeIndex => m_systemVoidStarTypeIndex;
-
-        internal bool IsUnityEngineType(int typeIndex)
-        {
-            return m_unityEngineObjectTypes[typeIndex];
-        }
-
-        internal int UnityEngineCachedPtrFieldOffset => m_unityEngineCachedPtrFieldOffset;
 
         public override IEnumerable<string> DumpStats()
         {

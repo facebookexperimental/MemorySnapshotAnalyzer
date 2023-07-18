@@ -33,9 +33,29 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract string? GetObjectName(NativeWord objectAddress);
 
-        public abstract IEnumerable<PointerInfo<NativeWord>> GetIntraHeapPointers(NativeWord address, int typeIndex);
+        public abstract IEnumerable<PointerInfo<NativeWord>> GetPointers(NativeWord address, int typeIndex);
 
-        public abstract IEnumerable<NativeWord> GetInterHeapPointers(NativeWord address, int typeIndex);
+        public IEnumerable<PointerInfo<NativeWord>> GetIntraHeapPointers(NativeWord address, int typeIndex)
+        {
+            foreach (PointerInfo<NativeWord> pointerInfo in GetPointers(address, typeIndex))
+            {
+                if ((pointerInfo.PointerFlags & PointerFlags.IsExternalReference) == 0)
+                {
+                    yield return pointerInfo;
+                }
+            }
+        }
+
+        public IEnumerable<PointerInfo<NativeWord>> GetInterHeapPointers(NativeWord address, int typeIndex)
+        {
+            foreach (PointerInfo<NativeWord> pointerInfo in GetPointers(address, typeIndex))
+            {
+                if ((pointerInfo.PointerFlags & PointerFlags.IsExternalReference) != 0)
+                {
+                    yield return pointerInfo;
+                }
+            }
+        }
 
         public abstract IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo);
 

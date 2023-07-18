@@ -100,17 +100,10 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     int fieldTypeIndex = FieldType(typeIndex, fieldNumber);
                     int fieldOffset = FieldOffset(typeIndex, fieldNumber, withHeader: false);
 
-                    if (IsValueType(fieldTypeIndex))
+                    bool isValueType = IsValueType(fieldTypeIndex);
+                    PointerFlags pointerFlags = ReferenceClassifier.GetPointerFlags(typeIndex, fieldNumber);
+                    if (!isValueType || (pointerFlags & PointerFlags.IsExternalReference) != 0)
                     {
-                        // Avoid infinite recursion due to the way that primitive types (such as System.Int32) are defined.
-                        if (fieldTypeIndex != typeIndex)
-                        {
-                            ComputePointerOffsets(fieldTypeIndex, baseOffset + fieldOffset);
-                        }
-                    }
-                    else
-                    {
-                        PointerFlags pointerFlags = ReferenceClassifier.GetPointerFlags(typeIndex, fieldNumber);
                         m_offsets.Add(new PointerInfo<int>
                         {
                             Value = baseOffset + fieldOffset,
@@ -118,6 +111,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                             TypeIndex = typeIndex,
                             FieldNumber = fieldNumber
                         });
+                    }
+
+                    // Avoid infinite recursion due to the way that primitive types (such as System.Int32) are defined.
+                    if (isValueType && fieldTypeIndex != typeIndex)
+                    {
+                        ComputePointerOffsets(fieldTypeIndex, baseOffset + fieldOffset);
                     }
                 }
             }

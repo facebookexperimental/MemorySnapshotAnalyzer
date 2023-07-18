@@ -254,7 +254,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 typeIndex);
 
             var sb = new StringBuilder();
-            foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetIntraHeapPointers(address, typeIndex))
+            foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetPointers(address, typeIndex))
             {
                 DescribeAddress(pointerInfo.Value, sb);
                 if (sb.Length > 0)
@@ -267,16 +267,6 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                     {
                         Output.WriteLineIndented(1, sb.ToString());
                     }
-                    sb.Clear();
-                }
-            }
-
-            foreach (NativeWord reference in CurrentTraceableHeap.GetInterHeapPointers(address, typeIndex))
-            {
-                DescribeAddress(reference, sb);
-                if (sb.Length > 0)
-                {
-                    Output.WriteLineIndented(1, "cross-heap {0}", sb.ToString());
                     sb.Clear();
                 }
             }

@@ -155,9 +155,8 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         public override string ToString()
         {
-            StringBuilder sb = new(TypeSpec.ToString());
-            sb.Append(" OWNS \"");
-            foreach (string fieldName in Selector!)
+            StringBuilder sb = new();
+            foreach (string fieldName in Selector)
             {
                 if (sb.Length > 0 && !fieldName.Equals("[]", StringComparison.Ordinal))
                 {
@@ -165,8 +164,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 }
                 sb.Append(fieldName);
             }
-            sb.Append("\";");
-            return sb.ToString();
+            return $"{TypeSpec} OWNS \"{sb}\";";
         }
     }
 
@@ -188,6 +186,27 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         public override string ToString()
         {
             return $"{TypeSpec} WEAK \"{FieldPattern}\";";
+        }
+    }
+
+    public sealed class ExternalRule : Rule
+    {
+        // A field name, or (if ending in "*") a field prefix.
+        public string FieldPattern { get; private set; }
+
+        public ExternalRule(TypeSpec typeSpec, string fieldPattern) : base(typeSpec)
+        {
+            FieldPattern = fieldPattern;
+        }
+
+        public static ExternalRule Parse(TypeSpec typeSpec, string value)
+        {
+            return new ExternalRule(typeSpec, value);
+        }
+
+        public override string ToString()
+        {
+            return $"{TypeSpec} EXTERNAL \"{FieldPattern}\";";
         }
     }
 }

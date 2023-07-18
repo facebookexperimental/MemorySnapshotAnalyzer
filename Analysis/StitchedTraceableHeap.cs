@@ -1,7 +1,6 @@
 ﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using System;
 using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.Analysis
@@ -72,7 +71,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_secondary.ContainsAddress(objectAddress) ? m_secondary.GetObjectName(objectAddress) : m_primary.GetObjectName(objectAddress);
         }
 
-        public override IEnumerable<PointerInfo<NativeWord>> GetIntraHeapPointers(NativeWord address, int typeIndex)
+        public override IEnumerable<PointerInfo<NativeWord>> GetPointers(NativeWord address, int typeIndex)
         {
             if (m_secondary.ContainsAddress(address))
             {
@@ -97,30 +96,25 @@ namespace MemorySnapshotAnalyzer.Analysis
                     yield return pointerInfo;
                 }
 
-                foreach (NativeWord reference in m_primary.GetInterHeapPointers(address, typeIndex))
+                foreach (PointerInfo<NativeWord> pointerInfo in m_primary.GetInterHeapPointers(address, typeIndex))
                 {
-                    if (m_computingObjectPairs)
+                    if (m_computingObjectPairs && pointerInfo.Value.Value != 0)
                     {
                         // We assume that managed and native objects reference one another 1:1.
                         // We use "TryAdd" so that the data structure doesn't keep changing
                         // if future calls discover that the assumption is not true.
-                        m_fusedObjectParent!.TryAdd(reference.Value, address.Value);
+                        m_fusedObjectParent!.TryAdd(pointerInfo.Value.Value, address.Value);
                     }
 
                     yield return new PointerInfo<NativeWord>
                     {
-                        Value = reference,
-                        PointerFlags = PointerFlags.None,
-                        TypeIndex = typeIndex,
-                        FieldNumber = -1
+                        Value = pointerInfo.Value,
+                        PointerFlags = pointerInfo.PointerFlags & ~PointerFlags.IsExternalReference,
+                        TypeIndex = pointerInfo.TypeIndex,
+                        FieldNumber = pointerInfo.FieldNumber
                     };
                 }
             }
-        }
-
-        public override IEnumerable<NativeWord> GetInterHeapPointers(NativeWord address, int typeIndex)
-        {
-            return Array.Empty<NativeWord>();
         }
 
         public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)

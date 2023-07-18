@@ -47,6 +47,12 @@
 [thirdparty.unity]
 
 ##
+## Connection between managed and native objects
+##
+
+"UnityEngine.CoreModule.dll:UnityEngine.Object" EXTERNAL "m_CachedPtr";
+
+##
 ## Input
 ##
 
