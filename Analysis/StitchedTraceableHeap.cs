@@ -75,7 +75,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         {
             if (m_secondary.ContainsAddress(address))
             {
-                foreach (PointerInfo<NativeWord> pointerInfo in m_secondary.GetIntraHeapPointers(address, typeIndex - m_primary.TypeSystem.NumberOfTypeIndices))
+                foreach (PointerInfo<NativeWord> pointerInfo in m_secondary.GetPointers(address, typeIndex - m_primary.TypeSystem.NumberOfTypeIndices))
                 {
                     if (m_fusedObjectParent != null && !m_computingObjectPairs)
                     {
@@ -91,28 +91,30 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
             else
             {
-                foreach (PointerInfo<NativeWord> pointerInfo in m_primary.GetIntraHeapPointers(address, typeIndex))
+                foreach (PointerInfo<NativeWord> pointerInfo in m_primary.GetPointers(address, typeIndex))
                 {
-                    yield return pointerInfo;
-                }
-
-                foreach (PointerInfo<NativeWord> pointerInfo in m_primary.GetInterHeapPointers(address, typeIndex))
-                {
-                    if (m_computingObjectPairs && pointerInfo.Value.Value != 0)
+                    if ((pointerInfo.PointerFlags & PointerFlags.IsExternalReference) != 0)
                     {
-                        // We assume that managed and native objects reference one another 1:1.
-                        // We use "TryAdd" so that the data structure doesn't keep changing
-                        // if future calls discover that the assumption is not true.
-                        m_fusedObjectParent!.TryAdd(pointerInfo.Value.Value, address.Value);
+                        if (m_computingObjectPairs && pointerInfo.Value.Value != 0)
+                        {
+                            // We assume that managed and native objects reference one another 1:1.
+                            // We use "TryAdd" so that the data structure doesn't keep changing
+                            // if future calls discover that the assumption is not true.
+                            m_fusedObjectParent!.TryAdd(pointerInfo.Value.Value, address.Value);
+                        }
+
+                        yield return new PointerInfo<NativeWord>
+                        {
+                            Value = pointerInfo.Value,
+                            PointerFlags = pointerInfo.PointerFlags & ~PointerFlags.IsExternalReference,
+                            TypeIndex = pointerInfo.TypeIndex,
+                            FieldNumber = pointerInfo.FieldNumber
+                        };
                     }
-
-                    yield return new PointerInfo<NativeWord>
+                    else
                     {
-                        Value = pointerInfo.Value,
-                        PointerFlags = pointerInfo.PointerFlags & ~PointerFlags.IsExternalReference,
-                        TypeIndex = pointerInfo.TypeIndex,
-                        FieldNumber = pointerInfo.FieldNumber
-                    };
+                        yield return pointerInfo;
+                    }
                 }
             }
         }

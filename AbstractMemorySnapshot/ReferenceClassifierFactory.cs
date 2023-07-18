@@ -11,6 +11,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         public abstract PointerFlags GetPointerFlags(int typeIndex, int fieldNumber);
 
         public abstract List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber);
+
+        public abstract (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber);
     }
 
     public abstract class ReferenceClassifierFactory
@@ -35,6 +37,11 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         public override List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
         {
             return m_emptyList;
+        }
+
+        public override (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber)
+        {
+            return (zeroTag: null, nonZeroTag: null);
         }
     }
 

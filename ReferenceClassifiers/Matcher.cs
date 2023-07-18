@@ -31,38 +31,25 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
                 {
                     string fieldName = m_typeSystem.FieldName(typeIndex, fieldNumber);
-                    if (TestFieldName(fieldName, fieldPatterns!, out T? data))
+                    foreach ((string fieldPattern, T patternData) in fieldPatterns)
                     {
-                        processField(typeIndex, fieldNumber, data!);
+                        if (fieldPattern.EndsWith("*", StringComparison.Ordinal))
+                        {
+                            if (fieldName.AsSpan().StartsWith(fieldPattern.AsSpan()[..^1], StringComparison.Ordinal))
+                            {
+                                processField(typeIndex, fieldNumber, patternData);
+                            }
+                        }
+                        else
+                        {
+                            if (fieldName.Equals(fieldPattern, StringComparison.Ordinal))
+                            {
+                                processField(typeIndex, fieldNumber, patternData);
+                            }
+                        }
                     }
                 }
             }
-        }
-
-        static bool TestFieldName(string fieldName, List<(string fieldPattern, T data)> fieldPatterns, out T? data)
-        {
-            foreach ((string fieldPattern, T patternData) in fieldPatterns)
-            {
-                if (fieldPattern.EndsWith("*", StringComparison.Ordinal))
-                {
-                    if (fieldName.AsSpan().StartsWith(fieldPattern.AsSpan()[..^1], StringComparison.Ordinal))
-                    {
-                        data = patternData;
-                        return true;
-                    }
-                }
-                else
-                {
-                    if (fieldName.Equals(fieldPattern, StringComparison.Ordinal))
-                    {
-                        data = patternData;
-                        return true;
-                    }
-                }
-            }
-
-            data = default;
-            return false;
         }
 
         Dictionary<string, List<(string fieldPattern, T data)>> AssemblyConfiguration(int typeIndex)

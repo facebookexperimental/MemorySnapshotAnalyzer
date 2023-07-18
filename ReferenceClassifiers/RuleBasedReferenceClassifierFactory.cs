@@ -23,6 +23,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             return m_boundRuleset.GetConditionalAnchorFieldPaths(typeIndex, fieldNumber);
         }
+
+        public override (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber)
+        {
+            return m_boundRuleset.GetTags(typeIndex, fieldNumber);
+        }
     }
 
     public sealed class RuleBasedReferenceClassifierFactory : ReferenceClassifierFactory

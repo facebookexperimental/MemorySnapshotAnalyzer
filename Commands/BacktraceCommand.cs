@@ -111,7 +111,7 @@ namespace MemorySnapshotAnalyzer.Commands
             string fields = "";
             if (Fields && successorNodeIndex != -1 && CurrentBacktracer.IsLiveObjectNode(nodeIndex))
             {
-                fields = CollectFields(nodeIndex, successorNodeIndex);
+                fields = CollectFieldsAndTags(nodeIndex, successorNodeIndex);
             }
 
             if (seen.Contains(nodeIndex))
@@ -145,12 +145,12 @@ namespace MemorySnapshotAnalyzer.Commands
             return false;
         }
 
-        string CollectFields(int nodeIndex, int successorNodeIndex)
+        string CollectFieldsAndTags(int nodeIndex, int successorNodeIndex)
         {
             var sb = new StringBuilder();
             NativeWord address = CurrentTracedHeap.PostorderAddress(nodeIndex);
             int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(nodeIndex);
-            foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetIntraHeapPointers(address, typeIndex))
+            foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetPointers(address, typeIndex))
             {
                 if (pointerInfo.FieldNumber != -1 && CurrentTracedHeap.ObjectAddressToPostorderIndex(pointerInfo.Value) == successorNodeIndex)
                 {
@@ -165,6 +165,9 @@ namespace MemorySnapshotAnalyzer.Commands
                     sb.Append(CurrentTraceableHeap.TypeSystem.FieldName(pointerInfo.TypeIndex, pointerInfo.FieldNumber));
                 }
             }
+
+            AppendTags(address, sb);
+
             return sb.ToString();
         }
 

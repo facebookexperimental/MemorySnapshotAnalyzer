@@ -2,6 +2,7 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandInfrastructure;
+using System.Text;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -51,7 +52,9 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             int postorderIndex = Context.ResolveToPostorderIndex(AddressOrIndex);
             NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
-            Output.WriteLine("live object with index {0} at address {1}", postorderIndex, address);
+            StringBuilder sb = new();
+            AppendTags(address, sb);
+            Output.WriteLine("live object with index {0} at address {1}{2}", postorderIndex, address, sb);
             DumpObjectPointers(address);
         }
 
@@ -90,7 +93,9 @@ namespace MemorySnapshotAnalyzer.Commands
             }
             else if (postorderIndex != -1)
             {
-                Output.WriteLine("live object with index {0} at address {1}", postorderIndex, address);
+                StringBuilder sb = new();
+                AppendTags(address, sb);
+                Output.WriteLine("live object with index {0} at address {1}{2}", postorderIndex, address, sb);
             }
             else if (Context.CurrentTracedHeap != null)
             {

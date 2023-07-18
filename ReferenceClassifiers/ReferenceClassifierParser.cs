@@ -84,20 +84,30 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         {
                             throw new FileFormatException("WEAK must be followed by field pattern");
                         }
-                        AddRule(WeakRule.Parse(typeSpec, m_enumerator.Current.value));
+                        AddRule(new WeakRule(typeSpec, m_enumerator.Current.value));
                         break;
                     case ReferenceClassifierFileTokenizer.Token.External:
                         if (!m_enumerator.MoveNext() || m_enumerator.Current.token != ReferenceClassifierFileTokenizer.Token.String)
                         {
                             throw new FileFormatException("EXTERNAL must be followed by field pattern");
                         }
-                        AddRule(ExternalRule.Parse(typeSpec, m_enumerator.Current.value));
+                        AddRule(new ExternalRule(typeSpec, m_enumerator.Current.value));
                         break;
                     case ReferenceClassifierFileTokenizer.Token.FuseWith:
+                        // TODO: implement FUSE_WITH rule
+                        throw new FileFormatException($"{m_enumerator.Current.token} rule not yet implemented");
                     case ReferenceClassifierFileTokenizer.Token.TagIfZero:
                     case ReferenceClassifierFileTokenizer.Token.TagIfNonZero:
-                        // TODO: provide more kinds of rules
-                        throw new FileFormatException($"{m_enumerator.Current.token} rule not yet implemented");
+                        {
+                            string tag = m_enumerator.Current.value;
+                            bool tagIfNonZero = m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.TagIfNonZero;
+                            if (!m_enumerator.MoveNext() || m_enumerator.Current.token != ReferenceClassifierFileTokenizer.Token.String)
+                            {
+                                throw new FileFormatException("TAG_IF_*(...) must be followed by field pattern");
+                            }
+                            AddRule(new TagRule(typeSpec, m_enumerator.Current.value, tag, tagIfNonZero: tagIfNonZero));
+                        }
+                        break;
                     default:
                         throw new FileFormatException($"unexpected token {m_enumerator.Current.token}");
                 }

@@ -51,6 +51,7 @@
 ##
 
 "UnityEngine.CoreModule.dll:UnityEngine.Object" EXTERNAL "m_CachedPtr";
+"UnityEngine.CoreModule.dll:UnityEngine.Object" TAG_IF_ZERO(destroyed) "m_CachedPtr";
 
 ##
 ## Input
