@@ -73,8 +73,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 Context.Backtracer_FuseRoots = FuseRoots != 0;
             }
 
-            Output.WriteLine("* [{0}]", Context.Id);
-            Context.Dump(indent: 1);
+            Repl.DumpCurrentContext();
         }
 
         public override string HelpText => "options ['heap \"managed\"|\"native\"|\"stitched\"] ['fuseobjectpairs] ['weakgchandles] ['rootobject <address or index>] ['groupstatics] ['fuseroots]";

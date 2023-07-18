@@ -25,7 +25,6 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
         // Options for TraceableHeap
         TraceableHeapKind m_traceableHeap_kind;
         bool m_traceableHeap_fuseObjectPairs;
-        bool m_traceableHeap_referenceClassificationEnabled;
         readonly SortedSet<string> m_traceableHeap_referenceClassificationGroups;
         // Options for RootSet
         NativeWord m_rootSet_singletonRootAddress;
@@ -48,7 +47,6 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             m_output = output;
             m_referenceClassifierStore = referenceClassifierStore;
 
-            m_traceableHeap_referenceClassificationEnabled = true;
             m_traceableHeap_referenceClassificationGroups = new();
         }
 
@@ -58,7 +56,6 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             {
                 TraceableHeap_Kind = other.TraceableHeap_Kind,
                 TraceableHeap_FuseObjectPairs = other.TraceableHeap_FuseObjectPairs,
-                TraceableHeap_ReferenceClassification_Enabled = other.TraceableHeap_ReferenceClassification_Enabled,
                 RootSet_SingletonRootAddress = other.RootSet_SingletonRootAddress,
                 TracedHeap_WeakGCHandles = other.TracedHeap_WeakGCHandles,
                 Backtracer_GroupStatics = other.Backtracer_GroupStatics,
@@ -230,69 +227,50 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             }
         }
 
-        public bool TraceableHeap_ReferenceClassification_Enabled
-        {
-            get { return m_traceableHeap_referenceClassificationEnabled; }
-            set
-            {
-                if (m_traceableHeap_referenceClassificationEnabled != value)
-                {
-                    m_traceableHeap_referenceClassificationEnabled = value;
-                    ClearTraceableHeap();
-                }
-            }
-        }
-
         public void TraceableHeap_ReferenceClassifier_OnModifiedGroup(string groupName)
         {
-            if (TraceableHeap_ReferenceClassification_Enabled && m_traceableHeap_referenceClassificationGroups.Contains(groupName))
+            if (m_traceableHeap_referenceClassificationGroups.Contains(groupName))
             {
                 ClearTraceableHeap();
             }
         }
 
-        public void TraceableHeap_ReferenceClassifier_AddGroup(string groupName)
+        public void TraceableHeap_ReferenceClassifier_EnableGroup(string groupName)
         {
             bool added = m_traceableHeap_referenceClassificationGroups.Add(groupName);
-            if (added && m_traceableHeap_referenceClassificationEnabled)
+            if (added)
             {
                 ClearTraceableHeap();
             }
         }
 
-        public void OnReferenceClassifierStoreUpdated(List<string> affectedGroups)
+        public void TraceableHeap_ReferenceClassifier_DisableGroup(string groupName)
         {
-            if (m_traceableHeap_referenceClassificationEnabled)
+            bool removed = m_traceableHeap_referenceClassificationGroups.Remove(groupName);
+            if (removed)
             {
-                // TODO: check whether any of the groups enabled for this context are part of affectedGroups
                 ClearTraceableHeap();
             }
         }
 
         string GetReferenceClassifierDescription()
         {
-            if (m_traceableHeap_referenceClassificationEnabled)
+            StringBuilder sb = new();
+            foreach (string groupName in m_traceableHeap_referenceClassificationGroups)
             {
-                StringBuilder sb = new();
-                foreach (string groupName in m_traceableHeap_referenceClassificationGroups)
+                if (sb.Length > 0)
                 {
-                    if (sb.Length > 0)
-                    {
-                        sb.Append('+');
-                    }
-                    sb.Append(groupName);
-
-                    if (m_referenceClassifierStore.TryGetGroup(groupName, out ReferenceClassifierGroup? group))
-                    {
-                        sb.AppendFormat("({0})", group!.NumberOfRules);
-                    }
+                    sb.Append('+');
                 }
-                return $"enabled[{sb}]";
+                sb.Append(groupName);
+
+                if (m_referenceClassifierStore.TryGetGroup(groupName, out ReferenceClassifierGroup? group))
+                {
+                    sb.AppendFormat("({0})", group!.NumberOfRules);
+                }
             }
-            else
-            {
-                return "disabled";
-            }
+
+            return sb.Length == 0 ? "none" : sb.ToString();
         }
 
         public TraceableHeap? CurrentTraceableHeap => m_currentTraceableHeap;
@@ -309,7 +287,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                 m_output.Write("[context {0}] selecting traceable heap {1} ...", m_id, m_traceableHeap_kind);
 
                 ReferenceClassifierFactory referenceClassifierFactory;
-                if (m_traceableHeap_referenceClassificationEnabled && m_traceableHeap_referenceClassificationGroups.Count > 0)
+                if (m_traceableHeap_referenceClassificationGroups.Count > 0)
                 {
                     referenceClassifierFactory = new RuleBasedReferenceClassifierFactory
                         (m_referenceClassifierStore,

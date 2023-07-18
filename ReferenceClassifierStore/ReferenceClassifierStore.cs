@@ -22,11 +22,6 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             }
         }
 
-        public void Clear()
-        {
-            m_referenceClassifierGroups.Clear();
-        }
-
         public void ClearGroup(string groupName)
         {
             m_referenceClassifierGroups.Remove(groupName);

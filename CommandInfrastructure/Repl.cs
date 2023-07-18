@@ -83,7 +83,7 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
             foreach (string groupName in loadedGroups)
             {
                 ForAllContexts(context => context.TraceableHeap_ReferenceClassifier_OnModifiedGroup(groupName));
-                CurrentContext.TraceableHeap_ReferenceClassifier_AddGroup(groupName);
+                CurrentContext.TraceableHeap_ReferenceClassifier_EnableGroup(groupName);
             }
         }
 
@@ -257,6 +257,12 @@ namespace MemorySnapshotAnalyzer.CommandProcessing
                     kvp.Value.Id);
                 kvp.Value.Dump(indent: 1);
             }
+        }
+
+        public void DumpCurrentContext()
+        {
+            Output.WriteLine("* [{0}]", m_currentContextId);
+            CurrentContext.Dump(indent: 1);
         }
 
         void CheckValidityOfArgumentDeclarations(Type commandType)

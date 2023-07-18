@@ -3,7 +3,6 @@
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandProcessing;
 using System.Collections.Generic;
-using System.Text;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
