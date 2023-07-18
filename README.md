@@ -113,7 +113,7 @@ However, for individual analysis contexts, you can choose to enable a specific s
 
 ### Default Third-Party Reference Classifier Configuration
 
-`MemorySnapshotAnalyzer` ships with a `thirdparty.rc` reference classifier configuration file that is automatically read (and enabled for the current context) on startup. It classifies some references in third-party frameworks. Specifically:
+`MemorySnapshotAnalyzer` ships with a `thirdparty.rcl` reference classifier configuration file that is automatically read (and enabled for the current context) on startup. It classifies some references in third-party frameworks. Specifically:
 * **[third-party.dotnet] Group:** Specifies reference classifiers for some of the .NET framework classes, e.g., network service points and streams.
 * **[third-party.mono] Group:** Specifies reference classifiers for Mono-specific internal framework types.
 * **[third-party.unity] Group:** Specifies reference classifiers for some of the Unity classes, e.g., addressables or the input system.
