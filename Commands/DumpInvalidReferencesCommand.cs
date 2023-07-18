@@ -89,6 +89,6 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        public override string HelpText => "dumpinvalidrefs ['invalid|'nonheap]";
+        public override string HelpText => "dumpinvalidrefs ['invalid|'nonheap] ['roots] ['objects]";
     }
 }
