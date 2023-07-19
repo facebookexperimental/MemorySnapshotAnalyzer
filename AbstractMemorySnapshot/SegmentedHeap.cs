@@ -99,17 +99,16 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
         {
-            List<(int typeIndex, int fieldNumber)[]> fieldPaths = m_typeSystem.GetConditionalAnchorFieldPaths(pointerInfo.TypeIndex, pointerInfo.FieldNumber);
-            foreach ((int typeIndex, int fieldNumber)[] fieldPath in fieldPaths)
+            foreach (Selector selector in m_typeSystem.GetConditionAnchorSelectors(pointerInfo.TypeIndex, pointerInfo.FieldNumber))
             {
-                foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) pair in GetOwningReferencesFromObject(anchorObjectAddress, fieldPath, pathIndex: 0))
+                foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) pair in GetOwningReferencesFromObject(anchorObjectAddress, selector.StaticPrefix, pathIndex: 0))
                 {
                     yield return pair;
                 }
             }
         }
 
-        IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromObject(NativeWord referrer, (int typeIndex, int fieldNumber)[] fieldPath, int pathIndex)
+        IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromObject(NativeWord referrer, List<(int typeIndex, int fieldNumber)> fieldPath, int pathIndex)
         {
             (int typeIndex, int fieldNumber) = fieldPath[pathIndex];
             if (fieldNumber == Int32.MaxValue)
@@ -136,18 +135,18 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     }
 
                     MemoryView fieldView = objectView.GetRange(elementOffset, elementSize);
-                    foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) in GetOwningReferencesFromField(fieldView, referrer, fieldPath, pathIndex + 1))
+                    foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromField(fieldView, referrer, fieldPath, pathIndex + 1))
                     {
-                        yield return (childObjectAddress, parentObjectAddress);
+                        yield return pair;
                     }
                 }
             }
             else if (m_typeSystem.FieldIsStatic(typeIndex, fieldNumber))
             {
                 MemoryView fieldView = m_typeSystem.StaticFieldBytes(typeIndex, fieldNumber);
-                foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) in GetOwningReferencesFromField(fieldView, referrer, fieldPath, pathIndex + 1))
+                foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromField(fieldView, referrer, fieldPath, pathIndex + 1))
                 {
-                    yield return (childObjectAddress, parentObjectAddress);
+                    yield return pair;
                 }
             }
             else
@@ -160,17 +159,19 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
                 int fieldOffset = m_typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: true);
                 MemoryView fieldView = objectView.GetRange(fieldOffset, objectView.Size - fieldOffset);
-                foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) in GetOwningReferencesFromField(fieldView, referrer, fieldPath, pathIndex + 1))
+                foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromField(fieldView, referrer, fieldPath, pathIndex + 1))
                 {
-                    yield return (childObjectAddress, parentObjectAddress);
+                    yield return pair;
                 }
             }
         }
 
-        IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromField(MemoryView fieldView, NativeWord referrer, (int typeIndex, int fieldNumber)[] fieldPath, int pathIndex)
+        IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromField(MemoryView fieldView, NativeWord referrer, List<(int typeIndex, int fieldNumber)> fieldPath, int pathIndex)
         {
-            if (pathIndex == fieldPath.Length)
+            if (pathIndex == fieldPath.Count)
             {
+                // TODO: follow DynamicTail
+
                 NativeWord reference = fieldView.ReadPointer(0, m_native);
                 if (reference.Value != 0)
                 {
@@ -185,9 +186,9 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 {
                     int fieldOffset = m_typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: false);
                     MemoryView subfieldView = fieldView.GetRange(fieldOffset, fieldView.Size - fieldOffset);
-                    foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) in GetOwningReferencesFromField(subfieldView, referrer, fieldPath, pathIndex + 1))
+                    foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromField(subfieldView, referrer, fieldPath, pathIndex + 1))
                     {
-                        yield return (childObjectAddress, parentObjectAddress);
+                        yield return pair;
                     }
                 }
                 else

@@ -203,9 +203,9 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             return -1;
         }
 
-        public List<(int offset, int typeIndex)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
+        public IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber)
         {
-            return m_referenceClassifier!.GetConditionalAnchorFieldPaths(typeIndex, fieldNumber);
+            return m_referenceClassifier!.GetConditionAnchorSelectors(typeIndex, fieldNumber);
         }
 
         public (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber)
