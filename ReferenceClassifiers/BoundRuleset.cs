@@ -150,7 +150,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     fieldTypeIndex = m_typeSystem.FieldType(currentTypeIndex, fieldNumber);
                 }
 
-                fieldPath[i] = (currentTypeIndex, fieldNumber);
+                fieldPath.Add((currentTypeIndex, fieldNumber));
                 currentTypeIndex = fieldTypeIndex;
             }
 

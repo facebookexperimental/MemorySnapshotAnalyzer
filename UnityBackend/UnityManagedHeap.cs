@@ -11,8 +11,8 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         {
             readonly UnityManagedTypeSystem m_unityManagedTypeSystem;
 
-            internal UnityManagedSegmentedHeap(UnityManagedTypeSystem unityManagedTypeSystem, HeapSegment[] segments)
-                : base(unityManagedTypeSystem, segments)
+            internal UnityManagedSegmentedHeap(UnityManagedTypeSystem unityManagedTypeSystem, TraceableHeap traceableHeap, HeapSegment[] segments)
+                : base(traceableHeap, segments)
             {
                 // Keep a concretely-typed reference to the type system around.
                 m_unityManagedTypeSystem = unityManagedTypeSystem;
@@ -35,7 +35,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         {
             // Keep a concretely-typed reference to the type system around.
             m_unityManagedTypeSystem = unityManagedTypeSystem;
-            m_segmentedHeap = new UnityManagedSegmentedHeap(unityManagedTypeSystem, segments);
+            m_segmentedHeap = new UnityManagedSegmentedHeap(unityManagedTypeSystem, this, segments);
             m_gcHandleTargets = gcHandleTargets;
         }
 

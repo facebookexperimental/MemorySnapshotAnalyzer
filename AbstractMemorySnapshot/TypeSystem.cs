@@ -190,6 +190,28 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public int GetFieldNumber(int typeIndex, string fieldName)
         {
+            if (IsArray(typeIndex))
+            {
+                return -1;
+            }
+            else if (IsValueType(typeIndex))
+            {
+                return GetOwnFieldNumber(typeIndex, fieldName);
+            }
+
+            int currentTypeIndex = typeIndex;
+            int fieldNumber = -1;
+            while (currentTypeIndex != -1 && fieldNumber == -1)
+            {
+                fieldNumber = GetOwnFieldNumber(currentTypeIndex, fieldName);
+                currentTypeIndex = BaseOrElementTypeIndex(currentTypeIndex);
+            }
+
+            return fieldNumber;
+        }
+
+        int GetOwnFieldNumber(int typeIndex, string fieldName)
+        {
             int numberOfFields = NumberOfFields(typeIndex);
             for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
             {
