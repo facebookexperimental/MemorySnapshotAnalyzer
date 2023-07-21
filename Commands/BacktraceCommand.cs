@@ -109,7 +109,7 @@ namespace MemorySnapshotAnalyzer.Commands
         bool DumpBacktraceLine(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int indent, int successorNodeIndex, string prefix)
         {
             string fields = "";
-            if (Fields && successorNodeIndex != -1 && CurrentBacktracer.IsLiveObjectNode(nodeIndex))
+            if (Fields && CurrentBacktracer.IsLiveObjectNode(nodeIndex))
             {
                 fields = CollectFieldsAndTags(nodeIndex, successorNodeIndex);
             }
@@ -149,20 +149,24 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             var sb = new StringBuilder();
             NativeWord address = CurrentTracedHeap.PostorderAddress(nodeIndex);
-            int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(nodeIndex);
-            foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetPointers(address, typeIndex))
+
+            if (successorNodeIndex != -1)
             {
-                if (pointerInfo.FieldNumber != -1 && CurrentTracedHeap.ObjectAddressToPostorderIndex(pointerInfo.Value) == successorNodeIndex)
+                int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(nodeIndex);
+                foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetPointers(address, typeIndex))
                 {
-                    if (sb.Length > 0)
+                    if (pointerInfo.FieldNumber != -1 && CurrentTracedHeap.ObjectAddressToPostorderIndex(pointerInfo.Value) == successorNodeIndex)
                     {
-                        sb.Append(", ");
+                        if (sb.Length > 0)
+                        {
+                            sb.Append(", ");
+                        }
+                        else
+                        {
+                            sb.Append(' ');
+                        }
+                        sb.Append(CurrentTraceableHeap.TypeSystem.FieldName(pointerInfo.TypeIndex, pointerInfo.FieldNumber));
                     }
-                    else
-                    {
-                        sb.Append(' ');
-                    }
-                    sb.Append(CurrentTraceableHeap.TypeSystem.FieldName(pointerInfo.TypeIndex, pointerInfo.FieldNumber));
                 }
             }
 
