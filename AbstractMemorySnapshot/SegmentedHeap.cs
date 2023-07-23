@@ -103,236 +103,165 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         {
             foreach (Selector selector in m_typeSystem.GetConditionAnchorSelectors(pointerInfo.TypeIndex, pointerInfo.FieldNumber))
             {
-                foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) pair in GetOwningReferencesFromObject(anchorObjectAddress, selector, pathIndex: 0))
+                foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) pair in InterpretSelector(anchorObjectAddress, selector))
                 {
                     yield return pair;
                 }
             }
         }
 
-        IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromObject(NativeWord referrer, Selector selector, int pathIndex)
+        public IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> InterpretSelector(NativeWord referrer, Selector selector)
         {
-            (int typeIndex, int fieldNumber) = selector.StaticPrefix[pathIndex];
-            if (fieldNumber == Int32.MaxValue)
-            {
-                MemoryView objectView = GetMemoryViewForAddress(referrer);
-                if (!objectView.IsValid)
-                {
-                    yield break;
-                }
-
-                Debug.Assert(m_typeSystem.IsArray(typeIndex));
-
-                int elementTypeIndex = m_typeSystem.BaseOrElementTypeIndex(typeIndex);
-                int arraySize = ReadArraySize(objectView);
-                int elementSize = m_typeSystem.GetArrayElementSize(elementTypeIndex);
-                for (int i = 0; i < arraySize; i++)
-                {
-                    int elementOffset = m_typeSystem.GetArrayElementOffset(elementTypeIndex, i);
-
-                    // Check for partially-committed array.
-                    if (elementOffset + elementSize > objectView.Size)
-                    {
-                        break;
-                    }
-
-                    MemoryView fieldView = objectView.GetRange(elementOffset, elementSize);
-                    foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromField(fieldView, referrer, selector, pathIndex + 1))
-                    {
-                        yield return pair;
-                    }
-                }
-            }
-            else if (m_typeSystem.FieldIsStatic(typeIndex, fieldNumber))
-            {
-                MemoryView fieldView = m_typeSystem.StaticFieldBytes(typeIndex, fieldNumber);
-                foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromField(fieldView, referrer, selector, pathIndex + 1))
-                {
-                    yield return pair;
-                }
-            }
-            else
-            {
-                MemoryView objectView = GetMemoryViewForAddress(referrer);
-                if (!objectView.IsValid)
-                {
-                    yield break;
-                }
-
-                int fieldOffset = m_typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: true);
-                MemoryView fieldView = objectView.GetRange(fieldOffset, objectView.Size - fieldOffset);
-                foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromField(fieldView, referrer, selector, pathIndex + 1))
-                {
-                    yield return pair;
-                }
-            }
-        }
-
-        IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromField(MemoryView fieldView, NativeWord referrer, Selector selector, int pathIndex)
-        {
-            if (pathIndex == selector.StaticPrefix.Count)
-            {
-                if (selector.DynamicTail != null)
-                {
-                    NativeWord reference = fieldView.ReadPointer(0, m_native);
-                    foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromObjectDynamic(reference, selector, pathIndex: 0))
-                    {
-                        yield return pair;
-                    }
-                }
-                else
-                {
-                    NativeWord reference = fieldView.ReadPointer(0, m_native);
-                    if (reference.Value != 0)
-                    {
-                        yield return (reference, referrer);
-                    }
-                }
-            }
-            else
-            {
-                (int typeIndex, int fieldNumber) = selector.StaticPrefix[pathIndex];
-
-                if (m_typeSystem.IsValueType(typeIndex))
-                {
-                    int fieldOffset = m_typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: false);
-                    MemoryView subfieldView = fieldView.GetRange(fieldOffset, fieldView.Size - fieldOffset);
-                    foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromField(subfieldView, referrer, selector, pathIndex + 1))
-                    {
-                        yield return pair;
-                    }
-                }
-                else
-                {
-                    NativeWord reference = fieldView.ReadPointer(0, m_native);
-                    foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromObject(reference, selector, pathIndex))
-                    {
-                        yield return pair;
-                    }
-                }
-            }
-        }
-
-        IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromObjectDynamic(NativeWord referrer, Selector selector, int pathIndex)
-        {
+            MemoryView memoryView = GetMemoryViewForAddress(referrer);
             int typeIndex = m_traceableHeap.TryGetTypeIndex(referrer);
-            if (typeIndex == -1)
-            {
-                yield break;
-            }
-
-            string fieldName = selector.DynamicTail![pathIndex];
-            if (fieldName.Equals("[]", StringComparison.Ordinal))
-            {
-                MemoryView objectView = GetMemoryViewForAddress(referrer);
-                if (!objectView.IsValid)
-                {
-                    yield break;
-                }
-
-                Debug.Assert(m_typeSystem.IsArray(typeIndex));
-
-                int elementTypeIndex = m_typeSystem.BaseOrElementTypeIndex(typeIndex);
-                int arraySize = ReadArraySize(objectView);
-                int elementSize = m_typeSystem.GetArrayElementSize(elementTypeIndex);
-                for (int i = 0; i < arraySize; i++)
-                {
-                    int elementOffset = m_typeSystem.GetArrayElementOffset(elementTypeIndex, i);
-
-                    // Check for partially-committed array.
-                    if (elementOffset + elementSize > objectView.Size)
-                    {
-                        break;
-                    }
-
-                    MemoryView fieldView = objectView.GetRange(elementOffset, elementSize);
-                    foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromField(fieldView, referrer, selector, pathIndex + 1))
-                    {
-                        yield return pair;
-                    }
-                }
-
-                yield break;
-            }
-
-            int fieldNumber = m_typeSystem.GetFieldNumber(typeIndex, fieldName);
-            if (fieldNumber == -1)
-            {
-                yield break;
-            }
-
-            if (m_typeSystem.FieldIsStatic(typeIndex, fieldNumber))
-            {
-                MemoryView fieldView = m_typeSystem.StaticFieldBytes(typeIndex, fieldNumber);
-                foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromFieldDynamic(fieldView, referrer, selector, pathIndex + 1))
-                {
-                    yield return pair;
-                }
-            }
-            else
-            {
-                MemoryView objectView = GetMemoryViewForAddress(referrer);
-                if (!objectView.IsValid)
-                {
-                    yield break;
-                }
-
-                int fieldOffset = m_typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: true);
-                MemoryView fieldView = objectView.GetRange(fieldOffset, objectView.Size - fieldOffset);
-                foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromFieldDynamic(fieldView, referrer, selector, pathIndex + 1))
-                {
-                    yield return pair;
-                }
-            }
+            return InterpretSelector(memoryView, true, typeIndex, referrer, referrer, selector, inStaticPrefix: true, pathIndex: 0);
         }
 
-        IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromFieldDynamic(MemoryView fieldView, NativeWord referrer, Selector selector, int pathIndex)
+        public IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> InterpretSelector(MemoryView inputView, bool inputWithHeader, int inputTypeIndex, NativeWord inputObjectAddress, NativeWord inputReferrer, Selector selector, bool inStaticPrefix, int pathIndex)
         {
-            if (pathIndex == selector.DynamicTail!.Length)
+            MemoryView memoryView = inputView;
+            bool withHeader = inputWithHeader;
+            int typeIndex = inputTypeIndex;
+            NativeWord objectAddress = inputObjectAddress;
+            NativeWord referrer = inputReferrer;
+            while (true)
             {
-                NativeWord reference = fieldView.ReadPointer(0, m_native);
-                if (reference.Value != 0)
+                if (inStaticPrefix && pathIndex == selector.StaticPrefix.Count)
                 {
-                    yield return (reference, referrer);
+                    inStaticPrefix = false;
+                    pathIndex = 0;
+                    continue;
                 }
-            }
-            else
-            {
-                int typeIndex = m_traceableHeap.TryGetTypeIndex(referrer);
-                if (typeIndex == -1)
+                else if (!inStaticPrefix && (selector.DynamicTail == null || pathIndex == selector.DynamicTail.Length))
                 {
-                    yield break;
-                }
-
-                string fieldName = selector.DynamicTail![pathIndex];
-                if (fieldName.Equals("[]", StringComparison.Ordinal))
-                {
-                    yield break;
-                }
-
-                int fieldNumber = m_typeSystem.GetFieldNumber(typeIndex, fieldName);
-                if (fieldNumber == -1)
-                {
-                    yield break;
-                }
-
-                if (m_typeSystem.IsValueType(typeIndex))
-                {
-                    int fieldOffset = m_typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: false);
-                    MemoryView subfieldView = fieldView.GetRange(fieldOffset, fieldView.Size - fieldOffset);
-                    foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromFieldDynamic(subfieldView, referrer, selector, pathIndex + 1))
+                    if (m_typeSystem.IsValueType(typeIndex))
                     {
-                        yield return pair;
+                        // TODO: emit warning
+                    }
+
+                    yield return (objectAddress, referrer);
+                    break;
+                }
+
+                int fieldNumber;
+                if (inStaticPrefix)
+                {
+                    (typeIndex, fieldNumber) = selector.StaticPrefix[pathIndex];
+                }
+                else
+                {
+                    string fieldName = selector.DynamicTail![pathIndex];
+                    if (fieldName.Equals("[]", StringComparison.Ordinal))
+                    {
+                        fieldNumber = Int32.MaxValue;
+                    }
+                    else
+                    {
+                        fieldNumber = m_typeSystem.GetFieldNumber(typeIndex, fieldName);
+                        if (fieldNumber == -1)
+                        {
+                            // TODO: emit warning
+                            yield break;
+                        }
+                    }
+                }
+
+                if (fieldNumber == Int32.MaxValue)
+                {
+                    if (!m_typeSystem.IsArray(typeIndex))
+                    {
+                        // TODO: emit warning
+                        yield break;
+                    }
+
+                    int elementTypeIndex = m_typeSystem.BaseOrElementTypeIndex(typeIndex);
+                    int arraySize = ReadArraySize(memoryView);
+                    int elementSize = m_typeSystem.GetArrayElementSize(elementTypeIndex);
+                    for (int i = 0; i < arraySize; i++)
+                    {
+                        int elementOffset = m_typeSystem.GetArrayElementOffset(elementTypeIndex, i);
+
+                        // Check for partially-committed array.
+                        if (elementOffset + elementSize > memoryView.Size)
+                        {
+                            break;
+                        }
+
+                        if (m_typeSystem.IsValueType(elementTypeIndex))
+                        {
+                            MemoryView elementView = memoryView.GetRange(elementOffset, elementSize);
+                            foreach ((NativeWord, NativeWord) pair in InterpretSelector(elementView, false, elementTypeIndex, objectAddress, referrer, selector, inStaticPrefix, pathIndex + 1))
+                            {
+                                yield return pair;
+                            }
+                        }
+                        else
+                        {
+                            NativeWord elementObjectAddress = memoryView.ReadPointer(elementOffset, m_native);
+                            MemoryView elementView = GetMemoryViewForAddress(elementObjectAddress);
+                            int effectiveElementTypeIndex = m_traceableHeap.TryGetTypeIndex(elementObjectAddress);
+                            if (!elementView.IsValid || effectiveElementTypeIndex == -1)
+                            {
+                                yield break;
+                            }
+
+                            foreach ((NativeWord, NativeWord) pair in InterpretSelector(elementView, true, effectiveElementTypeIndex, elementObjectAddress, objectAddress, selector, inStaticPrefix, pathIndex + 1))
+                            {
+                                yield return pair;
+                            }
+                        }
+                    }
+
+                    yield break;
+                }
+
+                int fieldTypeIndex = m_typeSystem.FieldType(typeIndex, fieldNumber);
+                if (m_typeSystem.FieldIsStatic(typeIndex, fieldNumber))
+                {
+                    memoryView = m_typeSystem.StaticFieldBytes(typeIndex, fieldNumber);
+                    withHeader = !m_typeSystem.IsValueType(fieldTypeIndex);
+                    if (withHeader)
+                    {
+                        // TODO: what should the referrer be?
+                        referrer = objectAddress;
+                        objectAddress = memoryView.ReadPointer(0, m_native);
+                        memoryView = GetMemoryViewForAddress(objectAddress);
+                        typeIndex = m_traceableHeap.TryGetTypeIndex(objectAddress);
+                    }
+                    else
+                    {
+                        typeIndex = fieldTypeIndex;
                     }
                 }
                 else
                 {
-                    NativeWord reference = fieldView.ReadPointer(0, m_native);
-                    foreach ((NativeWord, NativeWord) pair in GetOwningReferencesFromObjectDynamic(reference, selector, pathIndex))
+                    int fieldOffset = m_typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader);
+                    if (m_typeSystem.IsValueType(fieldTypeIndex))
                     {
-                        yield return pair;
+                        memoryView = memoryView.GetRange(fieldOffset, memoryView.Size - fieldOffset);
+                        typeIndex = fieldTypeIndex;
+                    }
+                    else
+                    {
+                        referrer = objectAddress;
+                        objectAddress = memoryView.ReadPointer(fieldOffset, m_native);
+                        memoryView = GetMemoryViewForAddress(objectAddress);
+                        typeIndex = m_traceableHeap.TryGetTypeIndex(objectAddress);
                     }
                 }
+
+                if (!memoryView.IsValid)
+                {
+                    // TODO: warning
+                    yield break;
+                }
+                else if (typeIndex == -1)
+                {
+                    // TODO: warning
+                    yield break;
+                }
+
+                pathIndex++;
             }
         }
 
