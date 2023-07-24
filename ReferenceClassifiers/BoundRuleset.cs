@@ -10,7 +10,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
     {
         readonly TypeSystem m_typeSystem;
         readonly Dictionary<(int typeIndex, int fieldNumber), PointerFlags> m_specialReferences;
-        readonly Dictionary<(int typeIndex, int fieldNumber), List<(int typeIndex, int fieldNumber)[]>> m_conditionAnchors;
+        readonly Dictionary<(int typeIndex, int fieldNumber), List<Selector>> m_conditionAnchors;
         readonly Dictionary<(int typeIndex, int fieldNumber), (string? zeroTag, string? nonZeroTag)> m_tags;
 
         internal BoundRuleset(TypeSystem typeSystem, List<Rule> rules)
@@ -65,16 +65,16 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
                 if (rules[data.ruleNumber] is OwnsFieldPathRule ownsFieldPathRule)
                 {
-                    if (!m_conditionAnchors.TryGetValue((typeIndex, fieldNumber), out List<(int typeIndex, int fieldNumber)[]>? fieldPaths))
+                    if (!m_conditionAnchors.TryGetValue((typeIndex, fieldNumber), out List<Selector>? selectors))
                     {
-                        fieldPaths = new();
-                        m_conditionAnchors.Add((typeIndex, fieldNumber), fieldPaths);
+                        selectors = new();
+                        m_conditionAnchors.Add((typeIndex, fieldNumber), selectors);
                     }
 
-                    var fieldPath = FindFieldPath(typeIndex, ownsFieldPathRule.Selector);
-                    if (fieldPath != null)
+                    var selector = FindFieldPath(typeIndex, ownsFieldPathRule.Selector);
+                    if (selector.StaticPrefix != null)
                     {
-                        fieldPaths.Add(fieldPath);
+                        selectors.Add(selector);
                     }
                 }
                 else if (rules[data.ruleNumber] is TagRule tagRule)
@@ -111,9 +111,9 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         static readonly int s_fieldIsArraySentinel = Int32.MaxValue;
 
-        (int typeIndex, int fieldNumber)[]? FindFieldPath(int typeIndex, string[] fieldNames)
+        Selector FindFieldPath(int typeIndex, string[] fieldNames)
         {
-            var fieldPath = new (int typeIndex, int fieldNumber)[fieldNames.Length];
+            List<(int typeIndex, int fieldNumber)> fieldPath = new(fieldNames.Length);
             int currentTypeIndex = typeIndex;
             for (int i = 0; i < fieldNames.Length; i++)
             {
@@ -127,7 +127,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     {
                         // TODO: better warning management
                         Console.Error.WriteLine($"field was expected to be an array type; found {m_typeSystem.QualifiedName(currentTypeIndex)}");
-                        return null;
+                        return default;
                     }
 
                     fieldTypeIndex = m_typeSystem.BaseOrElementTypeIndex(currentTypeIndex);
@@ -138,14 +138,19 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     if (fieldNumber == -1)
                     {
                         // TODO: better warning management
-                        Console.Error.WriteLine($"field {fieldNames[i]} not found in type {m_typeSystem.QualifiedName(currentTypeIndex)}");
-                        return null;
+                        Console.Error.WriteLine($"field {fieldNames[i]} not found in type {m_typeSystem.QualifiedName(currentTypeIndex)}; switching to dynamic lookup");
+                        var dynamicFieldNames = new string[fieldNames.Length - i];
+                        for (int j = i; j < fieldNames.Length; j++)
+                        {
+                            dynamicFieldNames[j - i] = fieldNames[i];
+                        }
+                        return new Selector { StaticPrefix = fieldPath, DynamicTail = dynamicFieldNames };
                     }
 
                     fieldTypeIndex = m_typeSystem.FieldType(currentTypeIndex, fieldNumber);
                 }
 
-                fieldPath[i] = (currentTypeIndex, fieldNumber);
+                fieldPath.Add((currentTypeIndex, fieldNumber));
                 currentTypeIndex = fieldTypeIndex;
             }
 
@@ -157,10 +162,10 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     fieldNames[0],
                     fieldNames[^1],
                     m_typeSystem.QualifiedName(currentTypeIndex));
-                return null;
+                return default;
             }
 
-            return fieldPath;
+            return new Selector { StaticPrefix = fieldPath };
         }
 
         internal PointerFlags GetPointerFlags(int typeIndex, int fieldNumber)
@@ -175,7 +180,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             }
         }
 
-        internal List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
+        internal List<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber)
         {
             return m_conditionAnchors[(typeIndex, fieldNumber)];
         }

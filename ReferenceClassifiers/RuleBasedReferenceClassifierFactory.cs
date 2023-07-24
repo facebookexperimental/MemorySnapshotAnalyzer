@@ -19,9 +19,9 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             return m_boundRuleset.GetPointerFlags(typeIndex, fieldNumber);
         }
 
-        public override List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
+        public override List<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber)
         {
-            return m_boundRuleset.GetConditionalAnchorFieldPaths(typeIndex, fieldNumber);
+            return m_boundRuleset.GetConditionAnchorSelectors(typeIndex, fieldNumber);
         }
 
         public override (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber)

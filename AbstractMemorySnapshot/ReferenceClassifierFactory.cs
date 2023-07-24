@@ -4,13 +4,19 @@ using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
+    public struct Selector
+    {
+        public List<(int typeIndex, int fieldNumber)> StaticPrefix;
+        public string[]? DynamicTail;
+    }
+
     public abstract class ReferenceClassifier
     {
         protected ReferenceClassifier() { }
 
         public abstract PointerFlags GetPointerFlags(int typeIndex, int fieldNumber);
 
-        public abstract List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber);
+        public abstract IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber);
 
         public abstract (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber);
     }
@@ -22,21 +28,16 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
     public class DefaultReferenceClassifier : ReferenceClassifier
     {
-        readonly List<(int typeIndex, int fieldNumber)[]> m_emptyList;
-
-        public DefaultReferenceClassifier()
-        {
-            m_emptyList = new List<(int typeIndex, int fieldNumber)[]>();
-        }
+        public DefaultReferenceClassifier() { }
 
         public override PointerFlags GetPointerFlags(int typeIndex, int fieldNumber)
         {
             return PointerFlags.None;
         }
 
-        public override List<(int typeIndex, int fieldNumber)[]> GetConditionalAnchorFieldPaths(int typeIndex, int fieldNumber)
+        public override IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber)
         {
-            return m_emptyList;
+            yield break;
         }
 
         public override (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber)
