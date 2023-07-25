@@ -11,13 +11,33 @@ namespace MemorySnapshotAnalyzer.Commands
     {
         public DumpRootsCommand(Repl repl) : base(repl) {}
 
+#pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value
+        [NamedArgument("type")]
+        public CommandLineArgument? TypeIndexOrPattern;
+
+        [FlagArgument("includederived")]
+        public bool IncludeDerived;
+#pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
+
         public override void Run()
         {
+            TypeSet? typeSet = null;
+            if (TypeIndexOrPattern != null)
+            {
+                // Only consider statics within the given types.
+                typeSet = TypeIndexOrPattern.ResolveTypeIndexOrPattern(Context, IncludeDerived);
+            }
+
             var sb = new StringBuilder();
             IRootSet rootSet = CurrentRootSet;
             for (int rootIndex = 0; rootIndex < rootSet.NumberOfRoots; rootIndex++)
             {
                 PointerInfo<NativeWord> pointerInfo = rootSet.GetRoot(rootIndex);
+                if (typeSet != null && !typeSet.Contains(pointerInfo.TypeIndex))
+                {
+                    continue;
+                }
+
                 NativeWord address = pointerInfo.Value;
                 if (address.Value == 0)
                 {
