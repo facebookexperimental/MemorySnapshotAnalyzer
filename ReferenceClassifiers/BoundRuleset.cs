@@ -11,6 +11,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         readonly TypeSystem m_typeSystem;
         readonly Dictionary<(int typeIndex, int fieldNumber), PointerFlags> m_specialReferences;
         readonly Dictionary<(int typeIndex, int fieldNumber), List<Selector>> m_conditionAnchors;
+        readonly Dictionary<(int typeIndex, int fieldNumber), List<(Selector selector, string tag)>> m_tagAnchors;
         readonly Dictionary<(int typeIndex, int fieldNumber), (string? zeroTag, string? nonZeroTag)> m_tags;
 
         internal BoundRuleset(TypeSystem typeSystem, List<Rule> rules)
@@ -18,6 +19,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             m_typeSystem = typeSystem;
             m_specialReferences = new();
             m_conditionAnchors = new();
+            m_tagAnchors = new();
             m_tags = new();
 
             List<(TypeSpec spec, string fieldPattern, (int ruleNumber, PointerFlags pointerFlags))> specs = new();
@@ -39,10 +41,14 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 {
                     specs.Add((externalRule.TypeSpec, externalRule.FieldPattern, (ruleNumber, PointerFlags.IsExternalReference)));
                 }
-                else if (rules[ruleNumber] is TagConditionRule tagRule)
+                else if (rules[ruleNumber] is TagSelectorRule tagSelectorRule)
                 {
-                    PointerFlags pointerFlags = tagRule.TagIfNonZero ? PointerFlags.TagIfNonZero : PointerFlags.TagIfZero;
-                    specs.Add((tagRule.TypeSpec, tagRule.FieldPattern, (ruleNumber, pointerFlags)));
+                    specs.Add((tagSelectorRule.TypeSpec, tagSelectorRule.Selector[0], (ruleNumber, PointerFlags.IsTagAnchor)));
+                }
+                else if (rules[ruleNumber] is TagConditionRule tagConditionRule)
+                {
+                    PointerFlags pointerFlags = tagConditionRule.TagIfNonZero ? PointerFlags.TagIfNonZero : PointerFlags.TagIfZero;
+                    specs.Add((tagConditionRule.TypeSpec, tagConditionRule.FieldPattern, (ruleNumber, pointerFlags)));
                 }
             }
 
@@ -63,7 +69,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
                 m_specialReferences[(typeIndex, fieldNumber)] = newPointerFlags;
 
-                if (rules[data.ruleNumber] is OwnsSelectorRule ownsFieldPathRule)
+                if (rules[data.ruleNumber] is OwnsSelectorRule ownsSelectorRule)
                 {
                     if (!m_conditionAnchors.TryGetValue((typeIndex, fieldNumber), out List<Selector>? selectors))
                     {
@@ -71,10 +77,24 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         m_conditionAnchors.Add((typeIndex, fieldNumber), selectors);
                     }
 
-                    var selector = FindFieldPath(typeIndex, ownsFieldPathRule.Selector);
+                    var selector = BindSelector(typeIndex, ownsSelectorRule.Selector);
                     if (selector.StaticPrefix != null)
                     {
                         selectors.Add(selector);
+                    }
+                }
+                else if (rules[data.ruleNumber] is TagSelectorRule tagSelectorRule)
+                {
+                    if (!m_tagAnchors.TryGetValue((typeIndex, fieldNumber), out List<(Selector selector, string tag)>? selectors))
+                    {
+                        selectors = new();
+                        m_tagAnchors.Add((typeIndex, fieldNumber), selectors);
+                    }
+
+                    var selector = BindSelector(typeIndex, tagSelectorRule.Selector);
+                    if (selector.StaticPrefix != null)
+                    {
+                        selectors.Add((selector, tagSelectorRule.Tag));
                     }
                 }
                 else if (rules[data.ruleNumber] is TagConditionRule tagRule)
@@ -111,7 +131,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         static readonly int s_fieldIsArraySentinel = Int32.MaxValue;
 
-        Selector FindFieldPath(int typeIndex, string[] fieldNames)
+        Selector BindSelector(int typeIndex, string[] fieldNames)
         {
             List<(int typeIndex, int fieldNumber)> fieldPath = new(fieldNames.Length);
             int currentTypeIndex = typeIndex;
@@ -183,6 +203,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         internal List<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber)
         {
             return m_conditionAnchors[(typeIndex, fieldNumber)];
+        }
+
+        internal List<(Selector selector, string tag)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
+        {
+            return m_tagAnchors[(typeIndex, fieldNumber)];
         }
 
         internal (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber)

@@ -18,6 +18,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber);
 
+        public abstract IEnumerable<(Selector selector, string tag)> GetTagAnchorSelectors(int typeIndex, int fieldNumber);
+
         public abstract (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber);
     }
 
@@ -36,6 +38,11 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         }
 
         public override IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber)
+        {
+            yield break;
+        }
+
+        public override IEnumerable<(Selector selector, string tag)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
         {
             yield break;
         }
