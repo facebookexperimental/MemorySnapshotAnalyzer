@@ -28,7 +28,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 if (rules[ruleNumber] is OwnsRule ownsRule)
                 {
                     PointerFlags pointerFlags = ownsRule.Selector.Length == 1 ? PointerFlags.IsOwningReference : PointerFlags.IsConditionAnchor;
-                    specs.Add((ownsRule.TypeSpec, ownsRule.Selector[0], (ruleNumber, PointerFlags.IsOwningReference)));
+                    specs.Add((ownsRule.TypeSpec, ownsRule.Selector[0], (ruleNumber, pointerFlags)));
                 }
                 else if (rules[ruleNumber] is WeakRule weakRule)
                 {
