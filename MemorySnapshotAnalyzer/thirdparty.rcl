@@ -59,6 +59,8 @@
   OWNS "s_Manager"
   OWNS "s_Remote"
   OWNS "s_RemoteConnection";
-"Unity.InputSystem.dll:UnityEngine.InputSystem.InputManager" OWNS "layoutMatchers";
+"Unity.InputSystem.dll:UnityEngine.InputSystem.InputManager"
+  OWNS "layoutMatchers"
+  OWNS "m_Devices[]";
 
 "Unity.Addressables.dll:UnityEngine.AddressableAssets.ResourceLocators.ResourceLocationMap" OWNS "locations._entries[].value";
