@@ -23,14 +23,9 @@
 ## Web
 ##
 
-# TODO: consider using a selector starting from the specific static field
-#"System.dll:System.Net.ServicePointManager"
-#  OWNS "servicePoints._tables._buckets[]._next"
-#  OWNS "servicePoints._tables._buckets[]._value";
-"mscorlib.dll:System.Collections.Concurrent.ConcurrentDictionary.Node<System.Net.ServicePointManager.SPKey,System.Net.ServicePoint>"
-  OWNS "_next"
-  OWNS "_value";
-
+"System.dll:System.Net.ServicePointManager"
+  OWNS "servicePoints._tables._buckets[]._next"
+  OWNS "servicePoints._tables._buckets[]._value";
 "System.dll:System.Net.ServicePoint" OWNS "<Scheduler>k__BackingField";
 "System.dll:System.Net.ServicePointScheduler"
   OWNS "defaultGroup"
