@@ -120,6 +120,25 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             }
             return sb.ToString();
         }
+
+        protected static string[] ParseTags(string tags)
+        {
+            return tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        }
+
+        protected static string StringifyTags(string[] tags)
+        {
+            StringBuilder sb = new();
+            foreach (string tag in tags)
+            {
+                if (sb.Length > 0)
+                {
+                    sb.Append(',');
+                }
+                sb.Append(tag);
+            }
+            return sb.ToString();
+        }
     };
 
     public abstract class OwnsRule : Rule
@@ -210,17 +229,17 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         // Path of fields to dereference. Note that these are full field names, not patterns.
         // The special field name "[]" represents array indexing (covering all elements of the array).
         public string[] Selector { get; private set; }
-        public string Tag { get; private set; }
+        public string[] Tags { get; private set; }
 
-        public TagSelectorRule(TypeSpec typeSpec, string selector, string tag) : base(typeSpec)
+        public TagSelectorRule(TypeSpec typeSpec, string selector, string tags) : base(typeSpec)
         {
             Selector = ParseSelector(selector).ToArray();
-            Tag = tag;
+            Tags = ParseTags(tags);
         }
 
         public override string ToString()
         {
-            return $"{TypeSpec} TAG({Tag}) \"{StringifySelector(Selector)}\";";
+            return $"{TypeSpec} TAG({StringifyTags(Tags)}) \"{StringifySelector(Selector)}\";";
         }
     }
 
@@ -228,13 +247,13 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
     {
         // A field name, or (if ending in "*") a field prefix.
         public string FieldPattern { get; private set; }
-        public string Tag { get; private set; }
+        public string[] Tags { get; private set; }
         public bool TagIfNonZero { get; private set; }
 
-        public TagConditionRule(TypeSpec typeSpec, string fieldPattern, string tag, bool tagIfNonZero) : base(typeSpec)
+        public TagConditionRule(TypeSpec typeSpec, string fieldPattern, string tags, bool tagIfNonZero) : base(typeSpec)
         {
             FieldPattern = fieldPattern;
-            Tag = tag;
+            Tags = ParseTags(tags);
             TagIfNonZero = tagIfNonZero;
         }
 
@@ -242,11 +261,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             if (TagIfNonZero)
             {
-                return $"{TypeSpec} TAG_IF_NONZERO({Tag}) \"{FieldPattern}\";";
+                return $"{TypeSpec} TAG_IF_NONZERO({StringifyTags(Tags)}) \"{FieldPattern}\";";
             }
             else
             {
-                return $"{TypeSpec} TAG_IF_ZERO({Tag}) \"{FieldPattern}\";";
+                return $"{TypeSpec} TAG_IF_ZERO({StringifyTags(Tags)}) \"{FieldPattern}\";";
             }
         }
     }

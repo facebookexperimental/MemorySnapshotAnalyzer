@@ -4,6 +4,7 @@ using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 
 namespace MemorySnapshotAnalyzer.Analysis
@@ -35,7 +36,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly IRootSet m_rootSet;
         readonly TraceableHeap m_traceableHeap;
         readonly Native m_native;
-        readonly Dictionary<ulong, List<string>> m_tags;
+        readonly Dictionary<ulong, SortedSet<string>> m_tags;
         readonly List<PostorderEntry> m_postorderEntries;
         readonly Dictionary<ulong, int> m_numberOfPredecessors;
         readonly Dictionary<ulong, List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)>> m_objectAddressToRootIndices;
@@ -117,7 +118,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 m_rootIndexBeingMarked = rootIndex;
                 PointerInfo<NativeWord> pointerInfo = rootSet.GetRoot(rootIndex);
-                Mark(pointerInfo.Value, referrer: default);
+                Mark(pointerInfo, referrer: m_native.From(0));
             }
             m_rootIndexBeingMarked = -1;
 
@@ -254,17 +255,33 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         public IEnumerable<string> TagsForAddress(NativeWord address)
         {
-            if (m_tags.TryGetValue(address.Value, out List<string>? tags))
+            if (m_tags.TryGetValue(address.Value, out SortedSet<string>? tags))
             {
-                foreach (string tag in tags)
+                foreach (string tag in tags!)
                 {
                     yield return tag;
                 }
             }
         }
 
-        void Mark(NativeWord reference, NativeWord referrer)
+        void Mark(PointerInfo<NativeWord> pointerInfo, NativeWord referrer)
         {
+            NativeWord reference = pointerInfo.Value;
+            if ((pointerInfo.PointerFlags & PointerFlags.IsTagAnchor) != 0)
+            {
+                CheckTagSelector(referrer, pointerInfo);
+            }
+
+            if ((pointerInfo.PointerFlags & (PointerFlags.TagIfZero | PointerFlags.TagIfNonZero)) != 0)
+            {
+                CheckTag(referrer, pointerInfo);
+            }
+
+            if ((pointerInfo.PointerFlags & PointerFlags.Untraced) != 0)
+            {
+                return;
+            }
+
             ulong address = reference.Value;
 
             // Fast path to avoid heap segment lookup for null pointers.
@@ -297,7 +314,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
 
             MarkStackEntry entry;
-            entry.Address = reference.Value;
+            entry.Address = address;
             entry.TypeIndex = typeIndex;
             entry.Processed = false;
             m_markStack!.Push(entry);
@@ -336,42 +353,45 @@ namespace MemorySnapshotAnalyzer.Analysis
                 NativeWord address = m_native.From(entry.Address);
                 foreach (PointerInfo<NativeWord> pointerInfo in m_traceableHeap.GetPointers(address, entry.TypeIndex))
                 {
-                    if ((pointerInfo.PointerFlags & (PointerFlags.TagIfZero | PointerFlags.TagIfNonZero)) != 0)
-                    {
-                        CheckTag(pointerInfo, address);
-                    }
-
-                    if ((pointerInfo.PointerFlags & PointerFlags.Untraced) == 0)
-                    {
-                        Mark(pointerInfo.Value, address);
-                    }
+                    Mark(pointerInfo, address);
                 }
             }
         }
 
-        void CheckTag(PointerInfo<NativeWord> pointerInfo, NativeWord address)
+        void CheckTagSelector(NativeWord address, PointerInfo<NativeWord> pointerInfo)
         {
-            (string? zeroTag, string? nonZeroTag) = m_traceableHeap.TypeSystem.GetTags(pointerInfo.TypeIndex, pointerInfo.FieldNumber);
+            foreach ((NativeWord taggedObjectAddress, List<string> tags) in m_traceableHeap.GetTagsFromAnchor(address, pointerInfo))
+            {
+                RecordTags(taggedObjectAddress, tags);
+            }
+        }
+
+        void CheckTag(NativeWord address, PointerInfo<NativeWord> pointerInfo)
+        {
+            (List<string> zeroTags, List<string> nonZeroTags) = m_traceableHeap.TypeSystem.GetTags(pointerInfo.TypeIndex, pointerInfo.FieldNumber);
             if ((pointerInfo.PointerFlags & PointerFlags.TagIfZero) != 0 && pointerInfo.Value.Value == 0)
             {
-                RecordTag(address, zeroTag!);
+                RecordTags(address, zeroTags);
             }
 
             if ((pointerInfo.PointerFlags & PointerFlags.TagIfNonZero) != 0 && pointerInfo.Value.Value != 0)
             {
-                RecordTag(address, nonZeroTag!);
+                RecordTags(address, nonZeroTags);
             }
         }
 
-        void RecordTag(NativeWord address, string tag)
+        void RecordTags(NativeWord address, List<string> tags)
         {
-            if (!m_tags.TryGetValue(address.Value, out List<string>? tags))
+            if (!m_tags.TryGetValue(address.Value, out SortedSet<string>? objectTags))
             {
-                tags = new();
-                m_tags.Add(address.Value, tags);
+                objectTags = new();
+                m_tags.Add(address.Value, objectTags);
             }
 
-            tags.Add(tag);
+            foreach (string tag in tags)
+            {
+                objectTags.Add(tag);
+            }
         }
     }
 }

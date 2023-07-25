@@ -230,7 +230,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             return m_referenceClassifier!.GetConditionAnchorSelectors(typeIndex, fieldNumber);
         }
 
-        public (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber)
+        public IEnumerable<(Selector selector, List<string> tags)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
+        {
+            return m_referenceClassifier!.GetTagAnchorSelectors(typeIndex, fieldNumber);
+        }
+
+        public (List<string> zeroTags, List<string> nonZeroTags) GetTags(int typeIndex, int fieldNumber)
         {
             return m_referenceClassifier!.GetTags(typeIndex, fieldNumber);
         }

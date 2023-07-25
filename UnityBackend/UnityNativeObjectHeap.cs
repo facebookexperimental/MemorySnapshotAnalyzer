@@ -113,6 +113,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             yield break;
         }
 
+        public override IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        {
+            yield break;
+        }
+
         public override int NumberOfObjectPairs => 0;
 
         public override bool ContainsAddress(NativeWord address)

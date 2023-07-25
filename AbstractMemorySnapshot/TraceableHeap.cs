@@ -37,6 +37,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo);
 
+        public abstract IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo);
+
         public abstract int NumberOfObjectPairs { get; }
 
         public abstract bool ContainsAddress(NativeWord address);
