@@ -93,7 +93,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
 
             string typeName = fullyQualified ?
-                m_traceableHeap.TypeSystem.QualifiedName(typeIndex) :
+                $"{m_traceableHeap.TypeSystem.Assembly(typeIndex)}:{m_traceableHeap.TypeSystem.QualifiedName(typeIndex)}" :
                 m_traceableHeap.TypeSystem.UnqualifiedName(typeIndex);
 
             string? objectName = m_traceableHeap.GetObjectName(m_tracedHeap.PostorderAddress(postorderIndex));

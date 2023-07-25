@@ -115,8 +115,11 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
             else
             {
+                string typeName = fullyQualified ?
+                    $"{m_traceableHeap.TypeSystem.Assembly(typeIndex)}:{m_traceableHeap.TypeSystem.QualifiedName(typeIndex)}" :
+                    m_traceableHeap.TypeSystem.UnqualifiedName(typeIndex);
                 return string.Format("{0}.{1}+0x{2:X}",
-                    m_traceableHeap.TypeSystem.UnqualifiedName(typeIndex),
+                    typeName,
                     m_traceableHeap.TypeSystem.FieldName(typeIndex, entry.PointerInfo.FieldNumber),
                     entry.Offset);
             }
