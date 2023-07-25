@@ -66,7 +66,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             TypeSpec = typeSpec;
         }
 
-        protected static List<string> ParseSelector(string value)
+        protected static string[] ParseSelector(string value)
         {
             var pieces = new List<string>();
             int startIndex = 0;
@@ -104,7 +104,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 pieces.Add(value[startIndex..]);
             }
 
-            return pieces;
+            return pieces.ToArray();
         }
 
         protected static string StringifySelector(string[] selector)
@@ -141,49 +141,15 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         }
     };
 
-    public abstract class OwnsRule : Rule
+    public sealed class OwnsRule : Rule
     {
-        protected OwnsRule(TypeSpec typeSpec) : base(typeSpec) { }
-
-        public static OwnsRule Parse(TypeSpec typeSpec, string value)
-        {
-            List<string> fieldPattern = ParseSelector(value);
-            if (fieldPattern.Count == 1)
-            {
-                return new OwnsFieldPatternRule(typeSpec, fieldPattern[0]);
-            }
-            else
-            {
-                return new OwnsSelectorRule(typeSpec, fieldPattern.ToArray());
-            }
-        }
-    }
-
-    public sealed class OwnsFieldPatternRule : OwnsRule
-    {
-        // A field name, or (if ending in "*") a field prefix.
-        public string FieldPattern { get; private set; }
-
-        public OwnsFieldPatternRule(TypeSpec typeSpec, string fieldPattern) : base(typeSpec)
-        {
-            FieldPattern = fieldPattern;
-        }
-
-        public override string ToString()
-        {
-            return $"{TypeSpec} OWNS \"{FieldPattern}\";";
-        }
-    }
-
-    public sealed class OwnsSelectorRule : OwnsRule
-    {
-        // Path of fields to dereference. Note that these are full field names, not patterns.
+        // Path of fields to dereference. Note that these except for the first field, thse are full field names, not patterns.
         // The special field name "[]" represents array indexing (covering all elements of the array).
         public string[] Selector { get; private set; }
 
-        public OwnsSelectorRule(TypeSpec typeSpec, string[] selector) : base(typeSpec)
+        public OwnsRule(TypeSpec typeSpec, string selector) : base(typeSpec)
         {
-            Selector = selector;
+            Selector = ParseSelector(selector);
         }
 
         public override string ToString()
@@ -233,7 +199,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         public TagSelectorRule(TypeSpec typeSpec, string selector, string tags) : base(typeSpec)
         {
-            Selector = ParseSelector(selector).ToArray();
+            Selector = ParseSelector(selector);
             Tags = ParseTags(tags);
         }
 

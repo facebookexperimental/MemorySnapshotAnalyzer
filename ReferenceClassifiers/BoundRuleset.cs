@@ -25,13 +25,10 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             List<(TypeSpec spec, string fieldPattern, (int ruleNumber, PointerFlags pointerFlags))> specs = new();
             for (int ruleNumber = 0; ruleNumber < rules.Count; ruleNumber++)
             {
-                if (rules[ruleNumber] is OwnsFieldPatternRule fieldPatternRule)
+                if (rules[ruleNumber] is OwnsRule ownsRule)
                 {
-                    specs.Add((fieldPatternRule.TypeSpec, fieldPatternRule.FieldPattern, (ruleNumber, PointerFlags.IsOwningReference)));
-                }
-                else if (rules[ruleNumber] is OwnsSelectorRule fieldPathRule)
-                {
-                    specs.Add((fieldPathRule.TypeSpec, fieldPathRule.Selector[0], (ruleNumber, PointerFlags.IsConditionAnchor)));
+                    PointerFlags pointerFlags = ownsRule.Selector.Length == 1 ? PointerFlags.IsOwningReference : PointerFlags.IsConditionAnchor;
+                    specs.Add((ownsRule.TypeSpec, ownsRule.Selector[0], (ruleNumber, PointerFlags.IsOwningReference)));
                 }
                 else if (rules[ruleNumber] is WeakRule weakRule)
                 {
@@ -69,7 +66,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
                 m_specialReferences[(typeIndex, fieldNumber)] = newPointerFlags;
 
-                if (rules[data.ruleNumber] is OwnsSelectorRule ownsSelectorRule)
+                if (rules[data.ruleNumber] is OwnsRule ownsRule && ownsRule.Selector.Length > 1)
                 {
                     if (!m_conditionAnchors.TryGetValue((typeIndex, fieldNumber), out List<Selector>? selectors))
                     {
@@ -77,7 +74,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         m_conditionAnchors.Add((typeIndex, fieldNumber), selectors);
                     }
 
-                    var selector = BindSelector(typeIndex, ownsSelectorRule.Selector);
+                    var selector = BindSelector(typeIndex, ownsRule.Selector);
                     if (selector.StaticPrefix != null)
                     {
                         selectors.Add(selector);

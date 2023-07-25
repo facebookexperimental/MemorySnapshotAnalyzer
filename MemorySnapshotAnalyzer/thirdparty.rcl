@@ -50,8 +50,11 @@
 ## Connection between managed and native objects
 ##
 
-"UnityEngine.CoreModule.dll:UnityEngine.Object" EXTERNAL "m_CachedPtr";
-"UnityEngine.CoreModule.dll:UnityEngine.Object" TAG_IF_ZERO(destroyed) "m_CachedPtr";
+"UnityEngine.CoreModule.dll:UnityEngine.Object"
+  EXTERNAL
+  TAG_IF_ZERO(unityObject,destroyed)
+  TAG_IF_NONZERO(unityObject,hasNativeObject)
+  "m_CachedPtr";
 
 ##
 ## Input
