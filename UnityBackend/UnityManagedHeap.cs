@@ -102,6 +102,11 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return m_segmentedHeap.GetOwningReferencesFromAnchor(anchorObjectAddress, pointerInfo);
         }
 
+        public override IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        {
+            return m_segmentedHeap.GetTagsFromAnchor(anchorObjectAddress, pointerInfo);
+        }
+
         public override int NumberOfObjectPairs => 0;
 
         public override bool ContainsAddress(NativeWord address)

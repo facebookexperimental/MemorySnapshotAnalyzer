@@ -19,12 +19,17 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             return m_boundRuleset.GetPointerFlags(typeIndex, fieldNumber);
         }
 
-        public override List<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber)
+        public override IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber)
         {
             return m_boundRuleset.GetConditionAnchorSelectors(typeIndex, fieldNumber);
         }
 
-        public override (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber)
+        public override IEnumerable<(Selector selector, List<string> tags)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
+        {
+            return m_boundRuleset.GetTagAnchorSelectors(typeIndex, fieldNumber);
+        }
+
+        public override (List<string> zeroTags, List<string> nonZeroTags) GetTags(int typeIndex, int fieldNumber)
         {
             return m_boundRuleset.GetTags(typeIndex, fieldNumber);
         }

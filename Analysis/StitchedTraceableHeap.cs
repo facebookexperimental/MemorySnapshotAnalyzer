@@ -126,6 +126,13 @@ namespace MemorySnapshotAnalyzer.Analysis
                 m_primary.GetOwningReferencesFromAnchor(anchorObjectAddress, pointerInfo);
         }
 
+        public override IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        {
+            return m_secondary.ContainsAddress(anchorObjectAddress) ?
+                m_secondary.GetTagsFromAnchor(anchorObjectAddress, pointerInfo) :
+                m_primary.GetTagsFromAnchor(anchorObjectAddress, pointerInfo);
+        }
+
         public override int NumberOfObjectPairs => m_fusedObjectParent == null ? 0 : m_fusedObjectParent.Count;
 
         public override bool ContainsAddress(NativeWord address)

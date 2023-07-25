@@ -13,8 +13,9 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         IsWeakReference = 1 << 2,
         Untraced = 1 << 3,
         IsExternalReference = 1 << 4,
-        TagIfZero = 1 << 5,
-        TagIfNonZero = 1 << 6,
+        IsTagAnchor = 1 << 5,
+        TagIfZero = 1 << 6,
+        TagIfNonZero = 1 << 7,
     }
 
     public struct PointerInfo<T>

@@ -23,14 +23,9 @@
 ## Web
 ##
 
-# TODO: consider using a selector starting from the specific static field
-#"System.dll:System.Net.ServicePointManager"
-#  OWNS "servicePoints._tables._buckets[]._next"
-#  OWNS "servicePoints._tables._buckets[]._value";
-"mscorlib.dll:System.Collections.Concurrent.ConcurrentDictionary.Node<System.Net.ServicePointManager.SPKey,System.Net.ServicePoint>"
-  OWNS "_next"
-  OWNS "_value";
-
+"System.dll:System.Net.ServicePointManager"
+  OWNS "servicePoints._tables._buckets[]._next"
+  OWNS "servicePoints._tables._buckets[]._value";
 "System.dll:System.Net.ServicePoint" OWNS "<Scheduler>k__BackingField";
 "System.dll:System.Net.ServicePointScheduler"
   OWNS "defaultGroup"
@@ -50,8 +45,11 @@
 ## Connection between managed and native objects
 ##
 
-"UnityEngine.CoreModule.dll:UnityEngine.Object" EXTERNAL "m_CachedPtr";
-"UnityEngine.CoreModule.dll:UnityEngine.Object" TAG_IF_ZERO(destroyed) "m_CachedPtr";
+"UnityEngine.CoreModule.dll:UnityEngine.Object"
+  EXTERNAL
+  TAG_IF_ZERO(unityObject,destroyed)
+  TAG_IF_NONZERO(unityObject,hasNativeObject)
+  "m_CachedPtr";
 
 ##
 ## Input

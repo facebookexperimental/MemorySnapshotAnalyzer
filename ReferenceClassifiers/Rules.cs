@@ -65,26 +65,8 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             TypeSpec = typeSpec;
         }
-    };
 
-    public abstract class OwnsRule : Rule
-    {
-        protected OwnsRule(TypeSpec typeSpec) : base(typeSpec) { }
-
-        public static OwnsRule Parse(TypeSpec typeSpec, string value)
-        {
-            List<string> fieldPattern = ParseFieldPatternOrSelector(value);
-            if (fieldPattern.Count == 1)
-            {
-                return new OwnsFieldPatternRule(typeSpec, fieldPattern[0]);
-            }
-            else
-            {
-                return new OwnsFieldPathRule(typeSpec, fieldPattern.ToArray());
-            }
-        }
-
-        static List<string> ParseFieldPatternOrSelector(string value)
+        protected static string[] ParseSelector(string value)
         {
             var pieces = new List<string>();
             int startIndex = 0;
@@ -122,41 +104,13 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 pieces.Add(value[startIndex..]);
             }
 
-            return pieces;
-        }
-    }
-
-    public sealed class OwnsFieldPatternRule : OwnsRule
-    {
-        // A field name, or (if ending in "*") a field prefix.
-        public string FieldPattern { get; private set; }
-
-        public OwnsFieldPatternRule(TypeSpec typeSpec, string fieldPattern) : base(typeSpec)
-        {
-            FieldPattern = fieldPattern;
+            return pieces.ToArray();
         }
 
-        public override string ToString()
-        {
-            return $"{TypeSpec} OWNS \"{FieldPattern}\";";
-        }
-    }
-
-    public sealed class OwnsFieldPathRule : OwnsRule
-    {
-        // Path of fields to dereference. Note that these are full field names, not patterns.
-        // The special field name "[]" represents array indexing (covering all elements of the array).
-        public string[] Selector { get; private set; }
-
-        public OwnsFieldPathRule(TypeSpec typeSpec, string[] selector) : base(typeSpec)
-        {
-            Selector = selector;
-        }
-
-        public override string ToString()
+        protected static string StringifySelector(string[] selector)
         {
             StringBuilder sb = new();
-            foreach (string fieldName in Selector)
+            foreach (string fieldName in selector)
             {
                 if (sb.Length > 0 && !fieldName.Equals("[]", StringComparison.Ordinal))
                 {
@@ -164,7 +118,43 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 }
                 sb.Append(fieldName);
             }
-            return $"{TypeSpec} OWNS \"{sb}\";";
+            return sb.ToString();
+        }
+
+        protected static string[] ParseTags(string tags)
+        {
+            return tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        }
+
+        protected static string StringifyTags(string[] tags)
+        {
+            StringBuilder sb = new();
+            foreach (string tag in tags)
+            {
+                if (sb.Length > 0)
+                {
+                    sb.Append(',');
+                }
+                sb.Append(tag);
+            }
+            return sb.ToString();
+        }
+    };
+
+    public sealed class OwnsRule : Rule
+    {
+        // Path of fields to dereference. Note that these except for the first field, thse are full field names, not patterns.
+        // The special field name "[]" represents array indexing (covering all elements of the array).
+        public string[] Selector { get; private set; }
+
+        public OwnsRule(TypeSpec typeSpec, string selector) : base(typeSpec)
+        {
+            Selector = ParseSelector(selector);
+        }
+
+        public override string ToString()
+        {
+            return $"{TypeSpec} OWNS \"{StringifySelector(Selector)}\";";
         }
     }
 
@@ -200,17 +190,36 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         }
     }
 
-    public sealed class TagRule : Rule
+    public sealed class TagSelectorRule : Rule
+    {
+        // Path of fields to dereference. Note that these are full field names, not patterns.
+        // The special field name "[]" represents array indexing (covering all elements of the array).
+        public string[] Selector { get; private set; }
+        public string[] Tags { get; private set; }
+
+        public TagSelectorRule(TypeSpec typeSpec, string selector, string tags) : base(typeSpec)
+        {
+            Selector = ParseSelector(selector);
+            Tags = ParseTags(tags);
+        }
+
+        public override string ToString()
+        {
+            return $"{TypeSpec} TAG({StringifyTags(Tags)}) \"{StringifySelector(Selector)}\";";
+        }
+    }
+
+    public sealed class TagConditionRule : Rule
     {
         // A field name, or (if ending in "*") a field prefix.
         public string FieldPattern { get; private set; }
-        public string Tag { get; private set; }
+        public string[] Tags { get; private set; }
         public bool TagIfNonZero { get; private set; }
 
-        public TagRule(TypeSpec typeSpec, string fieldPattern, string tag, bool tagIfNonZero) : base(typeSpec)
+        public TagConditionRule(TypeSpec typeSpec, string fieldPattern, string tags, bool tagIfNonZero) : base(typeSpec)
         {
             FieldPattern = fieldPattern;
-            Tag = tag;
+            Tags = ParseTags(tags);
             TagIfNonZero = tagIfNonZero;
         }
 
@@ -218,11 +227,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             if (TagIfNonZero)
             {
-                return $"{TypeSpec} TAG_IF_NONZERO({Tag}) \"{FieldPattern}\";";
+                return $"{TypeSpec} TAG_IF_NONZERO({StringifyTags(Tags)}) \"{FieldPattern}\";";
             }
             else
             {
-                return $"{TypeSpec} TAG_IF_ZERO({Tag}) \"{FieldPattern}\";";
+                return $"{TypeSpec} TAG_IF_ZERO({StringifyTags(Tags)}) \"{FieldPattern}\";";
             }
         }
     }

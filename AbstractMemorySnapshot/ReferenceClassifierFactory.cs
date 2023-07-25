@@ -18,7 +18,9 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber);
 
-        public abstract (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber);
+        public abstract IEnumerable<(Selector selector, List<string> tags)> GetTagAnchorSelectors(int typeIndex, int fieldNumber);
+
+        public abstract (List<string> zeroTags, List<string> nonZeroTags) GetTags(int typeIndex, int fieldNumber);
     }
 
     public abstract class ReferenceClassifierFactory
@@ -28,6 +30,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
     public class DefaultReferenceClassifier : ReferenceClassifier
     {
+        static readonly List<string> s_emptyList = new();
+
         public DefaultReferenceClassifier() { }
 
         public override PointerFlags GetPointerFlags(int typeIndex, int fieldNumber)
@@ -40,9 +44,14 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             yield break;
         }
 
-        public override (string? zeroTag, string? nonZeroTag) GetTags(int typeIndex, int fieldNumber)
+        public override IEnumerable<(Selector selector, List<string> tags)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
         {
-            return (zeroTag: null, nonZeroTag: null);
+            yield break;
+        }
+
+        public override (List<string> zeroTags, List<string> nonZeroTags) GetTags(int typeIndex, int fieldNumber)
+        {
+            return (zeroTags: s_emptyList, nonZeroTags: s_emptyList);
         }
     }
 

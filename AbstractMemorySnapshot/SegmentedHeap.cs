@@ -110,6 +110,17 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
         }
 
+        public IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        {
+            foreach ((Selector selector, List<string> tags) in m_typeSystem.GetTagAnchorSelectors(pointerInfo.TypeIndex, pointerInfo.FieldNumber))
+            {
+                foreach ((NativeWord childObjectAddress, NativeWord _) in InterpretSelector(anchorObjectAddress, selector))
+                {
+                    yield return (childObjectAddress, tags);
+                }
+            }
+        }
+
         public IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> InterpretSelector(NativeWord referrer, Selector selector)
         {
             MemoryView memoryView = GetMemoryViewForAddress(referrer);
