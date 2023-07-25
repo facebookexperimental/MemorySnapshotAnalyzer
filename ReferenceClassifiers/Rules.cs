@@ -65,26 +65,8 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             TypeSpec = typeSpec;
         }
-    };
 
-    public abstract class OwnsRule : Rule
-    {
-        protected OwnsRule(TypeSpec typeSpec) : base(typeSpec) { }
-
-        public static OwnsRule Parse(TypeSpec typeSpec, string value)
-        {
-            List<string> fieldPattern = ParseFieldPatternOrSelector(value);
-            if (fieldPattern.Count == 1)
-            {
-                return new OwnsFieldPatternRule(typeSpec, fieldPattern[0]);
-            }
-            else
-            {
-                return new OwnsFieldPathRule(typeSpec, fieldPattern.ToArray());
-            }
-        }
-
-        static List<string> ParseFieldPatternOrSelector(string value)
+        protected static List<string> ParseSelector(string value)
         {
             var pieces = new List<string>();
             int startIndex = 0;
@@ -124,6 +106,38 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
             return pieces;
         }
+
+        protected static string StringifySelector(string[] selector)
+        {
+            StringBuilder sb = new();
+            foreach (string fieldName in selector)
+            {
+                if (sb.Length > 0 && !fieldName.Equals("[]", StringComparison.Ordinal))
+                {
+                    sb.Append('.');
+                }
+                sb.Append(fieldName);
+            }
+            return sb.ToString();
+        }
+    };
+
+    public abstract class OwnsRule : Rule
+    {
+        protected OwnsRule(TypeSpec typeSpec) : base(typeSpec) { }
+
+        public static OwnsRule Parse(TypeSpec typeSpec, string value)
+        {
+            List<string> fieldPattern = ParseSelector(value);
+            if (fieldPattern.Count == 1)
+            {
+                return new OwnsFieldPatternRule(typeSpec, fieldPattern[0]);
+            }
+            else
+            {
+                return new OwnsSelectorRule(typeSpec, fieldPattern.ToArray());
+            }
+        }
     }
 
     public sealed class OwnsFieldPatternRule : OwnsRule
@@ -142,29 +156,20 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         }
     }
 
-    public sealed class OwnsFieldPathRule : OwnsRule
+    public sealed class OwnsSelectorRule : OwnsRule
     {
         // Path of fields to dereference. Note that these are full field names, not patterns.
         // The special field name "[]" represents array indexing (covering all elements of the array).
         public string[] Selector { get; private set; }
 
-        public OwnsFieldPathRule(TypeSpec typeSpec, string[] selector) : base(typeSpec)
+        public OwnsSelectorRule(TypeSpec typeSpec, string[] selector) : base(typeSpec)
         {
             Selector = selector;
         }
 
         public override string ToString()
         {
-            StringBuilder sb = new();
-            foreach (string fieldName in Selector)
-            {
-                if (sb.Length > 0 && !fieldName.Equals("[]", StringComparison.Ordinal))
-                {
-                    sb.Append('.');
-                }
-                sb.Append(fieldName);
-            }
-            return $"{TypeSpec} OWNS \"{sb}\";";
+            return $"{TypeSpec} OWNS \"{StringifySelector(Selector)}\";";
         }
     }
 
@@ -200,14 +205,33 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         }
     }
 
-    public sealed class TagRule : Rule
+    public sealed class TagSelectorRule : Rule
+    {
+        // Path of fields to dereference. Note that these are full field names, not patterns.
+        // The special field name "[]" represents array indexing (covering all elements of the array).
+        public string[] Selector { get; private set; }
+        public string Tag { get; private set; }
+
+        public TagSelectorRule(TypeSpec typeSpec, string selector, string tag) : base(typeSpec)
+        {
+            Selector = ParseSelector(selector).ToArray();
+            Tag = tag;
+        }
+
+        public override string ToString()
+        {
+            return $"{TypeSpec} TAG({Tag}) \"{StringifySelector(Selector)}\";";
+        }
+    }
+
+    public sealed class TagConditionRule : Rule
     {
         // A field name, or (if ending in "*") a field prefix.
         public string FieldPattern { get; private set; }
         public string Tag { get; private set; }
         public bool TagIfNonZero { get; private set; }
 
-        public TagRule(TypeSpec typeSpec, string fieldPattern, string tag, bool tagIfNonZero) : base(typeSpec)
+        public TagConditionRule(TypeSpec typeSpec, string fieldPattern, string tag, bool tagIfNonZero) : base(typeSpec)
         {
             FieldPattern = fieldPattern;
             Tag = tag;

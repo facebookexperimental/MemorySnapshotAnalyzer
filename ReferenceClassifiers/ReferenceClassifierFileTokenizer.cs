@@ -17,6 +17,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             Weak,
             External,
             FuseWith,
+            Tag,
             TagIfZero,
             TagIfNonZero,
         }
@@ -70,6 +71,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     else if (s_keywords.TryGetValue(wordTrimmed, out Token token))
                     {
                         yield return (token, string.Empty);
+                    }
+                    else if (wordTrimmed.StartsWith("TAG(") && wordTrimmed[^1] == ')')
+                    {
+                        string value = wordTrimmed["TAG(".Length..^1];
+                        yield return (Token.Tag, value);
                     }
                     else if (wordTrimmed.StartsWith("TAG_IF_ZERO(") && wordTrimmed[^1] == ')')
                     {

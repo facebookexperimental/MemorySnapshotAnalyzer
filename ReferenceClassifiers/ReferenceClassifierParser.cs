@@ -96,6 +96,16 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     case ReferenceClassifierFileTokenizer.Token.FuseWith:
                         // TODO: implement FUSE_WITH rule
                         throw new FileFormatException($"{m_enumerator.Current.token} rule not yet implemented");
+                    case ReferenceClassifierFileTokenizer.Token.Tag:
+                        {
+                            string tag = m_enumerator.Current.value;
+                            if (!m_enumerator.MoveNext() || m_enumerator.Current.token != ReferenceClassifierFileTokenizer.Token.String)
+                            {
+                                throw new FileFormatException("TAG(...) must be followed by field pattern or selector");
+                            }
+                            AddRule(new TagSelectorRule(typeSpec, m_enumerator.Current.value, tag));
+                        }
+                        break;
                     case ReferenceClassifierFileTokenizer.Token.TagIfZero:
                     case ReferenceClassifierFileTokenizer.Token.TagIfNonZero:
                         {
@@ -105,7 +115,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                             {
                                 throw new FileFormatException("TAG_IF_*(...) must be followed by field pattern");
                             }
-                            AddRule(new TagRule(typeSpec, m_enumerator.Current.value, tag, tagIfNonZero: tagIfNonZero));
+                            AddRule(new TagConditionRule(typeSpec, m_enumerator.Current.value, tag, tagIfNonZero: tagIfNonZero));
                         }
                         break;
                     default:

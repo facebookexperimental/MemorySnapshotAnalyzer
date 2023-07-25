@@ -27,7 +27,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 {
                     specs.Add((fieldPatternRule.TypeSpec, fieldPatternRule.FieldPattern, (ruleNumber, PointerFlags.IsOwningReference)));
                 }
-                else if (rules[ruleNumber] is OwnsFieldPathRule fieldPathRule)
+                else if (rules[ruleNumber] is OwnsSelectorRule fieldPathRule)
                 {
                     specs.Add((fieldPathRule.TypeSpec, fieldPathRule.Selector[0], (ruleNumber, PointerFlags.IsConditionAnchor)));
                 }
@@ -39,7 +39,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 {
                     specs.Add((externalRule.TypeSpec, externalRule.FieldPattern, (ruleNumber, PointerFlags.IsExternalReference)));
                 }
-                else if (rules[ruleNumber] is TagRule tagRule)
+                else if (rules[ruleNumber] is TagConditionRule tagRule)
                 {
                     PointerFlags pointerFlags = tagRule.TagIfNonZero ? PointerFlags.TagIfNonZero : PointerFlags.TagIfZero;
                     specs.Add((tagRule.TypeSpec, tagRule.FieldPattern, (ruleNumber, pointerFlags)));
@@ -63,7 +63,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
                 m_specialReferences[(typeIndex, fieldNumber)] = newPointerFlags;
 
-                if (rules[data.ruleNumber] is OwnsFieldPathRule ownsFieldPathRule)
+                if (rules[data.ruleNumber] is OwnsSelectorRule ownsFieldPathRule)
                 {
                     if (!m_conditionAnchors.TryGetValue((typeIndex, fieldNumber), out List<Selector>? selectors))
                     {
@@ -77,7 +77,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         selectors.Add(selector);
                     }
                 }
-                else if (rules[data.ruleNumber] is TagRule tagRule)
+                else if (rules[data.ruleNumber] is TagConditionRule tagRule)
                 {
                     _ = m_tags.TryGetValue((typeIndex, fieldNumber), out (string? zeroTag, string? nonZeroTag) tags);
 
@@ -142,7 +142,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         var dynamicFieldNames = new string[fieldNames.Length - i];
                         for (int j = i; j < fieldNames.Length; j++)
                         {
-                            dynamicFieldNames[j - i] = fieldNames[i];
+                            dynamicFieldNames[j - i] = fieldNames[j];
                         }
                         return new Selector { StaticPrefix = fieldPath, DynamicTail = dynamicFieldNames };
                     }
