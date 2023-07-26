@@ -5,7 +5,9 @@ using MemorySnapshotAnalyzer.CommandInfrastructure;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -80,6 +82,8 @@ namespace MemorySnapshotAnalyzer.Commands
                     DumpTree();
                     UnredirectOutput();
                 }
+
+                StartHtmlFile();
             }
             catch (IOException ex)
             {
@@ -87,6 +91,34 @@ namespace MemorySnapshotAnalyzer.Commands
             }
 
             Output.WriteLine("wrote {0} nodes", m_numberOfNodesWritten);
+        }
+
+        void StartHtmlFile()
+        {
+            string installDirName = AppDomain.CurrentDomain.BaseDirectory;
+            string htmlSource = Path.Combine(installDirName, "treemap.html");
+            string htmlDestination = Path.ChangeExtension(OutputFilename!, "html");
+            string[] lines = File.ReadAllLines(htmlSource);
+            Regex re = new(Regex.Escape("src=\"data.js\""), RegexOptions.Compiled);
+            string replacement = $"src=\"{Path.GetFileName(OutputFilename)}\"";
+            using (var fileOutput = new FileOutput(htmlDestination))
+            {
+                IOutput output = fileOutput;
+                foreach (string line in lines)
+                {
+                    string resultingLine = re.Replace(line, replacement);
+                    output.WriteLine(resultingLine);
+                }
+            }
+
+            Process process = new()
+            {
+                StartInfo = {
+                    UseShellExecute = true,
+                    FileName = htmlDestination
+                }
+            };
+            process.Start();
         }
 
         Diff ComputeDiffTree(int nodeIndex, Context previousContext)
