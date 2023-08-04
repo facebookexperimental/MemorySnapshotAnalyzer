@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsWindows)'=='true'">
-    <DefineConstants>Windows</DefineConstants>
+    <DefineConstants>WINDOWS</DefineConstants>
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
