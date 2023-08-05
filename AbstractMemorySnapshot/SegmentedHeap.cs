@@ -168,7 +168,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     }
                     else
                     {
-                        fieldNumber = m_typeSystem.GetFieldNumber(typeIndex, fieldName);
+                        (typeIndex, fieldNumber) = m_typeSystem.GetFieldNumber(typeIndex, fieldName);
                         if (fieldNumber == -1)
                         {
                             // TODO: emit warning
