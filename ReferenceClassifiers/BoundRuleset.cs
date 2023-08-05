@@ -151,7 +151,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 }
                 else
                 {
-                    fieldNumber = m_typeSystem.GetFieldNumber(currentTypeIndex, fieldNames[i]);
+                    (int baseTypeIndex, fieldNumber) = m_typeSystem.GetFieldNumber(currentTypeIndex, fieldNames[i]);
                     if (fieldNumber == -1)
                     {
                         // TODO: better warning management
@@ -164,6 +164,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         return new Selector { StaticPrefix = fieldPath, DynamicTail = dynamicFieldNames };
                     }
 
+                    currentTypeIndex = baseTypeIndex;
                     fieldTypeIndex = m_typeSystem.FieldType(currentTypeIndex, fieldNumber);
                 }
 
