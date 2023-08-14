@@ -41,6 +41,9 @@ namespace MemorySnapshotAnalyzer.Commands
         [NamedArgument("dominatedby")]
         public NativeWord DirectlyDominatedBy;
 
+        [FlagArgument("notindom")]
+        public bool NotInDominatorTree;
+
         [NamedArgument("tagged")]
         public string? WithTag;
 
@@ -338,6 +341,10 @@ namespace MemorySnapshotAnalyzer.Commands
                         int domNodeIndex = CurrentHeapDom.GetDominator(CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex));
                         selected = domParentPostorderIndex == domNodeIndex;
                     }
+                    else if (NotInDominatorTree)
+                    {
+                        selected = CurrentHeapDom.GetDominator(CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex)) == -1;
+                    }
 
                     if (selected && WithTag != null)
                     {
@@ -369,6 +376,6 @@ namespace MemorySnapshotAnalyzer.Commands
             return false;
         }
 
-        public override string HelpText => "listobj ['stats] ['type <type index> ['includederived]] ['owned | 'unowned] ['dominatedby <object address or index or -1 for process>] ['tagged <tag> | 'nottagged <tag>] ['sortbycount | 'sortbysize | 'sortbydomsize]";
+        public override string HelpText => "listobj ['stats] ['type <type index> ['includederived]] ['owned | 'unowned] ['dominatedby <object address or index or -1 for process>] ['notindom] ['tagged <tag> | 'nottagged <tag>] ['sortbycount | 'sortbysize | 'sortbydomsize]";
     }
 }
