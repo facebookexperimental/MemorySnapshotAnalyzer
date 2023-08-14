@@ -55,16 +55,19 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             m_currentContextId = 0;
             Output.SetPrompt("[0]> ");
 
-            string? initialReferenceClassifierFile = configuration.GetValue<string>("InitialReferenceClassifierFile");
-            if (initialReferenceClassifierFile != null)
+            string? initialReferenceClassifierFiles = configuration.GetValue<string>("InitialReferenceClassifierFiles");
+            if (initialReferenceClassifierFiles != null)
             {
-                try
+                foreach (string initialReferenceClassifierFile in initialReferenceClassifierFiles.Split(';'))
                 {
-                    LoadReferenceClassifierFile(initialReferenceClassifierFile, overrideGroupName: null);
-                }
-                catch (FileFormatException ex)
-                {
-                    Output.WriteLine($"error loading initial reference classifier file \"{initialReferenceClassifierFile}\": {ex.Message}");
+                    try
+                    {
+                        LoadReferenceClassifierFile(initialReferenceClassifierFile, overrideGroupName: null);
+                    }
+                    catch (FileFormatException ex)
+                    {
+                        Output.WriteLine($"error loading initial reference classifier file \"{initialReferenceClassifierFile}\": {ex.Message}");
+                    }
                 }
             }
         }

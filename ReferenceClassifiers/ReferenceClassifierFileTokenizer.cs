@@ -47,9 +47,32 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         internal int LineNumber => m_lineNumber;
 
+        string[] ReadFile()
+        {
+            try
+            {
+                return File.ReadAllLines(m_filename);
+            }
+            catch
+            {
+                string altFilename = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, m_filename);
+                if (altFilename != m_filename)
+                {
+                    try
+                    {
+                        return File.ReadAllLines(altFilename);
+                    }
+                    catch
+                    {
+                    }
+                }
+                throw;
+            }
+        }
+
         internal IEnumerable<(Token token, string value)> GetTokens()
         {
-            foreach (string line in File.ReadAllLines(m_filename))
+            foreach (string line in ReadFile())
             {
                 string[] words = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
                 foreach (string word in words)
