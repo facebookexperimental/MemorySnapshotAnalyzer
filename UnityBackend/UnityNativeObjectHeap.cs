@@ -1,9 +1,12 @@
-﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+﻿/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace MemorySnapshotAnalyzer.UnityBackend
 {
@@ -18,7 +21,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
     sealed class NativeObject
     {
         public int TypeIndex;
-        public int HideFlags;
         public int InstanceId;
         public string? Name;
         public NativeWord ObjectAddress;
