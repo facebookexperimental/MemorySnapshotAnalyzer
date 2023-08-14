@@ -45,7 +45,10 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             m_lineNumber = 1;
         }
 
-        internal int LineNumber => m_lineNumber;
+        internal void ParseError(string message)
+        {
+            throw new ParseErrorException(message, m_filename, m_lineNumber);
+        }
 
         string[] ReadFile()
         {
@@ -117,7 +120,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     }
                     else
                     {
-                        throw new FileFormatException($"unrecognized token \"{wordTrimmed}\"");
+                        ParseError($"unrecognized token \"{wordTrimmed}\"");
                     }
 
                     if (terminated)

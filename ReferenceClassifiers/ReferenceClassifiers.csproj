@@ -6,10 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.IO.Packaging" Version="7.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\AbstractMemorySnapshot\AbstractMemorySnapshot.csproj" />
   </ItemGroup>
 

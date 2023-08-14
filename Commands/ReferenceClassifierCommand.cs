@@ -65,7 +65,7 @@ namespace MemorySnapshotAnalyzer.Commands
                     Repl.LoadReferenceClassifierFile(ReferenceClassifierFilename, GroupName);
                     Repl.DumpCurrentContext();
                 }
-                catch (FileFormatException ex)
+                catch (IOException ex)
                 {
                     throw new CommandException(ex.Message);
                 }
