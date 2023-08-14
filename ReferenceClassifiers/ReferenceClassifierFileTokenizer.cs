@@ -53,7 +53,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             {
                 return File.ReadAllLines(m_filename);
             }
-            catch (Exception ex)
+            catch
             {
                 string altFilename = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, m_filename);
                 if (altFilename != m_filename)
@@ -66,7 +66,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     {
                     }
                 }
-                throw ex;
+                throw;
             }
         }
 
