@@ -47,26 +47,33 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         void Parse()
         {
-            while (m_enumerator.MoveNext())
+            try
             {
-                if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.Group)
+                while (m_enumerator.MoveNext())
                 {
-                    m_groupName = m_enumerator.Current.value;
-                }
-                else if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.String)
-                {
-                    TypeSpec typeSpec = TypeSpec.Parse(m_enumerator.Current.value);
-                    if (!m_enumerator.MoveNext())
+                    if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.Group)
                     {
-                        m_tokenizer.ParseError("unterminated rule");
+                        m_groupName = m_enumerator.Current.value;
                     }
+                    else if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.String)
+                    {
+                        TypeSpec typeSpec = TypeSpec.Parse(m_enumerator.Current.value);
+                        if (!m_enumerator.MoveNext())
+                        {
+                            m_tokenizer.ParseError("unterminated rule");
+                        }
 
-                    do
-                    {
-                        ParseRules(typeSpec);
+                        do
+                        {
+                            ParseRules(typeSpec);
+                        }
+                        while (m_enumerator.Current.token != ReferenceClassifierFileTokenizer.Token.Semicolon);
                     }
-                    while (m_enumerator.Current.token != ReferenceClassifierFileTokenizer.Token.Semicolon);
                 }
+            }
+            catch (ArgumentException ex)
+            {
+                m_tokenizer.ParseError(ex.Message);
             }
         }
 
