@@ -16,7 +16,7 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="thirdparty.rcl">
+    <None Update="*.rcl">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="treemap.html">

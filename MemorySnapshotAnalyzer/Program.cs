@@ -9,8 +9,6 @@ using MemorySnapshotAnalyzer.CommandInfrastructure;
 using MemorySnapshotAnalyzer.Commands;
 using MemorySnapshotAnalyzer.UnityBackend;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using System;
 
 static class Program
@@ -18,8 +16,10 @@ static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        using IHost host = Host.CreateDefaultBuilder(args).Build();
-        IConfiguration configuration = host.Services.GetRequiredService<IConfiguration>();
+        IConfiguration configuration = new ConfigurationBuilder()
+            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: true)
+            .Build();
 
         using Repl repl = new(configuration);
 
