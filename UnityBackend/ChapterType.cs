@@ -1,4 +1,9 @@
-﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+﻿/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
 
 namespace MemorySnapshotAnalyzer.UnityBackend
 {
@@ -16,8 +21,8 @@ namespace MemorySnapshotAnalyzer.UnityBackend
     + Chapter NativeTypes_NativeBaseTypeArrayIndex: array of length 319, element size 4
 
     + Chapter NativeObjects_NativeTypeArrayIndex: array of length 175046, element size 4
-    + Chapter NativeObjects_HideFlags: array of length 175046, element size 4
-    + Chapter NativeObjects_Flags: array of length 175046, element size 4
+    Chapter NativeObjects_HideFlags: array of length 175046, element size 4
+    Chapter NativeObjects_Flags: array of length 175046, element size 4
     + Chapter NativeObjects_InstanceId: array of length 175046, element size 4
     + Chapter NativeObjects_Name: array of length 175046, variable element size
     + Chapter NativeObjects_NativeObjectAddress: array of length 175046, element size 8

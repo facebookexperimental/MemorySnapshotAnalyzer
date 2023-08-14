@@ -1,4 +1,9 @@
-﻿// Copyright(c) Meta Platforms, Inc. and affiliates.
+﻿/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System;
@@ -321,7 +326,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             var typeIndices = GetChapter<ChapterArrayOfConstantSizeElements>(ChapterType.NativeObjects_NativeTypeArrayIndex);
             int count = (int)typeIndices!.Length;
 
-            var hideFlags = GetArrayOfConstantSizeElementsChapter(ChapterType.NativeObjects_HideFlags, count);
             var instanceIds = GetArrayOfConstantSizeElementsChapter(ChapterType.NativeObjects_InstanceId, count);
             var names = GetArrayOfVariableSizeElementsChapter(ChapterType.NativeObjects_Name, count);
             var objectAddresses = GetArrayOfConstantSizeElementsChapter(ChapterType.NativeObjects_NativeObjectAddress, count);
@@ -334,7 +338,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
                 nativeObjects[i] = new NativeObject();
 
                 typeIndices[i].Read(0, out nativeObjects[i].TypeIndex);
-                hideFlags[i].Read(0, out nativeObjects[i].HideFlags);
                 instanceIds[i].Read(0, out nativeObjects[i].InstanceId);
                 nativeObjects[i].Name = names[i].ReadString();
                 nativeObjects[i].ObjectAddress = Native.From(objectAddresses[i].ReadInteger());
