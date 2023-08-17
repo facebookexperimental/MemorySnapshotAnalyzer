@@ -32,7 +32,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             int indexOfColon = value.IndexOf(':');
             if (indexOfColon == -1)
             {
-                throw new FileFormatException("type name must be prefixed with an assembly name");
+                throw new ArgumentException("type name must be prefixed with an assembly name");
             }
 
             return new TypeSpec(value[..indexOfColon], value[(indexOfColon + 1)..]);
@@ -81,7 +81,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 {
                     if (i + 1 == value.Length || value[i + 1] != ']')
                     {
-                        throw new FileFormatException($"invalid field pattern syntax; '[' must be immediately followed by ']'");
+                        throw new ArgumentException($"invalid field pattern syntax; '[' must be immediately followed by ']'");
                     }
 
                     if (i > startIndex)

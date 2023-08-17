@@ -40,16 +40,9 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         internal static Dictionary<string, List<Rule>> Load(string filename)
         {
-            try
-            {
-                ReferenceClassifierParser loader = new(filename);
-                loader.Parse();
-                return loader.m_result;
-            }
-            catch (IOException ex)
-            {
-                throw new FileFormatException(ex.Message);
-            }
+            ReferenceClassifierParser loader = new(filename);
+            loader.Parse();
+            return loader.m_result;
         }
 
         void Parse()
@@ -67,7 +60,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         TypeSpec typeSpec = TypeSpec.Parse(m_enumerator.Current.value);
                         if (!m_enumerator.MoveNext())
                         {
-                            throw new FileFormatException("unterminated rule");
+                            m_tokenizer.ParseError("unterminated rule");
                         }
 
                         do
@@ -78,9 +71,9 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     }
                 }
             }
-            catch (FileFormatException ex)
+            catch (ArgumentException ex)
             {
-                throw new FileFormatException($"{ex.Message} on line {m_tokenizer.LineNumber}");
+                m_tokenizer.ParseError(ex.Message);
             }
         }
 
@@ -103,7 +96,8 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         break;
                     case ReferenceClassifierFileTokenizer.Token.FuseWith:
                         // TODO: implement FUSE_WITH rule
-                        throw new FileFormatException($"{m_enumerator.Current.token} rule not yet implemented");
+                        m_tokenizer.ParseError($"{m_enumerator.Current.token} rule not yet implemented");
+                        break;
                     case ReferenceClassifierFileTokenizer.Token.Tag:
                         {
                             string tag = m_enumerator.Current.value;
@@ -127,20 +121,20 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 {
                     if (makeRules.Count == 0)
                     {
-                        throw new FileFormatException("type spec needs to be followed by at least one rule keyword");
+                        m_tokenizer.ParseError("type spec needs to be followed by at least one rule keyword");
                     }
                     break;
                 }
 
                 if (!m_enumerator.MoveNext())
                 {
-                    throw new FileFormatException("unterminated rule");
+                    m_tokenizer.ParseError("unterminated rule");
                 }
             }
 
             if (m_enumerator.Current.token != ReferenceClassifierFileTokenizer.Token.String)
             {
-                throw new FileFormatException("rule keywords must be followed by a field pattern or selector");
+                m_tokenizer.ParseError("rule keywords must be followed by a field pattern or selector");
             }
 
             string value = m_enumerator.Current.value;
@@ -151,7 +145,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
             if (!m_enumerator.MoveNext())
             {
-                throw new FileFormatException("unterminated rule");
+                m_tokenizer.ParseError("unterminated rule");
             }
         }
 

@@ -64,7 +64,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                     {
                         LoadReferenceClassifierFile(initialReferenceClassifierFile, overrideGroupName: null);
                     }
-                    catch (FileFormatException ex)
+                    catch (IOException ex)
                     {
                         Output.WriteLine($"error loading initial reference classifier file \"{initialReferenceClassifierFile}\": {ex.Message}");
                     }
