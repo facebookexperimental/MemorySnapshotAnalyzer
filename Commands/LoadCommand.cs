@@ -35,6 +35,11 @@ namespace MemorySnapshotAnalyzer.Commands
 #if WINDOWS
             if (Filename == null)
             {
+                if (!Repl.IsInteractive)
+                {
+                    throw new CommandException("load needs to be given an explicit filename when run non-interactively");
+                }
+
                 Filename = SelectFileViaDialog();
                 if (Filename == null)
                 {

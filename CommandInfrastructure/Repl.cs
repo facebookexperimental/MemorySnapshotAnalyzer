@@ -26,6 +26,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         readonly IConfiguration m_configuration;
         readonly IOutput m_output;
+        readonly bool m_isInteractive;
         readonly List<MemorySnapshotLoader> m_memorySnapshotLoaders;
         readonly SortedDictionary<string, Type> m_commands;
         readonly Dictionary<Type, Dictionary<string, NamedArgumentKind>> m_commandNamedArgumentNames;
@@ -34,10 +35,11 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         string? m_currentCommandLine;
         int m_currentContextId;
 
-        public Repl(IConfiguration configuration)
+        public Repl(IConfiguration configuration, IOutput output, bool isInteractive)
         {
             m_configuration = configuration;
-            m_output = new ConsoleOutput();
+            m_output = output;
+            m_isInteractive = isInteractive;
             m_memorySnapshotLoaders = new();
             m_commands = new();
             m_referenceClassifierStore = new();
@@ -53,7 +55,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 Backtracer_FuseRoots = configuration.GetValue<bool>("FuseRoots")
             });
             m_currentContextId = 0;
-            Output.SetPrompt("[0]> ");
+            Output.Prompt = "[0]> ";
 
             string? initialReferenceClassifierFiles = configuration.GetValue<string>("InitialReferenceClassifierFiles");
             if (initialReferenceClassifierFiles != null)
@@ -121,6 +123,8 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         public IOutput Output => m_output;
 
+        public bool IsInteractive => m_isInteractive;
+
         public string CurrentCommandLine => m_currentCommandLine!;
 
         public ReferenceClassifierStore ReferenceClassifierStore => m_referenceClassifierStore;
@@ -134,7 +138,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 m_contexts.Add(id, Context.WithSameOptionsAs(m_contexts[m_currentContextId], id));
             }
             m_currentContextId = id;
-            Output.SetPrompt($"[{id}]> ");
+            Output.Prompt = $"[{id}]> ";
             return m_contexts[id];
         }
 
@@ -168,14 +172,35 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
         }
 
-        public void Run()
+        public void RunBatchFile(string batchFilename)
+        {
+            foreach (string line in File.ReadAllLines(batchFilename))
+            {
+                string lineTrimmed = line.Trim();
+                if (lineTrimmed.Length > 0 && lineTrimmed[0] != '#')
+                {
+                    RunCommandNonInteractively(lineTrimmed);
+                }
+            }
+        }
+
+        public void RunCommandNonInteractively(string line)
+        {
+            // Output the command we are running so it's easy for a human reader to follow along.
+            Output.WriteLine($"{Output.Prompt}{line}");
+
+            // Let exceptions escape, to be reported adequately as an error in the main method.
+            RunCommand(line);
+        }
+
+        public void RunInteractively()
         {
 #if !WINDOWS
             ReadLine.HistoryEnabled = true;
 #endif
             while (true)
             {
-                Output.Prompt();
+                Output.DoPrompt();
 #if WINDOWS
                 string? line = Console.ReadLine();
 #else
@@ -186,38 +211,54 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                     continue;
                 }
 
-                RunCommandGuarded(line);
+                RunCommandInteractively(line);
             }
         }
 
-        public void RunCommandGuarded(string line)
+        public void RunCommandInteractively(string line)
         {
-            // TODO: store in history - make this return a "CommandLineArgument?"
-            m_currentCommandLine = line;
+            // Handle exceptions that are expected, so the user is able to correct their mistake and run the command again.
+            // Let unexpected exceptions crash the app.
+            RunWithHandler(() =>
+            {
+                try
+                {
+                    Output.ExecutionStart();
+                    RunCommand(line);
+                    Output.ExecutionEnd(0);
+                }
+                catch (OperationCanceledException)
+                {
+                    // This exception is not expected within RunWithHandler, as it can only ever be thrown if we run interactively.
+                    Output.WriteLine("canceled");
+                    Output.ExecutionEnd(1);
+                }
+            }, ex =>
+            {
+                Output.WriteLine(ex.Message);
+                Output.ExecutionEnd(1);
+            });
+        }
 
+        // Runs a command with handlers in place for the expected exception types (those that should be caught and handled, not crash the app).
+        public static void RunWithHandler(Action command, Action<Exception> handler)
+        {
             try
             {
-                Output.ExecutionStart();
-                RunCommand(line);
-                Output.ExecutionEnd(0);
+                command();
             }
-            catch (OperationCanceledException)
+            catch (IOException ex)
             {
-                Output.WriteLine("canceled");
-                Output.ExecutionEnd(1);
+                handler(ex);
             }
             catch (InvalidSnapshotFormatException ex)
             {
-                Output.WriteLine(ex.Message);
-                Output.ExecutionEnd(1);
+                handler(ex);
             }
             catch (CommandException ex)
             {
-                Output.WriteLine(ex.Message);
-                Output.ExecutionEnd(1);
+                handler(ex);
             }
-
-            m_currentCommandLine = null;
         }
 
         public void RunCommand(string line)
@@ -240,7 +281,15 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             Command command = (Command)commandType.GetConstructor(commandConstructorSignature)!.Invoke(commandConstructorArguments);
             AssignArgumentValues(command, commandLine);
 
-            command.Run();
+            try
+            {
+                m_currentCommandLine = line;
+                command.Run();
+            }
+            finally
+            {
+                m_currentCommandLine = null;
+            }
         }
 
         public void OutputHelpText()

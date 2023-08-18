@@ -13,15 +13,21 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
     public sealed class FileOutput : IOutput, IDisposable
     {
-        readonly Dictionary<int, string> m_indents;
+        readonly Dictionary<int, string> m_indents = new();
         FileStream? m_fileStream;
-        readonly StreamWriter m_writer;
+        readonly TextWriter m_writer;
 
         public FileOutput(string outputFilename)
         {
-            m_indents = new Dictionary<int, string>();
+            Prompt = ">";
             m_fileStream = new FileStream(outputFilename, FileMode.Create, FileAccess.Write);
             m_writer = new StreamWriter(m_fileStream);
+        }
+
+        public FileOutput(TextWriter writer)
+        {
+            Prompt = ">";
+            m_writer = writer;
         }
 
         public void Dispose()
@@ -34,57 +40,55 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
         }
 
-        void IOutput.SetPrompt(string prompt)
+        public string Prompt { get; set; }
+
+        public void DoPrompt()
         {
         }
 
-        void IOutput.Prompt()
+        public void ExecutionStart()
         {
         }
 
-        void IOutput.ExecutionStart()
+        public void ExecutionEnd(int exitCode)
         {
         }
 
-        void IOutput.ExecutionEnd(int exitCode)
+        public void Clear()
         {
         }
 
-        void IOutput.Clear()
-        {
-        }
-
-        bool IOutput.CancellationRequested()
+        public bool CancellationRequested()
         {
             return false;
         }
 
-        void IOutput.Write(string message)
+        public void Write(string message)
         {
             m_writer.Write(message);
         }
 
-        void IOutput.Write(string format, params object[] args)
+        public void Write(string format, params object[] args)
         {
             m_writer.Write(format, args);
         }
 
-        void IOutput.WriteLine()
+        public void WriteLine()
         {
             m_writer.WriteLine();
         }
 
-        void IOutput.WriteLine(string message)
+        public void WriteLine(string message)
         {
             m_writer.WriteLine(message);
         }
 
-        void IOutput.WriteLine(string format, params object[] args)
+        public void WriteLine(string format, params object[] args)
         {
             m_writer.WriteLine(format, args);
         }
 
-        void IOutput.WriteLineIndented(int indent, string format, params object[] args)
+        public void WriteLineIndented(int indent, string format, params object[] args)
         {
             string? indentString;
             if (!m_indents.TryGetValue(indent, out indentString))

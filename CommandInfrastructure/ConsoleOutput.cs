@@ -10,7 +10,7 @@ using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
-    sealed class ConsoleOutput : IOutput
+    public sealed class ConsoleOutput : IOutput
     {
         // https://code.visualstudio.com/docs/terminal/shell-integration#_vs-code-custom-sequences-osc-633-st
         readonly string s_markPromptStart = "\u001b]633;A\u0007";
@@ -18,7 +18,6 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         readonly string s_preExecution = "\u001b]633;C\u0007";
         readonly string s_executionFinished_exitCode = "\u001b]633;D;{0}\u0007";
 
-        string m_prompt;
         readonly Dictionary<int, string> m_indents;
         readonly bool m_useSemanticPrompt;
         int m_windowHeight;
@@ -27,7 +26,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         public ConsoleOutput()
         {
-            m_prompt = "> ";
+            Prompt = "> ";
             m_indents = new Dictionary<int, string>();
 
             string? termProgram = Environment.GetEnvironmentVariable("TERM_PROGRAM");
@@ -46,23 +45,20 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 };
         }
 
-        void IOutput.SetPrompt(string prompt)
-        {
-            m_prompt = prompt;
-        }
+        public string Prompt { get; set; }
 
-        void IOutput.Prompt()
+        void IOutput.DoPrompt()
         {
             if (m_useSemanticPrompt)
             {
                 Console.Write("{0}{1}{2}",
                     s_markPromptStart,
-                    m_prompt,
+                    Prompt,
                     s_markPromptEnd);
             }
             else
             {
-                Console.Write(m_prompt);
+                Console.Write(Prompt);
             }
 
             m_numberLinesWritten = 0;

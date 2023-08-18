@@ -9,9 +9,9 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
     public interface IOutput
     {
-        void SetPrompt(string prompt);
+        string Prompt { get; set; }
 
-        void Prompt();
+        void DoPrompt();
 
         void ExecutionStart();
 
