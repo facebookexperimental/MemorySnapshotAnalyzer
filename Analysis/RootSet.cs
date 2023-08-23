@@ -71,8 +71,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                         // Check whether the type has been initialized.
                         if (staticFieldBytesView.IsValid)
                         {
-                            int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
-                            foreach (PointerInfo<int> pointerInfo in typeSystem.GetStaticFieldPointerOffsets(typeIndex, fieldNumber, fieldTypeIndex, baseOffset: 0))
+                            foreach (PointerInfo<int> pointerInfo in typeSystem.GetStaticFieldPointerOffsets(typeIndex, fieldNumber))
                             {
                                 int offset = pointerInfo.Value;
                                 AddStaticRoot(pointerInfo, staticFieldBytesView.ReadPointer(offset, m_traceableHeap.Native));

@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
@@ -141,6 +142,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public IEnumerable<PointerInfo<int>> GetPointerOffsets(int typeIndex, int baseOffset)
         {
+            Debug.Assert(!IsArray(typeIndex));
+
             (int start, int end) = EnsurePointerOffsets(typeIndex);
 
             for (int i = start; i < end; i++)
@@ -150,11 +153,14 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
         }
 
-        public IEnumerable<PointerInfo<int>> GetStaticFieldPointerOffsets(int typeIndex, int fieldNumber, int fieldTypeIndex, int baseOffset)
+        public IEnumerable<PointerInfo<int>> GetStaticFieldPointerOffsets(int typeIndex, int fieldNumber)
         {
+            Debug.Assert(FieldIsStatic(typeIndex, fieldNumber));
+
+            int fieldTypeIndex = FieldType(typeIndex, fieldNumber);
             if (IsValueType(fieldTypeIndex))
             {
-                foreach (PointerInfo<int> pointerInfo in GetPointerOffsets(fieldTypeIndex, baseOffset))
+                foreach (PointerInfo<int> pointerInfo in GetPointerOffsets(fieldTypeIndex, baseOffset : 0))
                 {
                     yield return pointerInfo;
                 }
@@ -164,7 +170,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 PointerFlags pointerFlags = ReferenceClassifier.GetPointerFlags(typeIndex, fieldNumber);
                 yield return new PointerInfo<int>
                 {
-                    Value = baseOffset,
+                    Value = 0,
                     PointerFlags = pointerFlags,
                     TypeIndex = typeIndex,
                     FieldNumber = fieldNumber
@@ -172,11 +178,11 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
         }
 
-        public IEnumerable<PointerInfo<int>> GetArrayElementPointerOffsets(int typeIndex, int baseOffset)
+        public IEnumerable<PointerInfo<int>> GetArrayElementPointerOffsets(int elementTypeIndex, int baseOffset)
         {
-            if (IsValueType(typeIndex))
+            if (IsValueType(elementTypeIndex))
             {
-                foreach (PointerInfo<int> pointerInfo in GetPointerOffsets(typeIndex, baseOffset))
+                foreach (PointerInfo<int> pointerInfo in GetPointerOffsets(elementTypeIndex, baseOffset))
                 {
                     yield return pointerInfo;
                 }
@@ -187,7 +193,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 {
                     Value = baseOffset,
                     PointerFlags = PointerFlags.None,
-                    TypeIndex = typeIndex,
+                    TypeIndex = elementTypeIndex,
                     FieldNumber = -1
                 };
             }
@@ -201,20 +207,26 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
             else if (IsValueType(typeIndex))
             {
-                return (typeIndex, GetOwnFieldNumber(typeIndex, fieldName));
-            }
-
-            int currentTypeIndex = typeIndex;
-            do
-            {
-                int fieldNumber = GetOwnFieldNumber(currentTypeIndex, fieldName);
+                int fieldNumber = GetOwnFieldNumber(typeIndex, fieldName);
                 if (fieldNumber != -1)
                 {
-                    return (currentTypeIndex, fieldNumber);
+                    return (typeIndex, fieldNumber);
                 }
-                currentTypeIndex = BaseOrElementTypeIndex(currentTypeIndex);
             }
-            while (currentTypeIndex != -1);
+            else
+            {
+                int currentTypeIndex = typeIndex;
+                do
+                {
+                    int fieldNumber = GetOwnFieldNumber(currentTypeIndex, fieldName);
+                    if (fieldNumber != -1)
+                    {
+                        return (currentTypeIndex, fieldNumber);
+                    }
+                    currentTypeIndex = BaseOrElementTypeIndex(currentTypeIndex);
+                }
+                while (currentTypeIndex != -1);
+            }
 
             return (-1, -1);
         }
