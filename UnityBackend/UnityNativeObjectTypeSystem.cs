@@ -111,7 +111,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         public override MemoryView StaticFieldBytes(int typeIndex, int fieldNumber)
         {
             // Unreachable - no type has fields
-            throw new NotImplementedException(); ;
+            throw new NotImplementedException();
         }
 
         public override int GetArrayElementOffset(int elementTypeIndex, int elementIndex)

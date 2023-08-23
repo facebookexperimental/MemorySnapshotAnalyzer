@@ -18,6 +18,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly IRootSet m_rootSet;
         readonly TraceableHeap m_traceableHeap;
         readonly int m_rootNodeIndex;
+        readonly List<int> m_rootPredecessors;
         readonly List<int>[] m_predecessors;
         readonly HashSet<int> m_ownedNodes;
         readonly HashSet<int> m_strongNodes;
@@ -39,6 +40,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             //   0 ... N-1 : postorder indices (for objects and root sentinels) from TracedHeap
             //   N : root node - representing the containing process
             m_rootNodeIndex = tracedHeap.NumberOfPostorderNodes;
+            m_rootPredecessors = new List<int>() { m_rootNodeIndex };
 
             m_predecessors = new List<int>[m_rootNodeIndex + 1];
             m_ownedNodes = new HashSet<int>();
@@ -171,7 +173,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         public List<int> Predecessors(int nodeIndex)
         {
-            return m_predecessors[nodeIndex];
+            return IsRootSentinel(nodeIndex) ? m_rootPredecessors : m_predecessors[nodeIndex];
         }
 
         void ComputePredecessors(Options options)

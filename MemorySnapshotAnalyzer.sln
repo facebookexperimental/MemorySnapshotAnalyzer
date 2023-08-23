@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbstractMemorySnapshotTests
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Analysis", "Analysis\Analysis.csproj", "{174DA817-B460-4F00-88D8-B39942F1C5CA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnalysisTests", "AnalysisTests\AnalysisTests.csproj", "{435B0968-BA54-4359-AF97-908907C4E6D9}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CommandInfrastructure", "CommandInfrastructure\CommandInfrastructure.csproj", "{8B8AC564-E3ED-46D8-A278-AC2A9EC81338}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Commands", "Commands\Commands.csproj", "{161B4C96-366E-4A08-B179-E54229C198FF}"
@@ -47,6 +49,10 @@ Global
 		{174DA817-B460-4F00-88D8-B39942F1C5CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{174DA817-B460-4F00-88D8-B39942F1C5CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{174DA817-B460-4F00-88D8-B39942F1C5CA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{435B0968-BA54-4359-AF97-908907C4E6D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{435B0968-BA54-4359-AF97-908907C4E6D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{435B0968-BA54-4359-AF97-908907C4E6D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{435B0968-BA54-4359-AF97-908907C4E6D9}.Release|Any CPU.Build.0 = Release|Any CPU
 		{8B8AC564-E3ED-46D8-A278-AC2A9EC81338}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{8B8AC564-E3ED-46D8-A278-AC2A9EC81338}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8B8AC564-E3ED-46D8-A278-AC2A9EC81338}.Release|Any CPU.ActiveCfg = Release|Any CPU

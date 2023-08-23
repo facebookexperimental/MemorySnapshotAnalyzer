@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\TestCommon.props" />
+  <PropertyGroup>
+    <RootNamespace>MemorySnapshotAnalyzer.AnalysisTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AbstractMemorySnapshotTests\AbstractMemorySnapshotTests.csproj" />
+    <ProjectReference Include="..\Analysis\Analysis.csproj" />
+  </ItemGroup>
+
+</Project>
