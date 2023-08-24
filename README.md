@@ -100,10 +100,14 @@ The `referenceclassifier 'load` command takes the name of a configuration file w
 * A *field pattern* is either a field name, which needs to match exactly, or a prefix followed by an asterisk ('`*`'). A *selector* is a *field pattern* optionally followed by a sequence of field names and/or "`[]`" (indicating array indexing). This provides support for collections; for instance, to indicate that all values in field `foo` of a generic dictionary type are owning references, an appropriate selector could be `"foo._entries[].value"`.
 * Specific rule keywords are:
   * **`OWNS`:** An "owns" rule takes a selector as an argument, enclosed in double quotes. An "owns" rule indicates that the object of the given type is the owner of objects directly reachable via the selector. A full example of an "owns" rule is: `"foo.dll:MyNamespace.MyType" OWNS "foo._entries[].value";`.
+  * **`OWNS_DYNAMIC`:** A variant of "owns" that does not output a warning if a field needs to be looked up dynamically (that is, in the run-time type of an object rather than the declared type of the referencing field).
   * **`WEAK`:** A "weak" rule takes a field pattern as argument. The object reached via this field pattern is considered "weakly" referenced (an analysis concept - not to be confused with a .NET `WeakReference`). If an object is referenced by multiple other objects, and some of these references are weak, while others are not, weak references will be ignored when computing backtraces (and/or the dominator tree).
   * **`EXTERNAL`:** An "external" rule takes a field pattern as argument. The field is considered to contain a native-word sized pointer, referencing an object on another heap. This is to be used in conjunction with the `stitched` heap option.
   * **`TAG(tag,...)`:** A "tag" rule takes a selector as argument. The object reachable via the selector is assigned the given tags. Object tags are displayed when listing objects and in backtraces.
+  * **`TAG_DYNAMIC(tag,...)`:** A variant of "tag", as `OWNS_DYNAMIC` is to `OWNS`.
   * **`TAG_IF_ZERO(tag,...)`, `TAG_IF_NONZERO(tag,...)`:** A "conditional tag" rule takes a field pattern as argument. If the condition is true for an object (its given field is zero/non-zero), the given tags are assigned to the object containing the field.
+
+`referenceclassifier 'save` can be used to save a set of reference classifiers to a file.
 
 ### Identifying the Need for New "Owns" Rules
 

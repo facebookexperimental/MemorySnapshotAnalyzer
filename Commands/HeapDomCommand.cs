@@ -81,11 +81,10 @@ namespace MemorySnapshotAnalyzer.Commands
             try
             {
                 using (var fileOutput = new FileOutput(OutputFilename!))
+                using (RedirectOutput(fileOutput))
                 {
-                    RedirectOutputToFilename(fileOutput);
                     Output.Write("data=");
                     DumpTree();
-                    UnredirectOutput();
                 }
 
                 StartHtmlFile();

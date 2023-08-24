@@ -31,14 +31,25 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         public IOutput Output => m_output;
 
-        public void RedirectOutputToFilename(IOutput output)
+        public sealed class Unredirector : IDisposable
         {
-            m_output = output;
+            private readonly Command m_command;
+
+            public Unredirector(Command command)
+            {
+                m_command = command;
+            }
+
+            public void Dispose()
+            {
+                m_command.m_output = m_command.m_repl.Output;
+            }
         }
 
-        public void UnredirectOutput()
+        public Unredirector RedirectOutput(IOutput output)
         {
-            m_output = m_repl.Output;
+            m_output = output;
+            return new(this);
         }
 
         // TODO: convenience functions for tabular output

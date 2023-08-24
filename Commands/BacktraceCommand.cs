@@ -73,15 +73,14 @@ namespace MemorySnapshotAnalyzer.Commands
             else if (OutputDotFilename != null)
             {
                 using (var fileOutput = new FileOutput(OutputDotFilename))
+                using (RedirectOutput(fileOutput))
                 {
-                    RedirectOutputToFilename(fileOutput);
                     DumpBacktracesToDot(nodeIndex);
-                    UnredirectOutput();
-
-                    Output.WriteLine("{0} nodes and {1} edges output",
-                        m_numberOfNodesOutput,
-                        m_numberOfEdgesOutput);
                 }
+
+                Output.WriteLine("{0} nodes and {1} edges output",
+                    m_numberOfNodesOutput,
+                    m_numberOfEdgesOutput);
             }
             else
             {

@@ -21,7 +21,10 @@ namespace MemorySnapshotAnalyzer.Commands
         public bool Clear;
 
         [NamedArgument("load")]
-        public string? ReferenceClassifierFilename;
+        public string? ReferenceClassifierFilenameToLoad;
+
+        [NamedArgument("save")]
+        public string? ReferenceClassifierFilenameToSave;
 
         [FlagArgument("list")]
         public bool List;
@@ -43,7 +46,8 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             int numberOfModes = 0;
             numberOfModes += Clear ? 1 : 0;
-            numberOfModes += ReferenceClassifierFilename != null ? 1 : 0;
+            numberOfModes += ReferenceClassifierFilenameToLoad != null ? 1 : 0;
+            numberOfModes += ReferenceClassifierFilenameToSave != null ? 1 : 0;
             numberOfModes += List ? 1 : 0;
             numberOfModes += EnableGroup ? 1 : 0;
             numberOfModes += DisableGroup ? 1 : 0;
@@ -58,12 +62,29 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 RunForGroups();
             }
-            else if (ReferenceClassifierFilename != null)
+            else if (ReferenceClassifierFilenameToLoad != null)
             {
                 try
                 {
-                    Repl.LoadReferenceClassifierFile(ReferenceClassifierFilename, GroupName);
+                    Repl.LoadReferenceClassifierFile(ReferenceClassifierFilenameToLoad, GroupName);
                     Repl.DumpCurrentContext();
+                }
+                catch (IOException ex)
+                {
+                    throw new CommandException(ex.Message);
+                }
+            }
+            else if (ReferenceClassifierFilenameToSave != null)
+            {
+                try
+                {
+                    using (var fileOutput = new FileOutput(ReferenceClassifierFilenameToSave))
+                    using (RedirectOutput(fileOutput))
+                    {
+                        List = true;
+                        Verbose = true;
+                        RunForGroups();
+                    }
                 }
                 catch (IOException ex)
                 {
@@ -147,7 +168,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 if (store.TryGetGroup(groupName, out ReferenceClassifierGroup? group))
                 {
-                    DumpGroup(group!, verbose: true);
+                    DumpGroup(group!, verbose: Verbose);
                 }
                 else
                 {
@@ -161,10 +182,12 @@ namespace MemorySnapshotAnalyzer.Commands
             if (verbose)
             {
                 Output.WriteLine("[{0}]", group.Name);
+                Output.WriteLine();
                 foreach (Rule rule in group.GetRules())
                 {
-                    Output.WriteLine("  {0}", rule);
+                    Output.WriteLine("{0}", rule);
                 }
+                Output.WriteLine();
             }
             else
             {
@@ -172,6 +195,6 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        public override string HelpText => "referenceclassifier ('clear | 'load <filename> | 'list ['verbose] | 'enable | 'disable) (<prefix*>|<name>),...";
+        public override string HelpText => "referenceclassifier ('clear | 'load <filename> | 'save <filename> | 'list ['verbose] | 'enable | 'disable) (<prefix*>|<name>),...";
     }
 }
