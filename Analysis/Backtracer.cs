@@ -14,7 +14,10 @@ namespace MemorySnapshotAnalyzer.Analysis
 {
     public sealed class Backtracer : IBacktracer
     {
+        static readonly string LOG_SOURCE = "Backtracer";
+
         readonly TracedHeap m_tracedHeap;
+        readonly ILogger m_logger;
         readonly IRootSet m_rootSet;
         readonly TraceableHeap m_traceableHeap;
         readonly int m_rootNodeIndex;
@@ -30,9 +33,11 @@ namespace MemorySnapshotAnalyzer.Analysis
             WeakGCHandles = 1 << 1,
         }
 
-        public Backtracer(TracedHeap tracedHeap, Options options)
+        public Backtracer(TracedHeap tracedHeap, Options options, ILogger logger)
         {
             m_tracedHeap = tracedHeap;
+            m_logger = logger;
+
             m_rootSet = m_tracedHeap.RootSet;
             m_traceableHeap = m_rootSet.TraceableHeap;
 
@@ -46,6 +51,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_ownedNodes = new HashSet<int>();
             m_strongNodes = new HashSet<int>();
 
+            m_logger.Clear(LOG_SOURCE);
             ComputePredecessors(options);
         }
 
@@ -307,10 +313,9 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
             else if (warnAboutMultipleOwningReferences)
             {
-                // TODO: better warning management
                 int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(childNodeIndex);
                 string typeName = m_traceableHeap.TypeSystem.QualifiedName(typeIndex);
-                Console.Error.WriteLine($"found multiple owning references to object {childNodeIndex} of type {typeName}");
+                m_logger.Log(LOG_SOURCE, typeName, $"found multiple owning references to object {childNodeIndex} of type {typeName}");
             }
 
             parentNodeIndices.Add(parentNodeIndex);

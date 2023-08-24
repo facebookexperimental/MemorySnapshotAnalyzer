@@ -6,6 +6,7 @@
  */
 
 using MemorySnapshotAnalyzer.CommandInfrastructure;
+using System;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -16,17 +17,27 @@ namespace MemorySnapshotAnalyzer.Commands
 #pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value
         [PositionalArgument(0, optional: true)]
         public int Id = -1;
+
+        [FlagArgument("flush")]
+        public bool Flush;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
         {
-            if (Id != -1)
+            if (Flush)
             {
-                Repl.SwitchToContext(Id);
+                Context.FlushWarnings();
             }
-            Repl.DumpContexts();
+            else
+            {
+                if (Id != -1)
+                {
+                    Repl.SwitchToContext(Id);
+                }
+                Repl.DumpContexts();
+            }
         }
 
-        public override string HelpText => "context [<id>]";
+        public override string HelpText => "context [<id> | 'flush]";
     }
 }

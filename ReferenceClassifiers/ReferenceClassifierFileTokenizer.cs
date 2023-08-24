@@ -19,10 +19,12 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             String,
             Semicolon,
             Owns,
+            OwnsDynamic,
             Weak,
             External,
             FuseWith,
             Tag,
+            TagDynamic,
             TagIfZero,
             TagIfNonZero,
         }
@@ -31,6 +33,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             { ";", Token.Semicolon },
             { "OWNS", Token.Owns },
+            { "OWNS_DYNAMIC", Token.OwnsDynamic },
             { "WEAK", Token.Weak },
             { "EXTERNAL", Token.External },
             { "FUSE_WITH", Token.FuseWith },
@@ -44,6 +47,8 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             m_filename = filename;
             m_lineNumber = 1;
         }
+
+        internal string Location => $"{m_filename}:{m_lineNumber}";
 
         internal void ParseError(string message)
         {
@@ -107,6 +112,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     {
                         string value = wordTrimmed["TAG(".Length..^1];
                         yield return (Token.Tag, value);
+                    }
+                    else if (wordTrimmed.StartsWith("TAG_DYNAMIC(") && wordTrimmed[^1] == ')')
+                    {
+                        string value = wordTrimmed["TAG_DYNAMIC(".Length..^1];
+                        yield return (Token.TagDynamic, value);
                     }
                     else if (wordTrimmed.StartsWith("TAG_IF_ZERO(") && wordTrimmed[^1] == ')')
                     {

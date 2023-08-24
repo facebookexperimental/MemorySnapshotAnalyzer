@@ -7,7 +7,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
@@ -15,7 +14,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
     //
     // <reference classifier file> ::= { <group> | <typespec rules> }*
     // <typespec rules> ::= <type spec> { { <rules keyword> }+ <field pattern or selector> }+ ";"
-    // <rules keyword> ::= OWNS | WEAK | EXTERNAL | <tag> | <tag condition>
+    // <rules keyword> ::= OWNS | OWNS_DYNAMIC | WEAK | EXTERNAL | <tag> | <tag condition>
     //
     // Tokens:
     //
@@ -83,25 +82,32 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             while (true)
             {
                 bool doneWithKeywords = false;
+                string location = m_tokenizer.Location;
                 switch (m_enumerator.Current.token)
                 {
                     case ReferenceClassifierFileTokenizer.Token.Owns:
-                        makeRules.Add(value => new OwnsRule(typeSpec, value));
+                    case ReferenceClassifierFileTokenizer.Token.OwnsDynamic:
+                        {
+                            bool isDynamic = m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.OwnsDynamic;
+                            makeRules.Add(value => new OwnsRule(location, typeSpec, value, isDynamic: isDynamic));
+                        }
                         break;
                     case ReferenceClassifierFileTokenizer.Token.Weak:
-                        makeRules.Add(value => new WeakRule(typeSpec, value));
+                        makeRules.Add(value => new WeakRule(location, typeSpec, value));
                         break;
                     case ReferenceClassifierFileTokenizer.Token.External:
-                        makeRules.Add(value => new ExternalRule(typeSpec, value));
+                        makeRules.Add(value => new ExternalRule(location, typeSpec, value));
                         break;
                     case ReferenceClassifierFileTokenizer.Token.FuseWith:
                         // TODO: implement FUSE_WITH rule
                         m_tokenizer.ParseError($"{m_enumerator.Current.token} rule not yet implemented");
                         break;
                     case ReferenceClassifierFileTokenizer.Token.Tag:
+                    case ReferenceClassifierFileTokenizer.Token.TagDynamic:
                         {
+                            bool isDynamic = m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.TagDynamic;
                             string tag = m_enumerator.Current.value;
-                            makeRules.Add(value => new TagSelectorRule(typeSpec, value, tag));
+                            makeRules.Add(value => new TagSelectorRule(location, typeSpec, value, tag, isDynamic: isDynamic));
                         }
                         break;
                     case ReferenceClassifierFileTokenizer.Token.TagIfZero:
@@ -109,7 +115,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         {
                             string tag = m_enumerator.Current.value;
                             bool tagIfNonZero = m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.TagIfNonZero;
-                            makeRules.Add(value => new TagConditionRule(typeSpec, value, tag, tagIfNonZero: tagIfNonZero));
+                            makeRules.Add(value => new TagConditionRule(location, typeSpec, value, tag, tagIfNonZero: tagIfNonZero));
                         }
                         break;
                     default:

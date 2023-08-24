@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.Analysis;
 using NUnit.Framework;
 using System;
@@ -16,6 +17,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
     {
         MockTraceableHeap? m_traceableHeap;
         RootSet? m_rootSet;
+        MemoryLogger? m_memoryLogger;
         TracedHeap? m_tracedHeap;
 
         [SetUp]
@@ -23,6 +25,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
         {
             m_traceableHeap = new MockTraceableHeap();
             m_rootSet = new RootSet(m_traceableHeap);
+            m_memoryLogger = new MemoryLogger();
         }
 
         [TearDown]
@@ -36,7 +39,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
         Backtracer MakeBacktracer(Backtracer.Options options, bool weakGCHandles)
         {
             m_tracedHeap = new TracedHeap(m_rootSet!, weakGCHandles: weakGCHandles);
-            return new Backtracer(m_tracedHeap, options);
+            return new Backtracer(m_tracedHeap, options, m_memoryLogger!);
         }
 
         [Test]

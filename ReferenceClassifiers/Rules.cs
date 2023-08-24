@@ -7,7 +7,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
@@ -64,10 +63,12 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
     public abstract class Rule
     {
+        public string Location { get; private set; }
         public TypeSpec TypeSpec { get; private set; }
 
-        protected Rule(TypeSpec typeSpec)
+        protected Rule(string location, TypeSpec typeSpec)
         {
+            Location = location;
             TypeSpec = typeSpec;
         }
 
@@ -151,15 +152,18 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         // Path of fields to dereference. Note that these except for the first field, thse are full field names, not patterns.
         // The special field name "[]" represents array indexing (covering all elements of the array).
         public string[] Selector { get; private set; }
+        public bool IsDynamic { get; private set; }
 
-        public OwnsRule(TypeSpec typeSpec, string selector) : base(typeSpec)
+        public OwnsRule(string location, TypeSpec typeSpec, string selector, bool isDynamic) : base(location, typeSpec)
         {
             Selector = ParseSelector(selector);
+            IsDynamic = isDynamic;
         }
 
         public override string ToString()
         {
-            return $"{TypeSpec} OWNS \"{StringifySelector(Selector)}\";";
+            string keyword = IsDynamic ? "OWNS_DYNAMIC" : "OWNS";
+            return $"{TypeSpec} {keyword} \"{StringifySelector(Selector)}\";";
         }
     }
 
@@ -168,7 +172,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         // A field name, or (if ending in "*") a field prefix.
         public string FieldPattern { get; private set; }
 
-        public WeakRule(TypeSpec typeSpec, string fieldPattern) : base(typeSpec)
+        public WeakRule(string location, TypeSpec typeSpec, string fieldPattern) : base(location, typeSpec)
         {
             FieldPattern = fieldPattern;
         }
@@ -184,7 +188,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         // A field name, or (if ending in "*") a field prefix.
         public string FieldPattern { get; private set; }
 
-        public ExternalRule(TypeSpec typeSpec, string fieldPattern) : base(typeSpec)
+        public ExternalRule(string location, TypeSpec typeSpec, string fieldPattern) : base(location, typeSpec)
         {
             FieldPattern = fieldPattern;
         }
@@ -201,16 +205,19 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         // The special field name "[]" represents array indexing (covering all elements of the array).
         public string[] Selector { get; private set; }
         public string[] Tags { get; private set; }
+        public bool IsDynamic { get; private set; }
 
-        public TagSelectorRule(TypeSpec typeSpec, string selector, string tags) : base(typeSpec)
+        public TagSelectorRule(string location, TypeSpec typeSpec, string selector, string tags, bool isDynamic) : base(location, typeSpec)
         {
             Selector = ParseSelector(selector);
             Tags = ParseTags(tags);
+            IsDynamic = isDynamic;
         }
 
         public override string ToString()
         {
-            return $"{TypeSpec} TAG({StringifyTags(Tags)}) \"{StringifySelector(Selector)}\";";
+            string keyword = IsDynamic ? "TAG_DYNAMIC" : "TAG";
+            return $"{TypeSpec} {keyword}({StringifyTags(Tags)}) \"{StringifySelector(Selector)}\";";
         }
     }
 
@@ -221,7 +228,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         public string[] Tags { get; private set; }
         public bool TagIfNonZero { get; private set; }
 
-        public TagConditionRule(TypeSpec typeSpec, string fieldPattern, string tags, bool tagIfNonZero) : base(typeSpec)
+        public TagConditionRule(string location, TypeSpec typeSpec, string fieldPattern, string tags, bool tagIfNonZero) : base(location, typeSpec)
         {
             FieldPattern = fieldPattern;
             Tags = ParseTags(tags);

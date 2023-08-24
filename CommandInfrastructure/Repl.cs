@@ -26,6 +26,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         readonly IConfiguration m_configuration;
         readonly IOutput m_output;
+        readonly ILoggerFactory m_loggerFactory;
         readonly bool m_isInteractive;
         readonly List<MemorySnapshotLoader> m_memorySnapshotLoaders;
         readonly SortedDictionary<string, Type> m_commands;
@@ -35,10 +36,11 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         string? m_currentCommandLine;
         int m_currentContextId;
 
-        public Repl(IConfiguration configuration, IOutput output, bool isInteractive)
+        public Repl(IConfiguration configuration, IOutput output, ILoggerFactory loggerFactory, bool isInteractive)
         {
             m_configuration = configuration;
             m_output = output;
+            m_loggerFactory = loggerFactory;
             m_isInteractive = isInteractive;
             m_memorySnapshotLoaders = new();
             m_commands = new();
@@ -46,7 +48,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             m_commandNamedArgumentNames = new();
 
             m_contexts = new();
-            m_contexts.Add(0, new Context(0, m_output, m_referenceClassifierStore)
+            m_contexts.Add(0, new Context(0, m_output, m_loggerFactory.MakeLogger(), m_referenceClassifierStore)
             {
                 // TODO: read TraceableHeap_Kind value
                 TraceableHeap_FuseObjectPairs = configuration.GetValue<bool>("FuseObjectPairs"),
@@ -135,7 +137,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         {
             if (!m_contexts.ContainsKey(id))
             {
-                m_contexts.Add(id, Context.WithSameOptionsAs(m_contexts[m_currentContextId], id));
+                m_contexts.Add(id, Context.WithSameOptionsAs(m_contexts[m_currentContextId], m_loggerFactory.MakeLogger(), id));
             }
             m_currentContextId = id;
             Output.Prompt = $"[{id}]> ";

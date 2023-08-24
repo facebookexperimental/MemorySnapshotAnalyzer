@@ -61,7 +61,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             return loadedGroups;
         }
 
-        internal BoundRuleset Bind(TypeSystem typeSystem, SortedSet<string> activeGroups)
+        internal BoundRuleset Bind(TypeSystem typeSystem, SortedSet<string> activeGroups, ILogger logger)
         {
             List<Rule> rules = new();
             foreach ((string groupName, ReferenceClassifierGroup group) in m_referenceClassifierGroups)
@@ -74,7 +74,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     }
                 }
             }
-            return new BoundRuleset(typeSystem, rules);
+            return new BoundRuleset(typeSystem, rules, logger);
         }
     }
 }

@@ -43,17 +43,19 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
     public sealed class RuleBasedReferenceClassifierFactory : ReferenceClassifierFactory
     {
         readonly ReferenceClassifierStore m_store;
+        readonly ILogger m_logger;
         readonly SortedSet<string> m_enabledGroups;
 
-        public RuleBasedReferenceClassifierFactory(ReferenceClassifierStore store, SortedSet<string> enabledGroups)
+        public RuleBasedReferenceClassifierFactory(ReferenceClassifierStore store, ILogger logger, SortedSet<string> enabledGroups)
         {
             m_store = store;
+            m_logger = logger;
             m_enabledGroups = enabledGroups;
         }
 
         public override ReferenceClassifier Build(TypeSystem typeSystem)
         {
-            return new RuleBasedReferenceClassifier(m_store.Bind(typeSystem, m_enabledGroups));
+            return new RuleBasedReferenceClassifier(m_store.Bind(typeSystem, m_enabledGroups, m_logger));
         }
     }
 }

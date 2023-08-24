@@ -10,6 +10,7 @@ using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.ReferenceClassifiers;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace MemorySnapshotAnalyzer.CommandInfrastructure
@@ -18,6 +19,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
     {
         readonly int m_id;
         readonly IOutput m_output;
+        readonly ILogger m_logger;
         readonly ReferenceClassifierStore m_referenceClassifierStore;
 
         public enum TraceableHeapKind
@@ -46,18 +48,19 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         IBacktracer? m_currentBacktracer;
         HeapDom? m_currentHeapDom;
 
-        public Context(int id, IOutput output, ReferenceClassifierStore referenceClassifierStore)
+        public Context(int id, IOutput output, ILogger logger, ReferenceClassifierStore referenceClassifierStore)
         {
             m_id = id;
             m_output = output;
+            m_logger = logger;
             m_referenceClassifierStore = referenceClassifierStore;
 
             m_traceableHeap_referenceClassificationGroups = new();
         }
 
-        public static Context WithSameOptionsAs(Context other, int newId)
+        public static Context WithSameOptionsAs(Context other, ILogger logger, int newId)
         {
-            var newContext = new Context(newId, other.m_output, other.m_referenceClassifierStore)
+            var newContext = new Context(newId, other.m_output, logger, other.m_referenceClassifierStore)
             {
                 TraceableHeap_Kind = other.TraceableHeap_Kind,
                 TraceableHeap_FuseObjectPairs = other.TraceableHeap_FuseObjectPairs,
@@ -70,9 +73,15 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             return newContext;
         }
 
+        public void FlushWarnings()
+        {
+            m_logger.Flush(s => m_output.WriteLine(s));
+        }
+
         public void Dispose()
         {
             ClearContext();
+            FlushWarnings();
         }
 
         public int Id => m_id;
@@ -295,8 +304,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 if (m_traceableHeap_referenceClassificationGroups.Count > 0)
                 {
                     referenceClassifierFactory = new RuleBasedReferenceClassifierFactory
-                        (m_referenceClassifierStore,
-                        m_traceableHeap_referenceClassificationGroups);
+                        (m_referenceClassifierStore, m_logger, m_traceableHeap_referenceClassificationGroups);
                 }
                 else
                 {
@@ -463,7 +471,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                     backtracerOptions |= Backtracer.Options.WeakGCHandles;
                 }
 
-                IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, backtracerOptions);
+                IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, backtracerOptions, m_logger);
                 if (m_backtracer_groupStatics)
                 {
                     backtracer = new GroupingBacktracer(backtracer);
