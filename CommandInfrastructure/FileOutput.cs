@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -17,11 +17,15 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         FileStream? m_fileStream;
         readonly TextWriter m_writer;
 
-        public FileOutput(string outputFilename)
+        public FileOutput(string outputFilename, bool useUnixNewlines)
         {
             Prompt = ">";
             m_fileStream = new FileStream(outputFilename, FileMode.Create, FileAccess.Write);
             m_writer = new StreamWriter(m_fileStream);
+            if (useUnixNewlines)
+            {
+                m_writer.NewLine = "\n";
+            }
         }
 
         public FileOutput(TextWriter writer)

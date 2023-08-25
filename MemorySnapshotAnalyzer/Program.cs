@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -104,7 +104,7 @@ static class Program
             ILoggerFactory loggerFactory;
             if (commandLineArguments.LogOutputFilename != null)
             {
-                errorOutput = new FileOutput(commandLineArguments.LogOutputFilename);
+                errorOutput = new FileOutput(commandLineArguments.LogOutputFilename, useUnixNewlines: false);
                 output = errorOutput;
                 loggerFactory = new MemoryLoggerFactory();
             }

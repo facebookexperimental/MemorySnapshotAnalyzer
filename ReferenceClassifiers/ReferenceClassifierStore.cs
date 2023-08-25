@@ -51,7 +51,8 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         public HashSet<string> LoadFromFile(string filename, string? groupNamePrefix)
         {
-            Dictionary<string, List<Rule>> groupedRules = ReferenceClassifierParser.Load(filename, groupNamePrefix);
+            Dictionary<string, List<Rule>> groupedRules = new();
+            ReferenceClassifierParser.Load(filename, groupNamePrefix, groupedRules);
             return AddGroupedRules(groupedRules);
         }
 

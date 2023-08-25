@@ -27,23 +27,22 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         readonly string? m_groupNamePrefix;
         readonly ReferenceClassifierFileTokenizer m_tokenizer;
         readonly IEnumerator<(ReferenceClassifierFileTokenizer.Token token, string value)> m_enumerator;
-        readonly Dictionary<string, List<Rule>> m_result;
+        readonly Dictionary<string, List<Rule>> m_groupedRules;
         string m_groupName;
 
-        ReferenceClassifierParser(string filename, string? groupNamePrefix)
+        ReferenceClassifierParser(string filename, string? groupNamePrefix, Dictionary<string, List<Rule>> groupedRules)
         {
             m_groupNamePrefix = groupNamePrefix;
             m_tokenizer = new(filename);
             m_enumerator = m_tokenizer.GetTokens().GetEnumerator();
-            m_result = new();
-            m_groupName = m_groupNamePrefix ?? "anonymous";
+            m_groupedRules = groupedRules;
+            m_groupName = ReferenceClassifierGroup.ResolveGroupName(m_groupNamePrefix, groupName: null);
         }
 
-        internal static Dictionary<string, List<Rule>> Load(string filename, string? groupNamePrefix)
+        internal static void Load(string filename, string? groupNamePrefix, Dictionary<string, List<Rule>> groupedRules)
         {
-            ReferenceClassifierParser parser = new(filename, groupNamePrefix);
+            ReferenceClassifierParser parser = new(filename, groupNamePrefix, groupedRules);
             parser.Parse();
-            return parser.m_result;
         }
 
         void Parse()
@@ -52,16 +51,20 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             {
                 while (m_enumerator.MoveNext())
                 {
-                    if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.Group)
+                    if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.Import)
                     {
-                        if (m_groupNamePrefix != null)
+                        if (!m_enumerator.MoveNext() || m_enumerator.Current.token != ReferenceClassifierFileTokenizer.Token.String)
                         {
-                            m_groupName = $"{m_groupNamePrefix}.{m_enumerator.Current.value}";
+                            m_tokenizer.ParseError("IMPORT directive needs to be followed by a string");
                         }
-                        else
-                        {
-                            m_groupName = m_enumerator.Current.value;
-                        }
+
+                        string? groupNamePrefix = m_groupName.Equals("anonymous", StringComparison.Ordinal) ? m_groupNamePrefix : m_groupName;
+                        Load(m_enumerator.Current.value, groupNamePrefix, m_groupedRules);
+                    }
+                    else if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.Group)
+                    {
+                        string? declaredGroupName = m_enumerator.Current.value.Length > 0 ? m_enumerator.Current.value : null;
+                        m_groupName = ReferenceClassifierGroup.ResolveGroupName(m_groupNamePrefix, declaredGroupName);
                     }
                     else if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.String)
                     {
@@ -166,10 +169,10 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         void AddRule(Rule rule)
         {
-            if (!m_result.TryGetValue(m_groupName, out List<Rule>? rules))
+            if (!m_groupedRules.TryGetValue(m_groupName, out List<Rule>? rules))
             {
                 rules = new();
-                m_result.Add(m_groupName, rules);
+                m_groupedRules.Add(m_groupName, rules);
             }
             rules.Add(rule);
         }

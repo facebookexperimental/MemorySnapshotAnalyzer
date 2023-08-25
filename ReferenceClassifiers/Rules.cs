@@ -22,7 +22,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         public TypeSpec(string assembly, string typeName)
         {
-            Assembly = assembly;
+            Assembly = new string(WithoutExtension(assembly));
             TypeName = typeName;
         }
 
@@ -39,7 +39,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         public bool AssemblyMatches(ReadOnlySpan<char> assemblyWithoutExtension)
         {
-            return assemblyWithoutExtension.Equals(WithoutExtension(Assembly), StringComparison.OrdinalIgnoreCase);
+            return assemblyWithoutExtension.Equals(Assembly, StringComparison.OrdinalIgnoreCase);
         }
 
         public static ReadOnlySpan<char> WithoutExtension(string assemblyName)

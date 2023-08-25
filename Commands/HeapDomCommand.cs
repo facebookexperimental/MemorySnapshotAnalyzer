@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -80,7 +80,7 @@ namespace MemorySnapshotAnalyzer.Commands
             m_numberOfNodesWritten = 0;
             try
             {
-                using (var fileOutput = new FileOutput(OutputFilename!))
+                using (var fileOutput = new FileOutput(OutputFilename!, useUnixNewlines: true))
                 using (RedirectOutput(fileOutput))
                 {
                     Output.Write("data=");
@@ -105,7 +105,7 @@ namespace MemorySnapshotAnalyzer.Commands
             string[] lines = File.ReadAllLines(htmlSource);
             Regex re = new(Regex.Escape("src=\"data.js\""), RegexOptions.Compiled);
             string replacement = $"src=\"{Path.GetFileName(OutputFilename)}\"";
-            using (var fileOutput = new FileOutput(htmlDestination))
+            using (var fileOutput = new FileOutput(htmlDestination, useUnixNewlines: true))
             {
                 IOutput output = fileOutput;
                 foreach (string line in lines)

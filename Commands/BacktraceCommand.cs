@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -72,7 +72,7 @@ namespace MemorySnapshotAnalyzer.Commands
             }
             else if (OutputDotFilename != null)
             {
-                using (var fileOutput = new FileOutput(OutputDotFilename))
+                using (var fileOutput = new FileOutput(OutputDotFilename, useUnixNewlines: false))
                 using (RedirectOutput(fileOutput))
                 {
                     DumpBacktracesToDot(nodeIndex);

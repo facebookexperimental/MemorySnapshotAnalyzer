@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -18,6 +18,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             Group = 1,
             String,
             Semicolon,
+            Import,
             Owns,
             OwnsDynamic,
             Weak,
@@ -32,6 +33,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         static readonly Dictionary<string, Token> s_keywords = new()
         {
             { ";", Token.Semicolon },
+            { "IMPORT", Token.Import },
             { "OWNS", Token.Owns },
             { "OWNS_DYNAMIC", Token.OwnsDynamic },
             { "WEAK", Token.Weak },
@@ -94,7 +96,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     bool terminated = word[^1] == ';';
                     string wordTrimmed = terminated ? word[..^1] : word;
 
-                    if (wordTrimmed.Length > 2 && wordTrimmed[0] == '[' && wordTrimmed[^1] == ']')
+                    if (wordTrimmed.Length >= 2 && wordTrimmed[0] == '[' && wordTrimmed[^1] == ']')
                     {
                         string value = wordTrimmed[1..^1];
                         yield return (Token.Group, value);

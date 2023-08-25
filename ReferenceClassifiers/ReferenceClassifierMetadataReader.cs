@@ -62,15 +62,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         void AddRule(Rule rule, string? groupName)
         {
-            string resolvedGroupName;
-            if (m_groupNamePrefix != null)
-            {
-                resolvedGroupName = groupName != null ? $"{m_groupNamePrefix}.{groupName}" : m_groupNamePrefix;
-            }
-            else
-            {
-                resolvedGroupName = groupName ?? "anonymous";
-            }
+            string resolvedGroupName = ReferenceClassifierGroup.ResolveGroupName(m_groupNamePrefix, groupName);
 
             List<Rule>? rules;
             if (!m_result.TryGetValue(resolvedGroupName, out rules))

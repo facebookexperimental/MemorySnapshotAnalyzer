@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -35,6 +35,18 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         public IEnumerable<Rule> GetRules()
         {
             return m_rules;
+        }
+
+        public static string ResolveGroupName(string? groupNamePrefix, string? groupName)
+        {
+            if (groupNamePrefix != null)
+            {
+                return groupName != null ? $"{groupNamePrefix}.{groupName}" : groupNamePrefix;
+            }
+            else
+            {
+                return groupName ?? "anonymous";
+            }
         }
     }
 }
