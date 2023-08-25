@@ -91,6 +91,10 @@ Some of these analysis are configurable. To set the options for analysis, use th
 
 In many scenarios, a given object can be referenced from multiple other objects (such as caches or parent pointers), and it cannot be inferred automatically which is the object that is the primary "owner". This can make for cluttered backtraces, and - worse - make many objects float all the way up to the top of the dominator tree. With this option, you can provide configuration information that marks certain object fields as "owning" references. If an object is found to be referenced by both owning and non-owning references, the non-owning references are discarded from the backtrace.
 
+There are two options for specifying reference classifiers for a given codebase:
+* As a text file with a custom format (see below).
+* As custom attributes in-source (see doc comments in `ReferenceClassifierAttributes`).
+
 The `referenceclassifier 'load` command takes the name of a configuration file with the following format:
 
 * A hash ('`#`') symbol marks the rest of the line as a comment. Comments and blank lines are ignored.
@@ -108,6 +112,8 @@ The `referenceclassifier 'load` command takes the name of a configuration file w
   * **`TAG_IF_ZERO(tag,...)`, `TAG_IF_NONZERO(tag,...)`:** A "conditional tag" rule takes a field pattern as argument. If the condition is true for an object (its given field is zero/non-zero), the given tags are assigned to the object containing the field.
 
 `referenceclassifier 'save` can be used to save a set of reference classifiers to a file.
+
+`referenceclassifier 'fromdll` can be used to extract reference classifiers from all `*.dll` files directly within a given directory.
 
 ### Identifying the Need for New "Owns" Rules
 

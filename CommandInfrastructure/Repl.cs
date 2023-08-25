@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -66,7 +66,8 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 {
                     try
                     {
-                        LoadReferenceClassifierFile(initialReferenceClassifierFile, overrideGroupName: null);
+                        HashSet<string> loadedGroups = m_referenceClassifierStore.LoadFromFile(initialReferenceClassifierFile, groupNamePrefix: null);
+                        EnableGroups(loadedGroups);
                     }
                     catch (IOException ex)
                     {
@@ -89,10 +90,9 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             m_memorySnapshotLoaders.Add(loader);
         }
 
-        public void LoadReferenceClassifierFile(string filename, string? overrideGroupName)
+        public void EnableGroups(HashSet<string> groupNames)
         {
-            HashSet<string> loadedGroups = m_referenceClassifierStore.Load(filename, overrideGroupName);
-            foreach (string groupName in loadedGroups)
+            foreach (string groupName in groupNames)
             {
                 ForAllContexts(context => context.TraceableHeap_ReferenceClassifier_OnModifiedGroup(groupName));
                 CurrentContext.TraceableHeap_ReferenceClassifier_EnableGroup(groupName);

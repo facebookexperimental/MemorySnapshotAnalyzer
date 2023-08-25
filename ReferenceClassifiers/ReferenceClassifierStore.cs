@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -7,6 +7,7 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System.Collections.Generic;
+using System.IO;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
@@ -48,15 +49,29 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             return group;
         }
 
-        public HashSet<string> Load(string filename, string? overrideGroupName)
+        public HashSet<string> LoadFromFile(string filename, string? groupNamePrefix)
         {
-            Dictionary<string, List<Rule>> groupedRules = ReferenceClassifierParser.Load(filename);
+            Dictionary<string, List<Rule>> groupedRules = ReferenceClassifierParser.Load(filename, groupNamePrefix);
+            return AddGroupedRules(groupedRules);
+        }
+
+        public HashSet<string> LoadFromDllDirectory(string dllDirectory, ILogger logger, string? groupNamePrefix)
+        {
+            Dictionary<string, List<Rule>> groupedRules = new();
+            foreach (string dllFilename in Directory.GetFiles(dllDirectory, "*.dll"))
+            {
+                ReferenceClassifierMetadataReader.LoadFromDllFilename(dllFilename, groupNamePrefix, logger, groupedRules);
+            }
+            return AddGroupedRules(groupedRules);
+        }
+
+        HashSet<string> AddGroupedRules(Dictionary<string, List<Rule>> groupedRules)
+        {
             HashSet<string> loadedGroups = new();
             foreach ((string groupName, List<Rule> rules) in groupedRules)
             {
-                string effectiveGroupName = overrideGroupName ?? groupName;
-                GetOrCreateGroup(effectiveGroupName).Add(rules);
-                loadedGroups.Add(effectiveGroupName);
+                GetOrCreateGroup(groupName).Add(rules);
+                loadedGroups.Add(groupName);
             }
             return loadedGroups;
         }

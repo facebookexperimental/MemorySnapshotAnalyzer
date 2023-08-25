@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -20,7 +20,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         // Fully qualified type name.
         public string TypeName { get; private set; }
 
-        TypeSpec(string assembly, string typeName)
+        public TypeSpec(string assembly, string typeName)
         {
             Assembly = assembly;
             TypeName = typeName;

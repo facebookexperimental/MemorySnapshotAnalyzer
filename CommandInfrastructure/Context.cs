@@ -86,6 +86,8 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         public int Id => m_id;
 
+        public ILogger Logger => m_logger;
+
         public void Dump(int indent)
         {
             foreach (string s in Serialize())

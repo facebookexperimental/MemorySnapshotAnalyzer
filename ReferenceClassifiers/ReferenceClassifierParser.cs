@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -24,24 +24,26 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
     // <tag condition> ::= ( "TAG_IF_ZERO" | "TAG_IF_NONZERO" ) "(" { <non WS character>+ // "," }+ ")"
     sealed class ReferenceClassifierParser
     {
+        readonly string? m_groupNamePrefix;
         readonly ReferenceClassifierFileTokenizer m_tokenizer;
         readonly IEnumerator<(ReferenceClassifierFileTokenizer.Token token, string value)> m_enumerator;
         readonly Dictionary<string, List<Rule>> m_result;
         string m_groupName;
 
-        ReferenceClassifierParser(string filename)
+        ReferenceClassifierParser(string filename, string? groupNamePrefix)
         {
+            m_groupNamePrefix = groupNamePrefix;
             m_tokenizer = new(filename);
             m_enumerator = m_tokenizer.GetTokens().GetEnumerator();
             m_result = new();
-            m_groupName = "anonymous";
+            m_groupName = m_groupNamePrefix ?? "anonymous";
         }
 
-        internal static Dictionary<string, List<Rule>> Load(string filename)
+        internal static Dictionary<string, List<Rule>> Load(string filename, string? groupNamePrefix)
         {
-            ReferenceClassifierParser loader = new(filename);
-            loader.Parse();
-            return loader.m_result;
+            ReferenceClassifierParser parser = new(filename, groupNamePrefix);
+            parser.Parse();
+            return parser.m_result;
         }
 
         void Parse()
@@ -52,7 +54,14 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 {
                     if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.Group)
                     {
-                        m_groupName = m_enumerator.Current.value;
+                        if (m_groupNamePrefix != null)
+                        {
+                            m_groupName = $"{m_groupNamePrefix}.{m_enumerator.Current.value}";
+                        }
+                        else
+                        {
+                            m_groupName = m_enumerator.Current.value;
+                        }
                     }
                     else if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.String)
                     {

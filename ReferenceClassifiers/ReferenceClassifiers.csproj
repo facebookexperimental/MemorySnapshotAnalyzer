@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AbstractMemorySnapshot\AbstractMemorySnapshot.csproj" />
+    <ProjectReference Include="..\ReferenceClassifierAttributes\ReferenceClassifierAttributes.csproj" />
   </ItemGroup>
 
 </Project>
