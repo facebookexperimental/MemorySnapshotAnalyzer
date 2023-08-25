@@ -149,7 +149,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
     public sealed class OwnsRule : Rule
     {
-        // Path of fields to dereference. Note that these except for the first field, thse are full field names, not patterns.
+        // Path of fields to dereference. Note that these except for the first field, these are full field names, not patterns.
         // The special field name "[]" represents array indexing (covering all elements of the array).
         public string[] Selector { get; private set; }
         public bool IsDynamic { get; private set; }

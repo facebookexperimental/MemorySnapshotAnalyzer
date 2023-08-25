@@ -1,0 +1,8 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\Common.props" />
+  <PropertyGroup>
+    <RootNamespace>MemorySnapshotAnalyzer.ReferenceClassifierAttributes</RootNamespace>
+  </PropertyGroup>
+
+</Project>
