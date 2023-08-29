@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -28,29 +28,37 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         internal void ForAllMatchingFields(int typeIndex, Action<int, int, T> processField)
         {
             Dictionary<string, List<(string fieldPattern, T data)>> assemblyConfiguration = AssemblyConfiguration(typeIndex);
-
-            string typeName = m_typeSystem.QualifiedName(typeIndex);
-            if (assemblyConfiguration.TryGetValue(typeName, out List<(string fieldPattern, T data)>? fieldPatterns))
+            List<(string fieldPattern, T data)>? fieldPatterns;
+            if (assemblyConfiguration.TryGetValue(m_typeSystem.QualifiedName(typeIndex), out fieldPatterns))
             {
-                int numberOfFields = m_typeSystem.NumberOfFields(typeIndex);
-                for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
+                ForAllMatchingFieldsHelper(typeIndex, fieldPatterns, processField);
+            }
+            else if (assemblyConfiguration.TryGetValue(m_typeSystem.QualifiedGenericNameWithArity(typeIndex), out fieldPatterns))
+            {
+                ForAllMatchingFieldsHelper(typeIndex, fieldPatterns, processField);
+            }
+        }
+
+        void ForAllMatchingFieldsHelper(int typeIndex, List<(string fieldPattern, T data)> fieldPatterns, Action<int, int, T> processField)
+        {
+            int numberOfFields = m_typeSystem.NumberOfFields(typeIndex);
+            for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
+            {
+                string fieldName = m_typeSystem.FieldName(typeIndex, fieldNumber);
+                foreach ((string fieldPattern, T patternData) in fieldPatterns)
                 {
-                    string fieldName = m_typeSystem.FieldName(typeIndex, fieldNumber);
-                    foreach ((string fieldPattern, T patternData) in fieldPatterns)
+                    if (fieldPattern.EndsWith("*", StringComparison.Ordinal))
                     {
-                        if (fieldPattern.EndsWith("*", StringComparison.Ordinal))
+                        if (fieldName.AsSpan().StartsWith(fieldPattern.AsSpan()[..^1], StringComparison.Ordinal))
                         {
-                            if (fieldName.AsSpan().StartsWith(fieldPattern.AsSpan()[..^1], StringComparison.Ordinal))
-                            {
-                                processField(typeIndex, fieldNumber, patternData);
-                            }
+                            processField(typeIndex, fieldNumber, patternData);
                         }
-                        else
+                    }
+                    else
+                    {
+                        if (fieldName.Equals(fieldPattern, StringComparison.Ordinal))
                         {
-                            if (fieldName.Equals(fieldPattern, StringComparison.Ordinal))
-                            {
-                                processField(typeIndex, fieldNumber, patternData);
-                            }
+                            processField(typeIndex, fieldNumber, patternData);
                         }
                     }
                 }

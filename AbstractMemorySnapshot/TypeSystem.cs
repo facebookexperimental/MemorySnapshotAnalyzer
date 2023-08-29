@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -16,6 +16,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         readonly ReferenceClassifierFactory m_referenceClassifierFactory;
         readonly List<PointerInfo<int>> m_offsets;
         readonly Dictionary<int, (int, int)> m_typeIndexToIndexAndCount;
+        readonly Dictionary<int, string> m_typeIndexToGenericNameWithArity;
 
         ReferenceClassifier? m_referenceClassifier;
 
@@ -24,6 +25,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             m_referenceClassifierFactory = referenceClassifierFactory;
             m_offsets = new List<PointerInfo<int>>();
             m_typeIndexToIndexAndCount = new Dictionary<int, (int, int)>();
+            m_typeIndexToGenericNameWithArity = new();
         }
 
         public abstract int PointerSize { get; }
@@ -33,6 +35,52 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         public abstract string Assembly(int typeIndex);
 
         public abstract string QualifiedName(int typeIndex);
+
+        public string QualifiedGenericNameWithArity(int typeIndex)
+        {
+            if (m_typeIndexToGenericNameWithArity.TryGetValue(typeIndex, out string? qualifiedGenericNameWithArity))
+            {
+                return qualifiedGenericNameWithArity;
+            }
+
+            string qualifiedName = QualifiedName(typeIndex);
+            int indexOfLeftAngle = qualifiedName.IndexOf('<');
+            if (indexOfLeftAngle == -1 || qualifiedName.Length == 0 || qualifiedName[^1] != '>')
+            {
+                m_typeIndexToGenericNameWithArity.Add(typeIndex, qualifiedName);
+                return qualifiedName;
+            }
+
+            ReadOnlySpan<char> qualifiedGenericName = qualifiedName.AsSpan()[..indexOfLeftAngle];
+            int arity = ComputeArity(qualifiedName.AsSpan()[(indexOfLeftAngle + 1)..^1]);
+            qualifiedGenericNameWithArity = $"{qualifiedGenericName}`{arity}";
+            m_typeIndexToGenericNameWithArity.Add(typeIndex, qualifiedGenericNameWithArity);
+            return qualifiedGenericNameWithArity;
+        }
+
+        static int ComputeArity(ReadOnlySpan<char> genericArguments)
+        {
+            int depth = 0, arity = 1;
+            for (int i = 0; i < genericArguments.Length; i++)
+            {
+                switch (genericArguments[i])
+                {
+                    case '<':
+                        depth++;
+                        break;
+                    case '>':
+                        depth--;
+                        break;
+                    case ',':
+                        if (depth == 0)
+                        {
+                            arity++;
+                        }
+                        break;
+                }
+            }
+            return arity;
+        }
 
         public abstract string UnqualifiedName(int typeIndex);
 
@@ -160,7 +208,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             int fieldTypeIndex = FieldType(typeIndex, fieldNumber);
             if (IsValueType(fieldTypeIndex))
             {
-                foreach (PointerInfo<int> pointerInfo in GetPointerOffsets(fieldTypeIndex, baseOffset : 0))
+                foreach (PointerInfo<int> pointerInfo in GetPointerOffsets(fieldTypeIndex, baseOffset: 0))
                 {
                     yield return pointerInfo;
                 }

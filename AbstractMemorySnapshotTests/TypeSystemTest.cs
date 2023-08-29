@@ -25,6 +25,28 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
         }
 
         [Test]
+        public void TestQualifiedGenericNameWithArity()
+        {
+            Assert.That(m_typeSystem!.QualifiedGenericNameWithArity((int)TestTypeIndex.ObjectArray),
+                Is.EqualTo("ObjectNoPointers[]"));
+            Assert.That(m_typeSystem!.QualifiedGenericNameWithArity((int)TestTypeIndex.GenericTypeWithNesting),
+                Is.EqualTo("GenericTypeWithNesting`2"));
+            Assert.That(m_typeSystem!.QualifiedGenericNameWithArity((int)TestTypeIndex.GenericTypeArray),
+                Is.EqualTo("GenericTypeArray<int>[]"));
+
+            // Redirect to another type, to confirm that a repeated call returns a cached computed value.
+            m_typeSystem.SetTargetForConfigurableTypeIndex(TestTypeIndex.GenericTypeWithNesting);
+            Assert.That(m_typeSystem!.QualifiedGenericNameWithArity((int)TestTypeIndex.Configurable),
+                Is.EqualTo("GenericTypeWithNesting`2"));
+            m_typeSystem.SetTargetForConfigurableTypeIndex(TestTypeIndex.ObjectArray);
+            Assert.That(m_typeSystem!.QualifiedGenericNameWithArity((int)TestTypeIndex.Configurable),
+                Is.EqualTo("GenericTypeWithNesting`2"));
+
+            Assert.That(m_typeSystem!.QualifiedGenericNameWithArity((int)TestTypeIndex.EmptyTypeNameCornerCase),
+                Is.EqualTo(""));
+        }
+
+        [Test]
         public void TestGetPointerOffsets()
         {
             int baseOffset = 16;

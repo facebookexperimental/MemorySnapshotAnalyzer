@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -28,6 +28,9 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
         ValueTypeArray,
         ReferenceClassifiers,
         DerivedFromReferenceClassifier,
+        GenericTypeWithNesting,
+        GenericTypeArray,
+        EmptyTypeNameCornerCase,
 
         Configurable,
 
@@ -235,6 +238,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 {
                     new("derivedField", 56, TestTypeIndex.ReferenceClassifiers),
                 }));
+            m_typeInfos.Add(TestTypeIndex.GenericTypeWithNesting,
+                TypeInfo.ForObject("GenericTypeWithNesting<int[], Dictionary<Foo, Bar>>", 32, TestTypeIndex.None, new() { }));
+            m_typeInfos.Add(TestTypeIndex.GenericTypeArray,
+                TypeInfo.ForObject("GenericTypeArray<int>[]", 32, TestTypeIndex.None, new() { }));
+            m_typeInfos.Add(TestTypeIndex.EmptyTypeNameCornerCase,
+                TypeInfo.ForObject("", 32, TestTypeIndex.None, new() { }));
         }
 
         public void SetTargetForConfigurableTypeIndex(TestTypeIndex targetTypeIndex)
@@ -253,7 +262,9 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
 
         public override string QualifiedName(int typeIndex)
         {
-            throw new NotImplementedException();
+            return typeIndex != (int)TestTypeIndex.Configurable ?
+                m_typeInfos[(TestTypeIndex)typeIndex].Name :
+                QualifiedName(m_configurableTypeIndex);
         }
 
         public override string UnqualifiedName(int typeIndex)
