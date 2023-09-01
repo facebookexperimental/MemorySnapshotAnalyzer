@@ -33,6 +33,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         string? m_fieldName;
         string? m_attributeGroupName;
         string? m_selector;
+        int m_weight;
         bool m_isDynamic;
 
         public static void LoadFromDllFilename(string dllFilename, string? groupNamePrefix, ILogger logger, Dictionary<string, List<Rule>> result)
@@ -202,7 +203,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 if (typeName == typeof(OwnsAttribute).Name)
                 {
                     ReadCommonNamedArguments(blobReader);
-                    rule = new OwnsRule(m_dllFilename, GetTypeSpec(), BuildSelector(), m_isDynamic);
+                    rule = new OwnsRule(m_dllFilename, GetTypeSpec(), BuildSelector(), m_weight, m_isDynamic);
                 }
                 else if (typeName == typeof(TagAttribute).Name)
                 {
@@ -277,6 +278,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             m_attributeGroupName = null;
             m_selector = null;
+            m_weight = 0;
             m_isDynamic = false;
 
             ushort numberOfNamedArguments = blobReader.ReadUInt16();
@@ -302,6 +304,10 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 else if (propertyName.Equals(nameof(OwnsAttribute.Selector), StringComparison.Ordinal) && elementType == 0x0E)
                 {
                     m_selector = blobReader.ReadSerializedString();
+                }
+                else if (propertyName.Equals(nameof(OwnsAttribute.Weight), StringComparison.Ordinal) && elementType == 0x08)
+                {
+                    m_weight = blobReader.ReadInt32();
                 }
                 else if (propertyName.Equals(nameof(OwnsAttribute.IsDynamic), StringComparison.Ordinal) && elementType == 0x02)
                 {

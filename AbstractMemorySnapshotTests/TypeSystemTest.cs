@@ -63,12 +63,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             Assert.That(pointerInfos.Count, Is.EqualTo(2));
             {
                 Assert.That(pointerInfos[0].Value, Is.EqualTo(baseOffset));
-                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[0].TypeIndex, Is.EqualTo((int)TestTypeIndex.ValueTypeTwoPointers));
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(0));
 
                 Assert.That(pointerInfos[1].Value, Is.EqualTo(baseOffset + 8));
-                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[1].TypeIndex, Is.EqualTo((int)TestTypeIndex.ValueTypeTwoPointers));
                 Assert.That(pointerInfos[1].FieldNumber, Is.EqualTo(1));
             }
@@ -77,12 +77,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             Assert.That(pointerInfos.Count, Is.EqualTo(2));
             {
                 Assert.That(pointerInfos[0].Value, Is.EqualTo(baseOffset));
-                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[0].TypeIndex, Is.EqualTo((int)TestTypeIndex.ObjectTwoPointers));
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(0));
 
                 Assert.That(pointerInfos[1].Value, Is.EqualTo(baseOffset + 8));
-                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[1].TypeIndex, Is.EqualTo((int)TestTypeIndex.ObjectTwoPointers));
                 Assert.That(pointerInfos[1].FieldNumber, Is.EqualTo(1));
             }
@@ -91,17 +91,17 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             Assert.That(pointerInfos.Count, Is.EqualTo(3));
             {
                 Assert.That(pointerInfos[0].Value, Is.EqualTo(baseOffset));
-                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[0].TypeIndex, Is.EqualTo((int)TestTypeIndex.ValueTypeTwoPointers));
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(0));
 
                 Assert.That(pointerInfos[1].Value, Is.EqualTo(baseOffset + 8));
-                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[1].TypeIndex, Is.EqualTo((int)TestTypeIndex.ValueTypeTwoPointers));
                 Assert.That(pointerInfos[1].FieldNumber, Is.EqualTo(1));
 
                 Assert.That(pointerInfos[2].Value, Is.EqualTo(baseOffset + 16));
-                Assert.That(pointerInfos[2].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[2].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[2].TypeIndex, Is.EqualTo((int)TestTypeIndex.ObjectTwoPointersInValueType));
                 Assert.That(pointerInfos[2].FieldNumber, Is.EqualTo(1));
             }
@@ -110,17 +110,17 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             Assert.That(pointerInfos.Count, Is.EqualTo(3));
             {
                 Assert.That(pointerInfos[0].Value, Is.EqualTo(baseOffset));
-                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[0].TypeIndex, Is.EqualTo((int)TestTypeIndex.ObjectTwoPointers));
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(0));
 
                 Assert.That(pointerInfos[1].Value, Is.EqualTo(baseOffset + 8));
-                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[1].TypeIndex, Is.EqualTo((int)TestTypeIndex.ObjectTwoPointers));
                 Assert.That(pointerInfos[1].FieldNumber, Is.EqualTo(1));
 
                 Assert.That(pointerInfos[2].Value, Is.EqualTo(baseOffset + 16));
-                Assert.That(pointerInfos[2].PointerFlags, Is.EqualTo(PointerFlags.IsOwningReference));
+                Assert.That(pointerInfos[2].PointerFlags, Is.EqualTo(PointerFlags.Weighted.WithWeight(1)));
                 Assert.That(pointerInfos[2].TypeIndex, Is.EqualTo((int)TestTypeIndex.DerivedTypeThreePointers));
                 Assert.That(pointerInfos[2].FieldNumber, Is.EqualTo(0));
             }
@@ -129,17 +129,17 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             Assert.That(pointerInfos.Count, Is.EqualTo(3));
             {
                 Assert.That(pointerInfos[0].Value, Is.EqualTo(baseOffset));
-                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[0].TypeIndex, Is.EqualTo((int)TestTypeIndex.ValueTypeTwoPointers));
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(0));
 
                 Assert.That(pointerInfos[1].Value, Is.EqualTo(baseOffset + 8));
-                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[1].TypeIndex, Is.EqualTo((int)TestTypeIndex.ValueTypeTwoPointers));
                 Assert.That(pointerInfos[1].FieldNumber, Is.EqualTo(1));
 
                 Assert.That(pointerInfos[2].Value, Is.EqualTo(baseOffset + 16));
-                Assert.That(pointerInfos[2].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[2].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[2].TypeIndex, Is.EqualTo((int)TestTypeIndex.ClassWithStaticFields));
                 Assert.That(pointerInfos[2].FieldNumber, Is.EqualTo(2));
             }
@@ -153,7 +153,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(0));
 
                 Assert.That(pointerInfos[1].Value, Is.EqualTo(baseOffset + 8));
-                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[1].TypeIndex, Is.EqualTo((int)TestTypeIndex.FieldWithPointerFlagsExternal));
                 Assert.That(pointerInfos[1].FieldNumber, Is.EqualTo(1));
             }
@@ -172,12 +172,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             Assert.That(pointerInfos.Count, Is.EqualTo(2));
             {
                 Assert.That(pointerInfos[0].Value, Is.EqualTo(baseOffset));
-                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[0].TypeIndex, Is.EqualTo((int)TestTypeIndex.Configurable));
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(0));
 
                 Assert.That(pointerInfos[1].Value, Is.EqualTo(baseOffset + 8));
-                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[1].TypeIndex, Is.EqualTo((int)TestTypeIndex.Configurable));
                 Assert.That(pointerInfos[1].FieldNumber, Is.EqualTo(1));
             }
@@ -189,12 +189,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             Assert.That(pointerInfos.Count, Is.EqualTo(2));
             {
                 Assert.That(pointerInfos[0].Value, Is.EqualTo(baseOffset));
-                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[0].TypeIndex, Is.EqualTo((int)TestTypeIndex.Configurable));
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(0));
 
                 Assert.That(pointerInfos[1].Value, Is.EqualTo(baseOffset + 8));
-                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[1].TypeIndex, Is.EqualTo((int)TestTypeIndex.Configurable));
                 Assert.That(pointerInfos[1].FieldNumber, Is.EqualTo(1));
             }
@@ -207,7 +207,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             Assert.That(pointerInfos.Count, Is.EqualTo(1));
             {
                 Assert.That(pointerInfos[0].Value, Is.EqualTo(0));
-                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[0].TypeIndex, Is.EqualTo((int)TestTypeIndex.ClassWithStaticFields));
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(1));
             }
@@ -216,12 +216,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             Assert.That(pointerInfos.Count, Is.EqualTo(2));
             {
                 Assert.That(pointerInfos[0].Value, Is.EqualTo(0));
-                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[0].TypeIndex, Is.EqualTo((int)TestTypeIndex.ValueTypeTwoPointers));
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(0));
 
                 Assert.That(pointerInfos[1].Value, Is.EqualTo(8));
-                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[1].TypeIndex, Is.EqualTo((int)TestTypeIndex.ValueTypeTwoPointers));
                 Assert.That(pointerInfos[1].FieldNumber, Is.EqualTo(1));
             }
@@ -236,7 +236,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             Assert.That(pointerInfos.Count, Is.EqualTo(1));
             {
                 Assert.That(pointerInfos[0].Value, Is.EqualTo(arrayElementOffset + 0));
-                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[0].TypeIndex, Is.EqualTo(elementTypeIndex));
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(-1));
             }
@@ -247,12 +247,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             Assert.That(pointerInfos.Count, Is.EqualTo(2));
             {
                 Assert.That(pointerInfos[0].Value, Is.EqualTo(arrayElementOffset + 0));
-                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[0].TypeIndex, Is.EqualTo(elementTypeIndex));
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(0));
 
                 Assert.That(pointerInfos[1].Value, Is.EqualTo(arrayElementOffset + 8));
-                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(PointerFlags.None));
+                Assert.That(pointerInfos[1].PointerFlags, Is.EqualTo(default(PointerFlags)));
                 Assert.That(pointerInfos[1].TypeIndex, Is.EqualTo(elementTypeIndex));
                 Assert.That(pointerInfos[1].FieldNumber, Is.EqualTo(1));
             }
@@ -283,31 +283,33 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
         }
 
         [Test]
-        public void TestGetConditionAnchorSelectors()
+        public void TestGetWeightAnchorSelectors()
         {
             // Before the corresponding PointerFlags have been returned, the ReferenceClassifier instance has not been built from the factory.
-            Assert.Throws<NullReferenceException>(() => m_typeSystem!.GetConditionAnchorSelectors((int)TestTypeIndex.ReferenceClassifiers, 0));
+            Assert.Throws<NullReferenceException>(() => m_typeSystem!.GetWeightAnchorSelectors((int)TestTypeIndex.ReferenceClassifiers, 0));
 
             List<PointerInfo<int>> pointerInfos = m_typeSystem!.GetPointerOffsets((int)TestTypeIndex.ReferenceClassifiers, baseOffset: 0).ToList();
             Assert.That(pointerInfos.Count, Is.GreaterThan(0));
             {
-                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(PointerFlags.IsConditionAnchor));
+                Assert.That(pointerInfos[0].PointerFlags, Is.EqualTo(PointerFlags.IsWeightAnchor));
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(0));
             }
 
-            List<Selector> selectors = m_typeSystem.GetConditionAnchorSelectors((int)TestTypeIndex.ReferenceClassifiers, 0).ToList();
+            List<(Selector selector, int weight)> selectors = m_typeSystem.GetWeightAnchorSelectors((int)TestTypeIndex.ReferenceClassifiers, fieldNumber: 0).ToList();
             Assert.That(selectors.Count, Is.EqualTo(1));
             {
-                Assert.That(selectors[0].StaticPrefix.Count, Is.EqualTo(1));
-                Assert.That(selectors[0].DynamicTail, Is.Null);
+                Assert.That(selectors[0].selector.StaticPrefix.Count, Is.EqualTo(1));
+                Assert.That(selectors[0].selector.DynamicTail, Is.Null);
+                Assert.That(selectors[0].weight, Is.EqualTo(0));
             }
 
-            selectors = m_typeSystem.GetConditionAnchorSelectors((int)TestTypeIndex.ReferenceClassifiers, 1).ToList();
+            selectors = m_typeSystem.GetWeightAnchorSelectors((int)TestTypeIndex.ReferenceClassifiers, fieldNumber: 1).ToList();
             Assert.That(selectors.Count, Is.EqualTo(1));
             {
-                Assert.That(selectors[0].StaticPrefix.Count, Is.EqualTo(1));
-                Assert.That(selectors[0].DynamicTail, Is.Not.Null);
-                Assert.That(selectors[0].DynamicTail!.Count, Is.EqualTo(1));
+                Assert.That(selectors[0].selector.StaticPrefix.Count, Is.EqualTo(1));
+                Assert.That(selectors[0].selector.DynamicTail, Is.Not.Null);
+                Assert.That(selectors[0].selector.DynamicTail!.Count, Is.EqualTo(1));
+                Assert.That(selectors[0].weight, Is.EqualTo(3));
             }
         }
 

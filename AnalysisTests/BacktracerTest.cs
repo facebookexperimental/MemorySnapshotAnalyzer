@@ -16,15 +16,14 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
     public sealed class BacktracerTest
     {
         MockTraceableHeap? m_traceableHeap;
-        RootSet? m_rootSet;
         MemoryLogger? m_memoryLogger;
+        RootSet? m_rootSet;
         TracedHeap? m_tracedHeap;
 
         [SetUp]
         public void SetUp()
         {
             m_traceableHeap = new MockTraceableHeap();
-            m_rootSet = new RootSet(m_traceableHeap);
             m_memoryLogger = new MemoryLogger();
         }
 
@@ -32,20 +31,22 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
         public void TearDown()
         {
             m_traceableHeap = null;
+            m_memoryLogger = null;
             m_rootSet = null;
             m_tracedHeap = null;
         }
 
-        Backtracer MakeBacktracer(Backtracer.Options options, bool weakGCHandles)
+        Backtracer MakeBacktracer(Backtracer.Options options, int gcHandleWeight)
         {
-            m_tracedHeap = new TracedHeap(m_rootSet!, weakGCHandles: weakGCHandles);
+            m_rootSet = new RootSet(m_traceableHeap!, gcHandleWeight);
+            m_tracedHeap = new TracedHeap(m_rootSet!);
             return new Backtracer(m_tracedHeap, options, m_memoryLogger!);
         }
 
         [Test]
         public void TestBasic()
         {
-            Backtracer backtracer = MakeBacktracer(Backtracer.Options.None, weakGCHandles: false);
+            Backtracer backtracer = MakeBacktracer(Backtracer.Options.None, gcHandleWeight: 0);
 
             Assert.That(backtracer.TracedHeap, Is.EqualTo(m_tracedHeap));
 
@@ -99,6 +100,12 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
         [Test]
         public void TestReferenceClassifiers()
         {
+            // TODO: multiple references from same object, only one reported
+            // TODO: normal then weak, weak is not reported
+            // TODO: just weak is reported
+            // TODO: weak then normal, just normal is reported
+            // TODO: multiple owning at same weight, issue warning
+
             // TODO: IsOwned
             // TODO: IsWeak
             Assert.Pass();

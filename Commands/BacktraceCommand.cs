@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -133,13 +133,28 @@ namespace MemorySnapshotAnalyzer.Commands
             }
             seen.Add(nodeIndex);
 
-            if (CurrentBacktracer.IsOwned(nodeIndex))
+            int weight = CurrentBacktracer.Weight(nodeIndex);
+            if (weight > 0)
             {
-                Output.WriteLineIndented(indent, "{0}** {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                if (weight == 1)
+                {
+                    Output.WriteLineIndented(indent, "{0}** {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                }
+                else
+                {
+                    Output.WriteLineIndented(indent, "{0}**({3}) {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields, weight);
+                }
             }
-            else if (CurrentBacktracer.IsWeak(nodeIndex))
+            else if (weight < 0)
             {
-                Output.WriteLineIndented(indent, "{0}.. {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                if (weight == -1)
+                {
+                    Output.WriteLineIndented(indent, "{0}.. {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                }
+                else
+                {
+                    Output.WriteLineIndented(indent, "{0}..({3}) {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields, weight);
+                }
             }
             else
             {
@@ -186,7 +201,8 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpLifelines(int nodeIndex)
         {
-            Dictionary<int, int[]> lifelines = ComputeLifelines(nodeIndex, nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex) || CurrentBacktracer.IsOwned(nodeIndex));
+            Dictionary<int, int[]> lifelines = ComputeLifelines(nodeIndex,
+                nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex) || CurrentBacktracer.Weight(nodeIndex) > 0);
 
             if (Owners)
             {

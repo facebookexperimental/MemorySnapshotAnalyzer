@@ -40,7 +40,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract IEnumerable<PointerInfo<NativeWord>> GetPointers(NativeWord address, int typeIndex);
 
-        public abstract IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo);
+        public abstract IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress, int weight)> GetWeightedReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo);
 
         public abstract IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo);
 

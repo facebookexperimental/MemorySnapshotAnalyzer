@@ -50,21 +50,24 @@ namespace MemorySnapshotAnalyzer.Commands
                 }
 
                 DescribeAddress(address, sb);
-                if (pointerInfo.PointerFlags == PointerFlags.None)
+                if (pointerInfo.PointerFlags != default)
                 {
-                    Output.WriteLine("{0}: {1} -> {2}",
-                        rootIndex,
-                        rootSet.DescribeRoot(rootIndex, fullyQualified: true),
-                        sb);
+                    PointerFlags baseFlags = pointerInfo.PointerFlags.WithoutWeight();
+                    int weight = pointerInfo.PointerFlags.Weight();
+                    if (weight == 0)
+                    {
+                        sb.AppendFormat(" ({0})", baseFlags);
+                    }
+                    else
+                    {
+                        sb.AppendFormat(" ({0}, weight {1})", baseFlags, weight);
+                    }
                 }
-                else
-                {
-                    Output.WriteLine("{0}: {1} -> {2} ({3})",
-                        rootIndex,
-                        rootSet.DescribeRoot(rootIndex, fullyQualified: true),
-                        sb,
-                        pointerInfo.PointerFlags);
-                }
+
+                Output.WriteLine("{0}: {1} -> {2}",
+                    rootIndex,
+                    rootSet.DescribeRoot(rootIndex, fullyQualified: true),
+                    sb);
                 sb.Clear();
             }
         }

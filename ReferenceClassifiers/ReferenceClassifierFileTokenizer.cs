@@ -21,7 +21,6 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             Import,
             Owns,
             OwnsDynamic,
-            Weak,
             External,
             FuseWith,
             Tag,
@@ -36,7 +35,6 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             { "IMPORT", Token.Import },
             { "OWNS", Token.Owns },
             { "OWNS_DYNAMIC", Token.OwnsDynamic },
-            { "WEAK", Token.Weak },
             { "EXTERNAL", Token.External },
             { "FUSE_WITH", Token.FuseWith },
         };
@@ -109,6 +107,16 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     else if (s_keywords.TryGetValue(wordTrimmed, out Token token))
                     {
                         yield return (token, string.Empty);
+                    }
+                    else if (wordTrimmed.StartsWith("OWNS(") && wordTrimmed[^1] == ')')
+                    {
+                        string value = wordTrimmed["OWNS(".Length..^1];
+                        yield return (Token.Owns, value);
+                    }
+                    else if (wordTrimmed.StartsWith("OWNS_DYNAMIC(") && wordTrimmed[^1] == ')')
+                    {
+                        string value = wordTrimmed["OWNS_DYNAMIC(".Length..^1];
+                        yield return (Token.OwnsDynamic, value);
                     }
                     else if (wordTrimmed.StartsWith("TAG(") && wordTrimmed[^1] == ')')
                     {

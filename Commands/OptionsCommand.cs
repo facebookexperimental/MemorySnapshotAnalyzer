@@ -60,7 +60,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
             if (WeakGCHandles != -1)
             {
-                Context.TracedHeap_WeakGCHandles = WeakGCHandles != 0;
+                Context.RootSet_WeakGCHandles = WeakGCHandles != 0;
             }
 
             if (RootObjectAddress.Size != 0)

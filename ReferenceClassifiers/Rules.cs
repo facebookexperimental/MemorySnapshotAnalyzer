@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -152,9 +152,10 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         // Path of fields to dereference. Note that these except for the first field, these are full field names, not patterns.
         // The special field name "[]" represents array indexing (covering all elements of the array).
         public string[] Selector { get; private set; }
+        public int Weight { get; private set; }
         public bool IsDynamic { get; private set; }
 
-        public OwnsRule(string location, TypeSpec typeSpec, string selector, bool isDynamic) : base(location, typeSpec)
+        public OwnsRule(string location, TypeSpec typeSpec, string selector, int weight, bool isDynamic) : base(location, typeSpec)
         {
             Selector = ParseSelector(selector);
             IsDynamic = isDynamic;
@@ -163,23 +164,14 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         public override string ToString()
         {
             string keyword = IsDynamic ? "OWNS_DYNAMIC" : "OWNS";
-            return $"{TypeSpec} {keyword} \"{StringifySelector(Selector)}\";";
-        }
-    }
-
-    public sealed class WeakRule : Rule
-    {
-        // A field name, or (if ending in "*") a field prefix.
-        public string FieldPattern { get; private set; }
-
-        public WeakRule(string location, TypeSpec typeSpec, string fieldPattern) : base(location, typeSpec)
-        {
-            FieldPattern = fieldPattern;
-        }
-
-        public override string ToString()
-        {
-            return $"{TypeSpec} WEAK \"{FieldPattern}\";";
+            if (Weight == 0)
+            {
+                return $"{TypeSpec} {keyword} \"{StringifySelector(Selector)}\";";
+            }
+            else
+            {
+                return $"{TypeSpec} {keyword}({Weight}) \"{StringifySelector(Selector)}\";";
+            }
         }
     }
 

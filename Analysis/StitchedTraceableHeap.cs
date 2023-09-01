@@ -30,7 +30,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                 m_computingObjectPairs = true;
                 m_fusedObjectParent = new Dictionary<ulong, ulong>();
                 // Perform heap tracing once, for the side effect of discovering all object pairs.
-                var _ = new TracedHeap(new RootSet(this), weakGCHandles: false);
+                var _ = new TracedHeap(new RootSet(this, gcHandleWeight: 0));
                 m_computingObjectPairs = false;
             }
         }
@@ -124,11 +124,11 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress, int weight)> GetWeightedReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
         {
             return m_secondary.ContainsAddress(anchorObjectAddress) ?
-                m_secondary.GetOwningReferencesFromAnchor(anchorObjectAddress, pointerInfo) :
-                m_primary.GetOwningReferencesFromAnchor(anchorObjectAddress, pointerInfo);
+                m_secondary.GetWeightedReferencesFromAnchor(anchorObjectAddress, pointerInfo) :
+                m_primary.GetWeightedReferencesFromAnchor(anchorObjectAddress, pointerInfo);
         }
 
         public override IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)

@@ -301,9 +301,18 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 DescribeAddress(pointerInfo.Value, sb);
                 if (sb.Length > 0)
                 {
-                    if (pointerInfo.PointerFlags != PointerFlags.None)
+                    if (pointerInfo.PointerFlags != default)
                     {
-                        Output.WriteLineIndented(1, "{0} ({1})", sb, pointerInfo.PointerFlags);
+                        PointerFlags baseFlags = pointerInfo.PointerFlags.WithoutWeight();
+                        int weight = pointerInfo.PointerFlags.Weight();
+                        if (weight != 0)
+                        {
+                            Output.WriteLineIndented(1, "{0} ({1}, weight {2})", sb, baseFlags, weight);
+                        }
+                        else
+                        {
+                            Output.WriteLineIndented(1, "{0} ({1})", sb, baseFlags);
+                        }
                     }
                     else
                     {

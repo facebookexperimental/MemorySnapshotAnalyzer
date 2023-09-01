@@ -33,7 +33,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             return new PointerInfo<NativeWord>
             {
                 Value = m_address,
-                PointerFlags = PointerFlags.None,
+                PointerFlags = default,
                 TypeIndex = -1,
                 FieldNumber = -1
             };

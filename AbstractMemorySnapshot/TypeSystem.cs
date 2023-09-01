@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -156,7 +156,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
                     bool isValueType = IsValueType(fieldTypeIndex);
                     PointerFlags pointerFlags = ReferenceClassifier.GetPointerFlags(typeIndex, fieldNumber);
-                    if (!isValueType || pointerFlags != PointerFlags.None)
+                    if (!isValueType || pointerFlags != default)
                     {
                         m_offsets.Add(new PointerInfo<int>
                         {
@@ -240,7 +240,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 yield return new PointerInfo<int>
                 {
                     Value = baseOffset,
-                    PointerFlags = PointerFlags.None,
+                    PointerFlags = default,
                     TypeIndex = elementTypeIndex,
                     FieldNumber = -1
                 };
@@ -294,9 +294,9 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             return -1;
         }
 
-        public IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber)
+        public IEnumerable<(Selector selector, int weight)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
         {
-            return m_referenceClassifier!.GetConditionAnchorSelectors(typeIndex, fieldNumber);
+            return m_referenceClassifier!.GetWeightAnchorSelectors(typeIndex, fieldNumber);
         }
 
         public IEnumerable<(Selector selector, List<string> tags)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)

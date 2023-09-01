@@ -23,25 +23,25 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly TraceableHeap m_traceableHeap;
         readonly List<RootEntry> m_roots;
 
-        public RootSet(TraceableHeap traceableHeap)
+        public RootSet(TraceableHeap traceableHeap, int gcHandleWeight)
         {
             m_traceableHeap = traceableHeap;
 
             m_roots = new List<RootEntry>();
-            AddGCHandleRoots(traceableHeap);
+            AddGCHandleRoots(traceableHeap, gcHandleWeight);
             AddStaticRoots(traceableHeap.TypeSystem);
         }
 
-        void AddGCHandleRoots(TraceableHeap traceableHeap)
+        void AddGCHandleRoots(TraceableHeap traceableHeap, int gcHandleWeight)
         {
             // Enumerate GCHandle targets as roots.
             for (int gcHandleIndex = 0; gcHandleIndex < traceableHeap.NumberOfGCHandles; gcHandleIndex++)
             {
-                AddGCHandleRoot(gcHandleIndex, traceableHeap.GCHandleTarget(gcHandleIndex));
+                AddGCHandleRoot(gcHandleIndex, traceableHeap.GCHandleTarget(gcHandleIndex), gcHandleWeight);
             }
         }
 
-        void AddGCHandleRoot(int gcHandleIndex, NativeWord targetAddress)
+        void AddGCHandleRoot(int gcHandleIndex, NativeWord targetAddress, int gcHandleWeight)
         {
             m_roots.Add(new RootEntry
             {
@@ -49,7 +49,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                 PointerInfo = new PointerInfo<NativeWord>
                 {
                     Value = targetAddress,
-                    PointerFlags = PointerFlags.None,
+                    PointerFlags = PointerFlags.Weighted.WithWeight(gcHandleWeight),
                     TypeIndex = -1,
                     FieldNumber = gcHandleIndex
                 }

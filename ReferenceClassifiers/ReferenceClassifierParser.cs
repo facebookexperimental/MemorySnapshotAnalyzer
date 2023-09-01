@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -101,11 +101,17 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     case ReferenceClassifierFileTokenizer.Token.OwnsDynamic:
                         {
                             bool isDynamic = m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.OwnsDynamic;
-                            makeRules.Add(value => new OwnsRule(location, typeSpec, value, isDynamic: isDynamic));
+                            int weight;
+                            if (string.IsNullOrEmpty(m_enumerator.Current.value))
+                            {
+                                weight = 0;
+                            }
+                            else if (!Int32.TryParse(m_enumerator.Current.value, out weight))
+                            {
+                                m_tokenizer.ParseError("unrecognized weight; must be an integer");
+                            }
+                            makeRules.Add(value => new OwnsRule(location, typeSpec, value, weight, isDynamic: isDynamic));
                         }
-                        break;
-                    case ReferenceClassifierFileTokenizer.Token.Weak:
-                        makeRules.Add(value => new WeakRule(location, typeSpec, value));
                         break;
                     case ReferenceClassifierFileTokenizer.Token.External:
                         makeRules.Add(value => new ExternalRule(location, typeSpec, value));

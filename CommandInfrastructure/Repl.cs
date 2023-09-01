@@ -52,7 +52,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             {
                 // TODO: read TraceableHeap_Kind value
                 TraceableHeap_FuseObjectPairs = configuration.GetValue<bool>("FuseObjectPairs"),
-                TracedHeap_WeakGCHandles = configuration.GetValue<bool>("WeakGCHandles"),
+                RootSet_WeakGCHandles = configuration.GetValue<bool>("WeakGCHandles"),
                 Backtracer_GroupStatics = configuration.GetValue<bool>("GroupStatics"),
                 Backtracer_FuseRoots = configuration.GetValue<bool>("FuseRoots")
             });

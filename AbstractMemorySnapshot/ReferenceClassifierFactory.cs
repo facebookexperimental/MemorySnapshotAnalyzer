@@ -21,7 +21,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract PointerFlags GetPointerFlags(int typeIndex, int fieldNumber);
 
-        public abstract IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber);
+        public abstract IEnumerable<(Selector selector, int weight)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber);
 
         public abstract IEnumerable<(Selector selector, List<string> tags)> GetTagAnchorSelectors(int typeIndex, int fieldNumber);
 
@@ -41,10 +41,10 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public override PointerFlags GetPointerFlags(int typeIndex, int fieldNumber)
         {
-            return PointerFlags.None;
+            return PointerFlags.Weighted;
         }
 
-        public override IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber)
+        public override IEnumerable<(Selector selector, int weight)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
         {
             yield break;
         }
