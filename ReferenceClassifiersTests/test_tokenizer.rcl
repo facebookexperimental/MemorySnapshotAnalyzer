@@ -1,0 +1,15 @@
+## This is a comment
+
+        [] [group.name]
+
+"this\is\a\string"; ;
+
+IMPORT "test_tokenizer_import.rcl"
+
+OWNS OWNS(0) OWNS(1) OWNS(-1)
+
+OWNS_DYNAMIC OWNS_DYNAMIC(765)
+
+EXTERNAL FUSE_WITH TAG() TAG(myTag) TAG(1,2) TAG_DYNAMIC() TAG_DYNAMIC(tag)
+
+TAG_IF_ZERO(zero_tag) TAG_IF_NONZERO(nonzero)

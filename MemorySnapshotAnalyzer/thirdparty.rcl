@@ -15,7 +15,7 @@
 
 [thirdparty.weakdelegates]
 
-"mscorlib.dll:System.Delegate" WEAK "m_target";
+"mscorlib.dll:System.Delegate" OWNS(-1) "m_target";
 
 [thirdparty.dotnet]
 
