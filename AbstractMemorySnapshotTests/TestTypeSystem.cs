@@ -31,6 +31,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
         GenericTypeWithNesting,
         GenericTypeArray,
         EmptyTypeNameCornerCase,
+        WeightedReferences,
 
         Configurable,
 
@@ -117,7 +118,19 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                                 return PointerFlags.TagIfZero;
                         }
                     }
-                    return PointerFlags.Weighted;
+                    else if ((TestTypeIndex)typeIndex == TestTypeIndex.WeightedReferences)
+                    {
+                        switch (fieldNumber)
+                        {
+                            case 0:
+                                return default;
+                            case 1:
+                                return PointerFlags.Weighted.WithWeight(1);
+                            case 2:
+                                return PointerFlags.Weighted.WithWeight(-1);
+                        }
+                    }
+                    return default;
                 }
 
                 public override IEnumerable<(Selector selector, int weight)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
@@ -244,6 +257,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 TypeInfo.ForObject("GenericTypeArray<int>[]", 32, TestTypeIndex.None, new() { }));
             m_typeInfos.Add(TestTypeIndex.EmptyTypeNameCornerCase,
                 TypeInfo.ForObject("", 32, TestTypeIndex.None, new() { }));
+            m_typeInfos.Add(TestTypeIndex.WeightedReferences,
+                TypeInfo.ForObject("WeightedReferences", 40, TestTypeIndex.None, new()
+                {
+                    new("regular", 16, TestTypeIndex.ObjectNoPointers),
+                    new("strong", 24, TestTypeIndex.ObjectNoPointers),
+                    new("weak", 32, TestTypeIndex.ObjectNoPointers),
+                }));
         }
 
         public void SetTargetForConfigurableTypeIndex(TestTypeIndex targetTypeIndex)

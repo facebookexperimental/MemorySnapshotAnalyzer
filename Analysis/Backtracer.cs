@@ -258,6 +258,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 parentNodeIndices = new List<int>();
                 m_predecessors[childNodeIndex] = parentNodeIndices;
+                if (weight != 0)
+                {
+                    m_nodeWeights[childNodeIndex] = weight;
+                }
             }
             else
             {
