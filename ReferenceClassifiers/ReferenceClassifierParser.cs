@@ -104,11 +104,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                             int weight;
                             if (string.IsNullOrEmpty(m_enumerator.Current.value))
                             {
-                                weight = 0;
+                                weight = 1;
                             }
-                            else if (!Int32.TryParse(m_enumerator.Current.value, out weight))
+                            else if (!Int32.TryParse(m_enumerator.Current.value, out weight) || weight == 0)
                             {
-                                m_tokenizer.ParseError("unrecognized weight; must be an integer");
+                                m_tokenizer.ParseError("unrecognized weight; must be a non-zero integer");
                             }
                             makeRules.Add(value => new OwnsRule(location, typeSpec, value, weight, isDynamic: isDynamic));
                         }

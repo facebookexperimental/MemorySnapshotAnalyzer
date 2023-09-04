@@ -1,5 +1,5 @@
-"mydll.dll:mytype" OWNS "foo";
-"mydll.DLL:mytype" OWNS(1) "foo[]";
+"mydll.dll:mytype" OWNS(1) "foo";
+"mydll.DLL:mytype" OWNS(2) "foo[]";
 
 [subgroup1]
 

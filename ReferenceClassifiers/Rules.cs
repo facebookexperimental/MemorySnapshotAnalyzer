@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
@@ -157,6 +158,8 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         public OwnsRule(string location, TypeSpec typeSpec, string selector, int weight, bool isDynamic) : base(location, typeSpec)
         {
+            Debug.Assert(weight != 0);
+
             Selector = ParseSelector(selector);
             Weight = weight;
             IsDynamic = isDynamic;
@@ -165,7 +168,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         public override string ToString()
         {
             string keyword = IsDynamic ? "OWNS_DYNAMIC" : "OWNS";
-            if (Weight == 0)
+            if (Weight == 1)
             {
                 return $"{TypeSpec} {keyword} \"{StringifySelector(Selector)}\";";
             }

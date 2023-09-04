@@ -158,7 +158,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
                 });
                 HeapObject reference2 = AddHeapObject(Reference2.Value, TestTypeIndex.WeightedReferences, new()
                 {
-                    { 16, target }, //regular
+                    { 16, target }, // egular
                     { 24, null }, // strong
                     { 32, null }, // weak
                 });
@@ -238,7 +238,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
                 });
                 HeapObject reference2 = AddHeapObject(0x1200, TestTypeIndex.WeightedReferences, new()
                 {
-                    { 16, null }, //regular
+                    { 16, null }, // regular
                     { 24, null }, // strong
                     { 32, target }, // weak
                 });
@@ -286,7 +286,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
                 });
                 HeapObject reference2 = AddHeapObject(Reference2.Value, TestTypeIndex.WeightedReferences, new()
                 {
-                    { 16, null }, //regular
+                    { 16, null }, // regular
                     { 24, null }, // strong
                     { 32, target }, // weak
                 });
@@ -332,7 +332,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
                 });
                 HeapObject reference2 = AddHeapObject(Reference.Value, TestTypeIndex.WeightedReferences, new()
                 {
-                    { 16, target }, //regular
+                    { 16, target }, // regular
                     { 24, null }, // strong
                     { 32, null }, // weak
                 });
@@ -378,7 +378,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
                 });
                 HeapObject reference2 = AddHeapObject(Reference.Value, TestTypeIndex.WeightedReferences, new()
                 {
-                    { 16, null }, //regular
+                    { 16, null }, // regular
                     { 24, target }, // strong
                     { 32, null }, // weak
                 });
@@ -426,7 +426,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
                 });
                 HeapObject reference2 = AddHeapObject(Reference2.Value, TestTypeIndex.WeightedReferences, new()
                 {
-                    { 16, null }, //regular
+                    { 16, null }, // regular
                     { 24, target }, // strong
                     { 32, null }, // weak
                 });

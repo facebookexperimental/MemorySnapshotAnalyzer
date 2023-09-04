@@ -45,20 +45,20 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
         public void TestOwnsRule()
         {
             TypeSpec typeSpec = new("mydll", "mytype");
-            OwnsRule rule = new("mylocation", typeSpec, selector: "foo", weight: 0, isDynamic: false);
+            OwnsRule rule = new("mylocation", typeSpec, selector: "foo", weight: 1, isDynamic: false);
             Assert.That(rule.Location, Is.EqualTo("mylocation"));
             Assert.That(rule.TypeSpec, Is.EqualTo(typeSpec));
 
             Assert.That(rule.Selector, Is.EquivalentTo(new string[] { "foo" }));
-            Assert.That(rule.Weight, Is.EqualTo(0));
+            Assert.That(rule.Weight, Is.EqualTo(1));
             Assert.That(rule.IsDynamic, Is.False);
             Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" OWNS \"foo\";"));
 
-            rule = new("mylocation", typeSpec, selector: "foo[]", weight: 1, isDynamic: false);
+            rule = new("mylocation", typeSpec, selector: "foo[]", weight: 2, isDynamic: false);
             Assert.That(rule.Selector, Is.EquivalentTo(new string[] { "foo", "[]" }));
-            Assert.That(rule.Weight, Is.EqualTo(1));
+            Assert.That(rule.Weight, Is.EqualTo(2));
             Assert.That(rule.IsDynamic, Is.False);
-            Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" OWNS(1) \"foo[]\";"));
+            Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" OWNS(2) \"foo[]\";"));
 
             rule = new("mylocation", typeSpec, selector: "foo_.bar", weight: -1, isDynamic: false);
             Assert.That(rule.Selector, Is.EquivalentTo(new string[] { "foo_", "bar" }));
@@ -66,15 +66,14 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
             Assert.That(rule.IsDynamic, Is.False);
             Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" OWNS(-1) \"foo_.bar\";"));
 
-            rule = new("mylocation", typeSpec, selector: "foo_._bar.zot", weight: 0, isDynamic: true);
+            rule = new("mylocation", typeSpec, selector: "foo_._bar.zot", weight: 1, isDynamic: true);
             Assert.That(rule.Selector, Is.EquivalentTo(new string[] { "foo_", "_bar", "zot" }));
-            Assert.That(rule.Weight, Is.EqualTo(0));
             Assert.That(rule.IsDynamic, Is.True);
             Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" OWNS_DYNAMIC \"foo_._bar.zot\";"));
 
-            rule = new("mylocation", typeSpec, selector: "foo[]._bar", weight: 1, isDynamic: true);
+            rule = new("mylocation", typeSpec, selector: "foo[]._bar", weight: 2, isDynamic: true);
             Assert.That(rule.Selector, Is.EquivalentTo(new string[] { "foo", "[]", "_bar" }));
-            Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" OWNS_DYNAMIC(1) \"foo[]._bar\";"));
+            Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" OWNS_DYNAMIC(2) \"foo[]._bar\";"));
 
             rule = new("mylocation", typeSpec, selector: "foo[].bar_[]", weight: -1, isDynamic: true);
             Assert.That(rule.Selector, Is.EquivalentTo(new string[] { "foo", "[]", "bar_", "[]" }));

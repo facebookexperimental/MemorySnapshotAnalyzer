@@ -15,7 +15,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         // Weight of this reference (the strength of the bond, so to speak)
         // is stored in the upper 32 bits:
         // - Weight > 0: strongly-owning reference
-        // - Weight == 0: regular reference (no rules apply)
+        // - Weight == 0: regular reference (no OWNS rule applied to this reference)
         // - Weight < 0: weakly-owning reference
         // Note that the values below are chosen such that default(PointerFlags) is a regular reference.
         Weighted = 0,

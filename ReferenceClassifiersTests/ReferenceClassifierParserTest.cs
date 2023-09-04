@@ -27,7 +27,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
             CheckGroup(groupedRules["anonymous"], new List<(string location, string rulesText)>()
             {
                 (location: "test_parser.rcl:1", rulesText: "\"mydll:mytype\" OWNS \"foo\";"),
-                (location: "test_parser.rcl:2", rulesText: "\"mydll:mytype\" OWNS(1) \"foo[]\";"),
+                (location: "test_parser.rcl:2", rulesText: "\"mydll:mytype\" OWNS(2) \"foo[]\";"),
                 (location: "test_parser.rcl:12", rulesText: "\"MyNamespace.MyDll:mytype\" OWNS_DYNAMIC \"foo_._bar.zot\";"),
                 (location: "test_parser_import2.rcl:1", rulesText: "\"imported2:imported2\" OWNS \"imported2_1\";"),
                 (location: "test_parser_import2.rcl:9", rulesText: "\"imported2:imported2\" OWNS \"imported2_3\";"),
