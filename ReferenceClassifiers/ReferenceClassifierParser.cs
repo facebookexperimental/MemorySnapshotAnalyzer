@@ -22,7 +22,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
     // <type spec> ::= <non WS character>+ ":" <non WS character>+
     // <tag> ::= "TAG(" { <non WS character>+ // "," }+ ")"
     // <tag condition> ::= ( "TAG_IF_ZERO" | "TAG_IF_NONZERO" ) "(" { <non WS character>+ // "," }+ ")"
-    sealed class ReferenceClassifierParser
+    public sealed class ReferenceClassifierParser
     {
         readonly string? m_groupNamePrefix;
         readonly ReferenceClassifierTokenizer m_tokenizer;
@@ -39,7 +39,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             m_groupName = ReferenceClassifierGroup.ResolveGroupName(m_groupNamePrefix, groupName: null);
         }
 
-        internal static void Load(string filename, string? groupNamePrefix, Dictionary<string, List<Rule>> groupedRules)
+        public static void Load(string filename, string? groupNamePrefix, Dictionary<string, List<Rule>> groupedRules)
         {
             ReferenceClassifierParser parser = new(filename, groupNamePrefix, groupedRules);
             parser.Parse();

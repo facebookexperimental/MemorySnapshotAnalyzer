@@ -158,6 +158,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         public OwnsRule(string location, TypeSpec typeSpec, string selector, int weight, bool isDynamic) : base(location, typeSpec)
         {
             Selector = ParseSelector(selector);
+            Weight = weight;
             IsDynamic = isDynamic;
         }
 

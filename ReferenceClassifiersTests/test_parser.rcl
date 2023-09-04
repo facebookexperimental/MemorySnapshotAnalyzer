@@ -1,0 +1,23 @@
+"mydll.dll:mytype" OWNS "foo";
+"mydll.DLL:mytype" OWNS(1) "foo[]";
+
+[subgroup1]
+
+"MyNamespace.MyDll:mytype" OWNS(-1) "foo_.bar";
+
+IMPORT "test_parser_import1.rcl"
+
+[]
+
+"MyNamespace.MyDll.dll:mytype" OWNS_DYNAMIC "foo_._bar.zot";
+
+IMPORT "test_parser_import2.rcl"
+
+"mydll:mytype"
+    OWNS_DYNAMIC(-1) "foo[].bar_[]"
+    EXTERNAL TAG_IF_NONZERO(tag1,tag2) "foo*"
+    TAG(tag) TAG_IF_ZERO(tag) "foo";
+
+[subgroup2]
+
+"mydll:mytype" TAG_DYNAMIC(tag1,tag2) "foo[].bar_[]";
