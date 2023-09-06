@@ -322,7 +322,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                     case TraceableHeapKind.Stitched:
                         m_currentTraceableHeap = new StitchedTraceableHeap(
                             m_currentMemorySnapshot.ManagedHeap(referenceClassifierFactory),
-                            m_currentMemorySnapshot.NativeHeap(referenceClassifierFactory),
+                            m_currentMemorySnapshot.NativeHeap(new DefaultReferenceClassifierFactory()),
                             m_traceableHeap_fuseObjectPairs);
                         break;
                     default:

@@ -80,8 +80,9 @@ namespace MemorySnapshotAnalyzer.Analysis
         {
             if (m_secondary.ContainsAddress(address))
             {
-                foreach (PointerInfo<NativeWord> pointerInfo in m_secondary.GetPointers(address, typeIndex - m_primary.TypeSystem.NumberOfTypeIndices))
+                foreach (PointerInfo<NativeWord> secondaryPointerInfo in m_secondary.GetPointers(address, typeIndex - m_primary.TypeSystem.NumberOfTypeIndices))
                 {
+                    PointerInfo<NativeWord> pointerInfo = secondaryPointerInfo.WithTypeIndex(secondaryPointerInfo.TypeIndex + m_primary.TypeSystem.NumberOfTypeIndices);
                     if (m_fusedObjectParent != null && !m_computingObjectPairs)
                     {
                         if (m_fusedObjectParent.TryGetValue(pointerInfo.Value.Value, out ulong parentAddress))
@@ -157,6 +158,6 @@ namespace MemorySnapshotAnalyzer.Analysis
         }
 
         // TODO: if both heaps have a segmented heap, we can try to stitch those together as well
-        public override SegmentedHeap? SegmentedHeapOpt => null;
+        public override SegmentedHeap? SegmentedHeapOpt => m_primary.SegmentedHeapOpt;
     }
 }

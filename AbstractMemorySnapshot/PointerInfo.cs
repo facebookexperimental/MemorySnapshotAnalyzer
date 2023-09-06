@@ -68,5 +68,16 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 FieldNumber = FieldNumber
             };
         }
+
+        public PointerInfo<T> WithTypeIndex(int typeIndex)
+        {
+            return new PointerInfo<T>
+            {
+                Value = Value,
+                PointerFlags = PointerFlags,
+                TypeIndex = typeIndex,
+                FieldNumber = FieldNumber
+            };
+        }
     }
 }

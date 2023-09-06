@@ -28,6 +28,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             m_typeIndexToGenericNameWithArity = new();
         }
 
+        public ReferenceClassifierFactory ReferenceClassifierFactory => m_referenceClassifierFactory;
+
         public abstract int PointerSize { get; }
 
         public abstract int NumberOfTypeIndices { get; }
@@ -296,17 +298,17 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public IEnumerable<(Selector selector, int weight)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
         {
-            return m_referenceClassifier!.GetWeightAnchorSelectors(typeIndex, fieldNumber);
+            return ReferenceClassifier.GetWeightAnchorSelectors(typeIndex, fieldNumber);
         }
 
         public IEnumerable<(Selector selector, List<string> tags)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
         {
-            return m_referenceClassifier!.GetTagAnchorSelectors(typeIndex, fieldNumber);
+            return ReferenceClassifier.GetTagAnchorSelectors(typeIndex, fieldNumber);
         }
 
         public (List<string> zeroTags, List<string> nonZeroTags) GetTags(int typeIndex, int fieldNumber)
         {
-            return m_referenceClassifier!.GetTags(typeIndex, fieldNumber);
+            return ReferenceClassifier.GetTags(typeIndex, fieldNumber);
         }
     }
 }

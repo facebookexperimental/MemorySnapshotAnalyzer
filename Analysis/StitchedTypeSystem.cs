@@ -22,7 +22,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly int m_systemVoidStarTypeIndex;
 
         public StitchedTypeSystem(TypeSystem first, TypeSystem second)
-            : base(new DefaultReferenceClassifierFactory())
+            : base(first.ReferenceClassifierFactory)
         {
             if (first.PointerSize != second.PointerSize)
             {
@@ -107,7 +107,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
             else
             {
-                return m_second.BaseOrElementTypeIndex(typeIndex - m_first.NumberOfTypeIndices);
+                return m_second.BaseOrElementTypeIndex(typeIndex - m_first.NumberOfTypeIndices) + m_first.NumberOfTypeIndices;
             }
         }
 
@@ -203,7 +203,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
             else
             {
-                return m_second.FieldType(typeIndex - m_first.NumberOfTypeIndices, fieldNumber);
+                return m_second.FieldType(typeIndex - m_first.NumberOfTypeIndices, fieldNumber) + m_first.NumberOfTypeIndices;
             }
         }
 
