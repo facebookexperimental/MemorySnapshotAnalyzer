@@ -1,0 +1,9 @@
+"imported2:imported2" OWNS "imported2_1";
+
+[imported2]
+
+"imported2:imported2" OWNS "imported2_2";
+
+[]
+
+"imported2:imported2" OWNS "imported2_3";

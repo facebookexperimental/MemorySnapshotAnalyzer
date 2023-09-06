@@ -280,7 +280,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 for (int postorderIndex = 0; postorderIndex < CurrentTracedHeap.NumberOfPostorderNodes; postorderIndex++)
                 {
                     int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-                    if (typeIndex != -1 && CurrentBacktracer.IsOwned(postorderIndex))
+                    if (typeIndex != -1 && CurrentBacktracer.Weight(postorderIndex) > 0)
                     {
                         typeSet.Add(typeIndex);
                     }
@@ -333,11 +333,11 @@ namespace MemorySnapshotAnalyzer.Commands
                 if (typeIndex != -1 && (typeSet == null || typeSet.Contains(typeIndex)))
                 {
                     bool selected = true;
-                    if (Unowned && CurrentBacktracer.IsOwned(postorderIndex))
+                    if (Unowned && CurrentBacktracer.Weight(postorderIndex) > 0)
                     {
                         selected = false;
                     }
-                    else if (Owned && !CurrentBacktracer.IsOwned(postorderIndex))
+                    else if (Owned && CurrentBacktracer.Weight(postorderIndex) <= 0)
                     {
                         selected = false;
                     }

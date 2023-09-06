@@ -33,6 +33,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         string? m_fieldName;
         string? m_attributeGroupName;
         string? m_selector;
+        int m_weight;
         bool m_isDynamic;
 
         public static void LoadFromDllFilename(string dllFilename, string? groupNamePrefix, ILogger logger, Dictionary<string, List<Rule>> result)
@@ -202,7 +203,10 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 if (typeName == typeof(OwnsAttribute).Name)
                 {
                     ReadCommonNamedArguments(blobReader);
-                    rule = new OwnsRule(m_dllFilename, GetTypeSpec(), BuildSelector(), m_isDynamic);
+                    if (m_weight != 0)
+                    {
+                        rule = new OwnsRule(m_dllFilename, GetTypeSpec(), BuildSelector(), m_weight, m_isDynamic);
+                    }
                 }
                 else if (typeName == typeof(TagAttribute).Name)
                 {
@@ -241,7 +245,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             }
         }
 
-        (string namespaceName, string typeName) GetCustomAttributeType(CustomAttribute customAttribute, MetadataReader metadataReader)
+        static (string namespaceName, string typeName) GetCustomAttributeType(CustomAttribute customAttribute, MetadataReader metadataReader)
         {
             EntityHandle entityHandle;
             if (customAttribute.Constructor.Kind == HandleKind.MethodDefinition)
@@ -273,17 +277,32 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             }
         }
 
+        // From ECMA 335 specification; see also https://github.com/dotnet/runtime/blob/76d17b25252ce14b7e36c2e6854fe416db60f5cf/src/coreclr/inc/corhdr.h#L952
+        enum CorSerializationType : byte
+        {
+            SERIALIZATION_TYPE_PROPERTY = 0x54,
+        }
+
+        // From ECMA 335 specification; see also https://github.com/dotnet/runtime/blob/main/src/libraries/System.Reflection.Metadata/src/System/Reflection/Metadata/Internal/CorElementType.cs#L10
+        enum CorElementType : byte
+        {
+            ELEMENT_TYPE_BOOLEAN = 0x2,
+            ELEMENT_TYPE_I4 = 0x8,
+            ELEMENT_TYPE_STRING = 0x0E,
+        }
+
         void ReadCommonNamedArguments(BlobReader blobReader)
         {
             m_attributeGroupName = null;
             m_selector = null;
+            m_weight = 0;
             m_isDynamic = false;
 
             ushort numberOfNamedArguments = blobReader.ReadUInt16();
             for (int i = 0; i < numberOfNamedArguments; i++)
             {
                 byte kind = blobReader.ReadByte();
-                if (kind != 0x54)
+                if (kind != (byte)CorSerializationType.SERIALIZATION_TYPE_PROPERTY)
                 {
                     throw new BadImageFormatException("invalid named argument kind");
                 }
@@ -295,15 +314,19 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     throw new BadImageFormatException("property name cannot be null");
                 }
 
-                if (propertyName.Equals(nameof(OwnsAttribute.GroupName), StringComparison.Ordinal) && elementType == 0x0E)
+                if (propertyName.Equals(nameof(OwnsAttribute.GroupName), StringComparison.Ordinal) && elementType == (byte)CorElementType.ELEMENT_TYPE_STRING)
                 {
                     m_attributeGroupName = blobReader.ReadSerializedString();
                 }
-                else if (propertyName.Equals(nameof(OwnsAttribute.Selector), StringComparison.Ordinal) && elementType == 0x0E)
+                else if (propertyName.Equals(nameof(OwnsAttribute.Selector), StringComparison.Ordinal) && elementType == (byte)CorElementType.ELEMENT_TYPE_STRING)
                 {
                     m_selector = blobReader.ReadSerializedString();
                 }
-                else if (propertyName.Equals(nameof(OwnsAttribute.IsDynamic), StringComparison.Ordinal) && elementType == 0x02)
+                else if (propertyName.Equals(nameof(OwnsAttribute.Weight), StringComparison.Ordinal) && elementType == (byte)CorElementType.ELEMENT_TYPE_I4)
+                {
+                    m_weight = blobReader.ReadInt32();
+                }
+                else if (propertyName.Equals(nameof(OwnsAttribute.IsDynamic), StringComparison.Ordinal) && elementType == (byte)CorElementType.ELEMENT_TYPE_BOOLEAN)
                 {
                     m_isDynamic = blobReader.ReadByte() != 0;
                 }

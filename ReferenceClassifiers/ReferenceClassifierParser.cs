@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -22,11 +22,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
     // <type spec> ::= <non WS character>+ ":" <non WS character>+
     // <tag> ::= "TAG(" { <non WS character>+ // "," }+ ")"
     // <tag condition> ::= ( "TAG_IF_ZERO" | "TAG_IF_NONZERO" ) "(" { <non WS character>+ // "," }+ ")"
-    sealed class ReferenceClassifierParser
+    public sealed class ReferenceClassifierParser
     {
         readonly string? m_groupNamePrefix;
-        readonly ReferenceClassifierFileTokenizer m_tokenizer;
-        readonly IEnumerator<(ReferenceClassifierFileTokenizer.Token token, string value)> m_enumerator;
+        readonly ReferenceClassifierTokenizer m_tokenizer;
+        readonly IEnumerator<(ReferenceClassifierTokenizer.Token token, string value)> m_enumerator;
         readonly Dictionary<string, List<Rule>> m_groupedRules;
         string m_groupName;
 
@@ -39,7 +39,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             m_groupName = ReferenceClassifierGroup.ResolveGroupName(m_groupNamePrefix, groupName: null);
         }
 
-        internal static void Load(string filename, string? groupNamePrefix, Dictionary<string, List<Rule>> groupedRules)
+        public static void Load(string filename, string? groupNamePrefix, Dictionary<string, List<Rule>> groupedRules)
         {
             ReferenceClassifierParser parser = new(filename, groupNamePrefix, groupedRules);
             parser.Parse();
@@ -51,9 +51,9 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             {
                 while (m_enumerator.MoveNext())
                 {
-                    if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.Import)
+                    if (m_enumerator.Current.token == ReferenceClassifierTokenizer.Token.Import)
                     {
-                        if (!m_enumerator.MoveNext() || m_enumerator.Current.token != ReferenceClassifierFileTokenizer.Token.String)
+                        if (!m_enumerator.MoveNext() || m_enumerator.Current.token != ReferenceClassifierTokenizer.Token.String)
                         {
                             m_tokenizer.ParseError("IMPORT directive needs to be followed by a string");
                         }
@@ -61,12 +61,12 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         string? groupNamePrefix = m_groupName.Equals("anonymous", StringComparison.Ordinal) ? m_groupNamePrefix : m_groupName;
                         Load(m_enumerator.Current.value, groupNamePrefix, m_groupedRules);
                     }
-                    else if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.Group)
+                    else if (m_enumerator.Current.token == ReferenceClassifierTokenizer.Token.Group)
                     {
                         string? declaredGroupName = m_enumerator.Current.value.Length > 0 ? m_enumerator.Current.value : null;
                         m_groupName = ReferenceClassifierGroup.ResolveGroupName(m_groupNamePrefix, declaredGroupName);
                     }
-                    else if (m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.String)
+                    else if (m_enumerator.Current.token == ReferenceClassifierTokenizer.Token.String)
                     {
                         TypeSpec typeSpec = TypeSpec.Parse(m_enumerator.Current.value);
                         if (!m_enumerator.MoveNext())
@@ -78,7 +78,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         {
                             ParseRules(typeSpec);
                         }
-                        while (m_enumerator.Current.token != ReferenceClassifierFileTokenizer.Token.Semicolon);
+                        while (m_enumerator.Current.token != ReferenceClassifierTokenizer.Token.Semicolon);
                     }
                 }
             }
@@ -97,36 +97,42 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 string location = m_tokenizer.Location;
                 switch (m_enumerator.Current.token)
                 {
-                    case ReferenceClassifierFileTokenizer.Token.Owns:
-                    case ReferenceClassifierFileTokenizer.Token.OwnsDynamic:
+                    case ReferenceClassifierTokenizer.Token.Owns:
+                    case ReferenceClassifierTokenizer.Token.OwnsDynamic:
                         {
-                            bool isDynamic = m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.OwnsDynamic;
-                            makeRules.Add(value => new OwnsRule(location, typeSpec, value, isDynamic: isDynamic));
+                            bool isDynamic = m_enumerator.Current.token == ReferenceClassifierTokenizer.Token.OwnsDynamic;
+                            int weight;
+                            if (string.IsNullOrEmpty(m_enumerator.Current.value))
+                            {
+                                weight = 1;
+                            }
+                            else if (!Int32.TryParse(m_enumerator.Current.value, out weight) || weight == 0)
+                            {
+                                m_tokenizer.ParseError("unrecognized weight; must be a non-zero integer");
+                            }
+                            makeRules.Add(value => new OwnsRule(location, typeSpec, value, weight, isDynamic: isDynamic));
                         }
                         break;
-                    case ReferenceClassifierFileTokenizer.Token.Weak:
-                        makeRules.Add(value => new WeakRule(location, typeSpec, value));
-                        break;
-                    case ReferenceClassifierFileTokenizer.Token.External:
+                    case ReferenceClassifierTokenizer.Token.External:
                         makeRules.Add(value => new ExternalRule(location, typeSpec, value));
                         break;
-                    case ReferenceClassifierFileTokenizer.Token.FuseWith:
+                    case ReferenceClassifierTokenizer.Token.FuseWith:
                         // TODO: implement FUSE_WITH rule
                         m_tokenizer.ParseError($"{m_enumerator.Current.token} rule not yet implemented");
                         break;
-                    case ReferenceClassifierFileTokenizer.Token.Tag:
-                    case ReferenceClassifierFileTokenizer.Token.TagDynamic:
+                    case ReferenceClassifierTokenizer.Token.Tag:
+                    case ReferenceClassifierTokenizer.Token.TagDynamic:
                         {
-                            bool isDynamic = m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.TagDynamic;
+                            bool isDynamic = m_enumerator.Current.token == ReferenceClassifierTokenizer.Token.TagDynamic;
                             string tag = m_enumerator.Current.value;
                             makeRules.Add(value => new TagSelectorRule(location, typeSpec, value, tag, isDynamic: isDynamic));
                         }
                         break;
-                    case ReferenceClassifierFileTokenizer.Token.TagIfZero:
-                    case ReferenceClassifierFileTokenizer.Token.TagIfNonZero:
+                    case ReferenceClassifierTokenizer.Token.TagIfZero:
+                    case ReferenceClassifierTokenizer.Token.TagIfNonZero:
                         {
                             string tag = m_enumerator.Current.value;
-                            bool tagIfNonZero = m_enumerator.Current.token == ReferenceClassifierFileTokenizer.Token.TagIfNonZero;
+                            bool tagIfNonZero = m_enumerator.Current.token == ReferenceClassifierTokenizer.Token.TagIfNonZero;
                             makeRules.Add(value => new TagConditionRule(location, typeSpec, value, tag, tagIfNonZero: tagIfNonZero));
                         }
                         break;
@@ -150,7 +156,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 }
             }
 
-            if (m_enumerator.Current.token != ReferenceClassifierFileTokenizer.Token.String)
+            if (m_enumerator.Current.token != ReferenceClassifierTokenizer.Token.String)
             {
                 m_tokenizer.ParseError("rule keywords must be followed by a field pattern or selector");
             }

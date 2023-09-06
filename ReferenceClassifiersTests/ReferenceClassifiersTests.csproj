@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\TestCommon.props" />
+  <PropertyGroup>
+    <RootNamespace>MemorySnapshotAnalyzer.ReferenceClassifiersTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ReferenceClassifiers\ReferenceClassifiers.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="*.rcl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

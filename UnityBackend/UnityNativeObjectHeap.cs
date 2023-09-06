@@ -102,7 +102,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
                     yield return new PointerInfo<NativeWord>
                     {
                         Value = m_nativeObjectsByInstanceId[successorInstanceId].ObjectAddress,
-                        PointerFlags = PointerFlags.None,
+                        PointerFlags = PointerFlags.Weighted,
                         TypeIndex = -1,
                         FieldNumber = -1
                     };
@@ -110,7 +110,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             }
         }
 
-        public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress, int weight)> GetWeightedReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
         {
             yield break;
         }

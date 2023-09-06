@@ -186,14 +186,9 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        bool IBacktracer.IsOwned(int nodeIndex)
+        int IBacktracer.Weight(int nodeIndex)
         {
-            return nodeIndex < m_firstClassIndex && m_parentBacktracer.IsOwned(nodeIndex);
-        }
-
-        bool IBacktracer.IsWeak(int nodeIndex)
-        {
-            return nodeIndex < m_firstClassIndex && m_parentBacktracer.IsWeak(nodeIndex);
+            return nodeIndex < m_firstClassIndex ? m_parentBacktracer.Weight(nodeIndex) : 0;
         }
 
         List<int> IBacktracer.Predecessors(int nodeIndex)

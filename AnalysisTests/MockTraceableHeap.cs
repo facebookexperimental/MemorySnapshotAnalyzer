@@ -36,7 +36,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
         }
     }
 
-    sealed class MockTraceableHeap : TraceableHeap
+    class MockTraceableHeap : TraceableHeap
     {
         readonly Dictionary<ulong, HeapObject> m_heapObjects;
         readonly List<HeapObject?> m_gcHandles;
@@ -44,23 +44,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
         public MockTraceableHeap() : base(new TestTypeSystem())
         {
             m_heapObjects = new();
-            HeapObject leafObject = AddHeapObject(0x100, TestTypeIndex.Primitive, new());
-            HeapObject innerObject1 = AddHeapObject(0x200, TestTypeIndex.ObjectTwoPointers, new()
-            {
-                { 16, leafObject },
-                { 24, null }, // will be replaced by a pointer to innerObject2
-            });
-            HeapObject innerObject2 = AddHeapObject(0x300, TestTypeIndex.ObjectTwoPointers, new()
-            {
-                { 16, innerObject1 },
-                { 24, null },
-            });
-            innerObject1.Fields[24] = innerObject2;
-
-            m_gcHandles = new()
-            {
-                innerObject2
-            };
+            m_gcHandles = new();
         }
 
         #region Test Helpers
@@ -70,6 +54,18 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
             var heapObject = new HeapObject(address, typeIndex, fields);
             m_heapObjects.Add(address, heapObject);
             return heapObject;
+        }
+
+        public HeapArray AddHeapArray(ulong address, TestTypeIndex typeIndex, int length, Dictionary<int, HeapObject?> fields)
+        {
+            var heapArray = new HeapArray(address, typeIndex, length, fields);
+            m_heapObjects.Add(address, heapArray);
+            return heapArray;
+        }
+
+        public void AddGCHandle(HeapObject heapObject)
+        {
+            m_gcHandles.Add(heapObject);
         }
 
         public NativeWord GetFieldAtAddress(HeapObject heapObject, int offset)
@@ -136,7 +132,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
             }
         }
 
-        public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress, int weight)> GetWeightedReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
         {
             throw new System.NotImplementedException();
         }

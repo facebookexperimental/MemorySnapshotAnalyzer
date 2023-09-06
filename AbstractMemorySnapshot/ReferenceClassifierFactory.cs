@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -21,7 +21,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract PointerFlags GetPointerFlags(int typeIndex, int fieldNumber);
 
-        public abstract IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber);
+        public abstract IEnumerable<(Selector selector, int weight)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber);
 
         public abstract IEnumerable<(Selector selector, List<string> tags)> GetTagAnchorSelectors(int typeIndex, int fieldNumber);
 
@@ -41,10 +41,10 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public override PointerFlags GetPointerFlags(int typeIndex, int fieldNumber)
         {
-            return PointerFlags.None;
+            return default;
         }
 
-        public override IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber)
+        public override IEnumerable<(Selector selector, int weight)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
         {
             yield break;
         }

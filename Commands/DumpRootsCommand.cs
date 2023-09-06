@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -43,29 +43,15 @@ namespace MemorySnapshotAnalyzer.Commands
                     continue;
                 }
 
-                NativeWord address = pointerInfo.Value;
-                if (address.Value == 0)
-                {
-                    continue;
-                }
-
-                DescribeAddress(address, sb);
-                if (pointerInfo.PointerFlags == PointerFlags.None)
+                DescribePointerInfo(pointerInfo, sb);
+                if (sb.Length > 0)
                 {
                     Output.WriteLine("{0}: {1} -> {2}",
                         rootIndex,
                         rootSet.DescribeRoot(rootIndex, fullyQualified: true),
                         sb);
+                    sb.Clear();
                 }
-                else
-                {
-                    Output.WriteLine("{0}: {1} -> {2} ({3})",
-                        rootIndex,
-                        rootSet.DescribeRoot(rootIndex, fullyQualified: true),
-                        sb,
-                        pointerInfo.PointerFlags);
-                }
-                sb.Clear();
             }
         }
 

@@ -11,9 +11,9 @@ using System.IO;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
-    sealed class ReferenceClassifierFileTokenizer
+    public sealed class ReferenceClassifierTokenizer
     {
-        internal enum Token
+        public enum Token
         {
             Group = 1,
             String,
@@ -21,7 +21,6 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             Import,
             Owns,
             OwnsDynamic,
-            Weak,
             External,
             FuseWith,
             Tag,
@@ -36,7 +35,6 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             { "IMPORT", Token.Import },
             { "OWNS", Token.Owns },
             { "OWNS_DYNAMIC", Token.OwnsDynamic },
-            { "WEAK", Token.Weak },
             { "EXTERNAL", Token.External },
             { "FUSE_WITH", Token.FuseWith },
         };
@@ -44,15 +42,15 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         readonly string m_filename;
         int m_lineNumber;
 
-        internal ReferenceClassifierFileTokenizer(string filename)
+        public ReferenceClassifierTokenizer(string filename)
         {
             m_filename = filename;
             m_lineNumber = 1;
         }
 
-        internal string Location => $"{m_filename}:{m_lineNumber}";
+        public string Location => $"{m_filename}:{m_lineNumber}";
 
-        internal void ParseError(string message)
+        public void ParseError(string message)
         {
             throw new ParseErrorException(message, m_filename, m_lineNumber);
         }
@@ -80,7 +78,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             }
         }
 
-        internal IEnumerable<(Token token, string value)> GetTokens()
+        public IEnumerable<(Token token, string value)> GetTokens()
         {
             foreach (string line in ReadFile())
             {
@@ -110,6 +108,16 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     {
                         yield return (token, string.Empty);
                     }
+                    else if (wordTrimmed.StartsWith("OWNS(") && wordTrimmed[^1] == ')')
+                    {
+                        string value = wordTrimmed["OWNS(".Length..^1];
+                        yield return (Token.Owns, value);
+                    }
+                    else if (wordTrimmed.StartsWith("OWNS_DYNAMIC(") && wordTrimmed[^1] == ')')
+                    {
+                        string value = wordTrimmed["OWNS_DYNAMIC(".Length..^1];
+                        yield return (Token.OwnsDynamic, value);
+                    }
                     else if (wordTrimmed.StartsWith("TAG(") && wordTrimmed[^1] == ')')
                     {
                         string value = wordTrimmed["TAG(".Length..^1];
@@ -130,7 +138,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                         string value = wordTrimmed["TAG_IF_NONZERO(".Length..^1];
                         yield return (Token.TagIfNonZero, value);
                     }
-                    else
+                    else if (wordTrimmed.Length > 0)
                     {
                         ParseError($"unrecognized token \"{wordTrimmed}\"");
                     }

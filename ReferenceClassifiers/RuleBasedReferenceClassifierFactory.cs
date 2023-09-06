@@ -24,9 +24,9 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             return m_boundRuleset.GetPointerFlags(typeIndex, fieldNumber);
         }
 
-        public override IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber)
+        public override IEnumerable<(Selector selector, int weight)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
         {
-            return m_boundRuleset.GetConditionAnchorSelectors(typeIndex, fieldNumber);
+            return m_boundRuleset.GetWeightAnchorSelectors(typeIndex, fieldNumber);
         }
 
         public override IEnumerable<(Selector selector, List<string> tags)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)

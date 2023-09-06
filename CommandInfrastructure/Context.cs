@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -10,7 +10,6 @@ using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.ReferenceClassifiers;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
 
 namespace MemorySnapshotAnalyzer.CommandInfrastructure
@@ -35,8 +34,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         readonly SortedSet<string> m_traceableHeap_referenceClassificationGroups;
         // Options for RootSet
         NativeWord m_rootSet_singletonRootAddress;
-        // Options for TracedHeap
-        bool m_tracedHeap_weakGCHandles;
+        bool m_rootSet_weakGCHandles;
         // Options for Backtracer
         bool m_backtracer_groupStatics;
         bool m_backtracer_fuseRoots;
@@ -65,7 +63,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 TraceableHeap_Kind = other.TraceableHeap_Kind,
                 TraceableHeap_FuseObjectPairs = other.TraceableHeap_FuseObjectPairs,
                 RootSet_SingletonRootAddress = other.RootSet_SingletonRootAddress,
-                TracedHeap_WeakGCHandles = other.TracedHeap_WeakGCHandles,
+                RootSet_WeakGCHandles = other.RootSet_WeakGCHandles,
                 Backtracer_GroupStatics = other.Backtracer_GroupStatics,
                 Backtracer_FuseRoots = other.Backtracer_FuseRoots
             };
@@ -130,13 +128,15 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             if (m_currentRootSet == null)
             {
-                yield return string.Format("RootSet[rootobject={0}] not computed",
-                    m_rootSet_singletonRootAddress);
+                yield return string.Format("RootSet[rootobject={0}, weakgchandles={1}] not computed",
+                    m_rootSet_singletonRootAddress,
+                    m_rootSet_weakGCHandles);
             }
             else
             {
-                yield return string.Format("RootSet[rootobject={0}]: {1} roots ({2} GCHandles, {3} statics)",
+                yield return string.Format("RootSet[rootobject={0}, weakgchandles={1}]: {2} roots ({3} GCHandles, {4} statics)",
                     m_rootSet_singletonRootAddress,
+                    m_rootSet_weakGCHandles,
                     m_currentRootSet.NumberOfRoots,
                     m_currentRootSet.NumberOfGCHandles,
                     m_currentRootSet.NumberOfStaticRoots);
@@ -144,13 +144,11 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             if (m_currentTracedHeap == null)
             {
-                yield return string.Format("TracedHeap[weakgchandles={0}] not computed",
-                    m_tracedHeap_weakGCHandles);
+                yield return string.Format("TracedHeap not computed");
             }
             else
             {
-                yield return string.Format("TracedHeap[weakgchandles={0}]: {1} live objects and {2} distinct roots ({3} invalid roots, {4} invalid pointers)",
-                    m_tracedHeap_weakGCHandles,
+                yield return string.Format("TracedHeap: {0} live objects and {1} distinct roots ({2} invalid roots, {3} invalid pointers)",
                     m_currentTracedHeap.NumberOfLiveObjects,
                     m_currentTracedHeap.NumberOfDistinctRoots,
                     m_currentTracedHeap.NumberOfInvalidRoots,
@@ -358,6 +356,19 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
         }
 
+        public bool RootSet_WeakGCHandles
+        {
+            get { return m_rootSet_weakGCHandles; }
+            set
+            {
+                if (m_rootSet_weakGCHandles != value)
+                {
+                    m_rootSet_weakGCHandles = value;
+                    ClearRootSet();
+                }
+            }
+        }
+
         public IRootSet? CurrentRootSet => m_currentRootSet;
 
         public void EnsureRootSet()
@@ -373,7 +384,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 }
                 else
                 {
-                    m_currentRootSet = new RootSet(CurrentTraceableHeap!);
+                    m_currentRootSet = new RootSet(CurrentTraceableHeap!, gcHandleWeight: RootSet_WeakGCHandles ? -1 : 0);
                 }
 
                 m_output.WriteLine(" {0} roots ({1} GCHandles, {2} statics)",
@@ -389,19 +400,6 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             ClearTracedHeap();
         }
 
-        public bool TracedHeap_WeakGCHandles
-        {
-            get { return m_tracedHeap_weakGCHandles; }
-            set
-            {
-                if (m_tracedHeap_weakGCHandles != value)
-                {
-                    m_tracedHeap_weakGCHandles = value;
-                    ClearTracedHeap();
-                }
-            }
-        }
-
         public TracedHeap? CurrentTracedHeap => m_currentTracedHeap;
 
         public void EnsureTracedHeap()
@@ -411,7 +409,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             if (m_currentTracedHeap == null)
             {
                 m_output.Write("[context {0}] tracing heap ...", m_id);
-                m_currentTracedHeap = new TracedHeap(CurrentRootSet!, TracedHeap_WeakGCHandles);
+                m_currentTracedHeap = new TracedHeap(CurrentRootSet!);
                 m_output.WriteLine(" {0} live objects and {1} distinct roots ({2} invalid roots, {3} invalid pointers)",
                     m_currentTracedHeap.NumberOfLiveObjects,
                     m_currentTracedHeap.NumberOfDistinctRoots,
@@ -462,18 +460,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             {
                 m_output.Write("[context {0}] computing backtraces ...", m_id);
 
-                var backtracerOptions = Backtracer.Options.None;
-                if (m_backtracer_fuseRoots)
-                {
-                    backtracerOptions |= Backtracer.Options.FuseRoots;
-                }
-
-                if (m_tracedHeap_weakGCHandles)
-                {
-                    backtracerOptions |= Backtracer.Options.WeakGCHandles;
-                }
-
-                IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, backtracerOptions, m_logger);
+                IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, m_logger, fuseRoots: m_backtracer_fuseRoots);
                 if (m_backtracer_groupStatics)
                 {
                     backtracer = new GroupingBacktracer(backtracer);

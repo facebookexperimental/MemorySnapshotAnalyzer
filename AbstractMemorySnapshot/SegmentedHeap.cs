@@ -103,13 +103,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
         }
 
-        public IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        public IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress, int weight)> GetWeightedReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
         {
-            foreach (Selector selector in m_typeSystem.GetConditionAnchorSelectors(pointerInfo.TypeIndex, pointerInfo.FieldNumber))
+            foreach ((Selector selector, int weight) in m_typeSystem.GetWeightAnchorSelectors(pointerInfo.TypeIndex, pointerInfo.FieldNumber))
             {
-                foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) pair in InterpretSelector(anchorObjectAddress, selector))
+                foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) in InterpretSelector(anchorObjectAddress, selector))
                 {
-                    yield return pair;
+                    yield return (childObjectAddress, parentObjectAddress, weight);
                 }
             }
         }

@@ -29,6 +29,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifierAttributes
     {
         public OwnsAttribute()
         {
+            Weight = 1;
         }
 
         /// <summary>
@@ -51,6 +52,29 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifierAttributes
         /// Example: To apply to all values in a dictionary, use "_entries[].value".
         /// </remarks>
         public string? Selector { get; set; }
+
+        /// <summary>
+        /// The weight of this reference (the strength of the bond it forms).
+        /// </summary>
+        /// <remarks>
+        /// Analysis of the object graph allows different weights to be assigned to references originating
+        /// from different object fields. When computing backtraces (and the dominator tree), only the
+        /// references with the highest weight (for each target object) are retained, and other references
+        /// are ignored. This allows for some objects to be considered "owners" of other objects, decluttering
+        /// the object graph and resulting in deeper dominator trees for memory attribution.
+        ///
+        /// A regular reference (emanating from a field without an attribute) is considered to have weight 0.
+        /// References of weight 1 or higher are considered "owning" references (overriding regular references).
+        /// References of higher weight can be useful to prioritize owners if ownership of an object changes
+        /// throughout its lifetime. If more than one reference of weight 1 or greater are found to a single
+        /// object, this results in a warning about ambiguous object ownership.
+        ///
+        /// References of weight -1 or lower are considered "weak" references (overridden by regular references).
+        ///
+        /// If no weight is given for an OwnsAttribute, it defaults to 1. If weight is specified as 0, the
+        /// attribute is ignored.
+        /// </remarks>
+        public int Weight { get; set; }
 
         /// <summary>
         /// Indicates whether field lookup needs to be dynamic.

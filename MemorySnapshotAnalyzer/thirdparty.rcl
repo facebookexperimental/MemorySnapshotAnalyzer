@@ -7,15 +7,15 @@
 ##
 ## Delegates can hold on to references(and, possibly, large object graphs) via their closures, and delegates are often used
 ## to connect otherwise independent subsystems for notification delivery.This means that references to other objects from
-## delegate closures usually do not contribute to the "ownership" relationship between objects and are more incidental.
-## With the `'weakdelegates` option, such references are treated as "weak" - if objects are reachable both from other
-## object fields and from delegate closures, we will ignore the delegate closure reference. If an object is reachable
+## delegate closures usually do not contribute to the "ownership" relationship between objects and are more incidental. By
+## enabling the `thirdparty.weakdelegates` group, such references are treated as "weak" - if objects are reachable both from
+## other object fields and from delegate closures, we will ignore the delegate closure reference. If an object is reachable
 ## *only* from the delegate closure, it is a likely leak candidate, which will be shown with a `..` prefix in backtraces.
 ##
 
 [thirdparty.weakdelegates]
 
-"mscorlib.dll:System.Delegate" WEAK "m_target";
+"mscorlib.dll:System.Delegate" OWNS(-1) "m_target";
 
 [thirdparty.dotnet]
 

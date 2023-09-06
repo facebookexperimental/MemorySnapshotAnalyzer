@@ -102,9 +102,9 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return m_segmentedHeap.GetPointers(address, typeIndex);
         }
 
-        public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> GetOwningReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress, int weight)> GetWeightedReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
         {
-            return m_segmentedHeap.GetOwningReferencesFromAnchor(anchorObjectAddress, pointerInfo);
+            return m_segmentedHeap.GetWeightedReferencesFromAnchor(anchorObjectAddress, pointerInfo);
         }
 
         public override IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)

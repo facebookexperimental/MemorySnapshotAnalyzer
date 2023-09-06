@@ -50,7 +50,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly List<(ulong reference, ulong objectAddress)> m_invalidPointers;
         readonly ObjectAddressToPostorderIndexEntry[] m_objectAddressToPostorderIndex;
 
-        public TracedHeap(IRootSet rootSet, bool weakGCHandles)
+        public TracedHeap(IRootSet rootSet)
         {
             m_rootSet = rootSet;
             m_traceableHeap = rootSet.TraceableHeap;
@@ -79,41 +79,6 @@ namespace MemorySnapshotAnalyzer.Analysis
                     else
                     {
                         m_objectAddressToRootIndices.Add(address.Value, new List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)>() { (rootIndex, pointerInfo) });
-                    }
-                }
-            }
-
-            if (weakGCHandles)
-            {
-                // If weakGCHandles is false, we are done with grouping roots.
-                // Otherwise, if all roots in any given root group are GCHandles, keep the root group as-is.
-                // Otherwise, remove the GCHandles from that root group.
-                foreach (ulong address in m_objectAddressToRootIndices.Keys.ToArray())
-                {
-                    List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)> rootInfos = m_objectAddressToRootIndices[address];
-
-                    bool allRootsAreGCHandles = true;
-                    foreach ((int rootIndex, PointerInfo<NativeWord> PointerInfo) in rootInfos)
-                    {
-                        if (!m_rootSet.IsGCHandle(rootIndex))
-                        {
-                            allRootsAreGCHandles = false;
-                            break;
-                        }
-                    }
-
-                    if (!allRootsAreGCHandles)
-                    {
-                        var newRootInfos = new List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)>();
-                        foreach ((int rootIndex, PointerInfo<NativeWord> pointerInfo) in rootInfos)
-                        {
-                            if (!m_rootSet.IsGCHandle(rootIndex))
-                            {
-                                newRootInfos.Add((rootIndex, pointerInfo));
-                            }
-                        }
-
-                        m_objectAddressToRootIndices[address] = newRootInfos;
                     }
                 }
             }

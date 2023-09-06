@@ -31,6 +31,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
         GenericTypeWithNesting,
         GenericTypeArray,
         EmptyTypeNameCornerCase,
+        WeightedReferences,
 
         Configurable,
 
@@ -98,7 +99,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 {
                     if ((TestTypeIndex)typeIndex == TestTypeIndex.DerivedTypeThreePointers && fieldNumber == 0)
                     {
-                        return PointerFlags.IsOwningReference;
+                        return PointerFlags.Weighted.WithWeight(1);
                     }
                     else if ((TestTypeIndex)typeIndex == TestTypeIndex.FieldWithPointerFlagsExternal && fieldNumber == 0)
                     {
@@ -110,28 +111,40 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                         {
                             case 0:
                             case 1:
-                                return PointerFlags.IsConditionAnchor;
+                                return PointerFlags.IsWeightAnchor;
                             case 2:
                                 return PointerFlags.IsTagAnchor;
                             case 3:
                                 return PointerFlags.TagIfZero;
                         }
                     }
-                    return PointerFlags.None;
+                    else if ((TestTypeIndex)typeIndex == TestTypeIndex.WeightedReferences)
+                    {
+                        switch (fieldNumber)
+                        {
+                            case 0:
+                                return default;
+                            case 1:
+                                return PointerFlags.Weighted.WithWeight(1);
+                            case 2:
+                                return PointerFlags.Weighted.WithWeight(-1);
+                        }
+                    }
+                    return default;
                 }
 
-                public override IEnumerable<Selector> GetConditionAnchorSelectors(int typeIndex, int fieldNumber)
+                public override IEnumerable<(Selector selector, int weight)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
                 {
                     if ((TestTypeIndex)typeIndex != TestTypeIndex.ReferenceClassifiers || (fieldNumber != 0 && fieldNumber != 1))
                     {
-                        Assert.Fail("GetConditionAnchorSelectors invoked for invalid field");
+                        Assert.Fail("GetWeightAnchorSelectors invoked for invalid field");
                     }
 
-                    yield return new()
+                    yield return (new()
                     {
                         StaticPrefix = new() { ((int)TestTypeIndex.ReferenceClassifiers, 0) },
                         DynamicTail = fieldNumber == 0 ? null : new string[] { "derivedField" },
-                    };
+                    }, weight: fieldNumber == 1 ? 3 : 0);
                 }
 
                 public override IEnumerable<(Selector selector, List<string> tags)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
@@ -227,8 +240,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             m_typeInfos.Add(TestTypeIndex.ReferenceClassifiers,
                 TypeInfo.ForObject("ReferenceClassifiers", 56, TestTypeIndex.None, new()
                 {
-                    new("conditionAnchorStatic", 16, TestTypeIndex.ObjectTwoPointers), // IsConditionAnchor
-                    new("conditionAnchorDynamic", 24, TestTypeIndex.ObjectTwoPointers), // IsConditionAnchor
+                    new("weightAnchorStatic", 16, TestTypeIndex.ObjectTwoPointers), // IsWeightAnchhor
+                    new("weightAnchorDynamic", 24, TestTypeIndex.ObjectTwoPointers), // IsWeightAnchor
                     new("tagAnchor", 32, TestTypeIndex.ObjectTwoPointers), // IsTagAnchor
                     new("tagIfZero", 40, TestTypeIndex.ObjectTwoPointers), // TagIfZero
                     new("object", 48, TestTypeIndex.ReferenceClassifiers),
@@ -244,6 +257,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 TypeInfo.ForObject("GenericTypeArray<int>[]", 32, TestTypeIndex.None, new() { }));
             m_typeInfos.Add(TestTypeIndex.EmptyTypeNameCornerCase,
                 TypeInfo.ForObject("", 32, TestTypeIndex.None, new() { }));
+            m_typeInfos.Add(TestTypeIndex.WeightedReferences,
+                TypeInfo.ForObject("WeightedReferences", 40, TestTypeIndex.None, new()
+                {
+                    new("regular", 16, TestTypeIndex.ObjectNoPointers),
+                    new("strong", 24, TestTypeIndex.ObjectNoPointers),
+                    new("weak", 32, TestTypeIndex.ObjectNoPointers),
+                }));
         }
 
         public void SetTargetForConfigurableTypeIndex(TestTypeIndex targetTypeIndex)

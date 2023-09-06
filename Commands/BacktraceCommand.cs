@@ -10,6 +10,7 @@ using MemorySnapshotAnalyzer.CommandInfrastructure;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 
 namespace MemorySnapshotAnalyzer.Commands
@@ -112,71 +113,69 @@ namespace MemorySnapshotAnalyzer.Commands
 
         bool DumpBacktraceLine(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int indent, int successorNodeIndex, string prefix)
         {
-            string fields = "";
-            if (Fields && CurrentBacktracer.IsLiveObjectNode(nodeIndex))
-            {
-                fields = CollectFieldsAndTags(nodeIndex, successorNodeIndex);
-            }
+            StringBuilder sb = new(prefix);
 
-            if (seen.Contains(nodeIndex))
+            bool result = seen.Contains(nodeIndex);
+            if (result)
             {
                 // Back reference to a node that was already printed.
                 if (ancestors.Contains(nodeIndex))
                 {
-                    Output.WriteLineIndented(indent, "{0}^^ {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                    sb.Append("^^ ");
                 }
                 else
                 {
-                    Output.WriteLineIndented(indent, "{0}~~ {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                    sb.Append("~~ ");
                 }
-                return true;
-            }
-            seen.Add(nodeIndex);
-
-            if (CurrentBacktracer.IsOwned(nodeIndex))
-            {
-                Output.WriteLineIndented(indent, "{0}** {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
-            }
-            else if (CurrentBacktracer.IsWeak(nodeIndex))
-            {
-                Output.WriteLineIndented(indent, "{0}.. {1}{2}", prefix, CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
             }
             else
             {
-                Output.WriteLineIndented(indent, "{0}{1}{2}", prefix,CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified), fields);
+                seen.Add(nodeIndex);
+
+                AppendWeight(CurrentBacktracer.Weight(nodeIndex), sb);
             }
 
-            return false;
+            sb.Append(CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+
+            if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
+            {
+                if (Fields)
+                {
+                    AppendFields(nodeIndex, successorNodeIndex, sb);
+                }
+
+                NativeWord address = CurrentTracedHeap.PostorderAddress(nodeIndex);
+                AppendTags(address, sb);
+            }
+
+            Output.WriteLineIndented(indent, sb.ToString());
+            return result;
         }
 
-        string CollectFieldsAndTags(int nodeIndex, int successorNodeIndex)
+        void AppendFields(int nodeIndex, int successorNodeIndex, StringBuilder sb)
         {
-            var sb = new StringBuilder();
-            NativeWord address = CurrentTracedHeap.PostorderAddress(nodeIndex);
-
             if (successorNodeIndex != -1)
             {
+                NativeWord address = CurrentTracedHeap.PostorderAddress(nodeIndex);
                 int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(nodeIndex);
+                bool first = true;
                 foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetPointers(address, typeIndex))
                 {
                     if (pointerInfo.FieldNumber != -1 && CurrentTracedHeap.ObjectAddressToPostorderIndex(pointerInfo.Value) == successorNodeIndex)
                     {
-                        if (sb.Length > 0)
+                        if (!first)
                         {
                             sb.Append(", ");
                         }
                         else
                         {
                             sb.Append(' ');
+                            first = false;
                         }
                         sb.Append(CurrentTraceableHeap.TypeSystem.FieldName(pointerInfo.TypeIndex, pointerInfo.FieldNumber));
                     }
                 }
             }
-
-            AppendTags(address, sb);
-
-            return sb.ToString();
         }
 
         sealed class TrieNode
@@ -186,7 +185,8 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpLifelines(int nodeIndex)
         {
-            Dictionary<int, int[]> lifelines = ComputeLifelines(nodeIndex, nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex) || CurrentBacktracer.IsOwned(nodeIndex));
+            Dictionary<int, int[]> lifelines = ComputeLifelines(nodeIndex,
+                nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex) || CurrentBacktracer.Weight(nodeIndex) > 0);
 
             if (Owners)
             {

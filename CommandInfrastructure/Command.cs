@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -209,6 +209,27 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
         }
 
+        protected void DescribePointerInfo(PointerInfo<NativeWord> pointerInfo, StringBuilder sb)
+        {
+            if (pointerInfo.Value.Value != 0)
+            {
+                DescribeAddress(pointerInfo.Value, sb);
+                if (pointerInfo.PointerFlags != default)
+                {
+                    PointerFlags baseFlags = pointerInfo.PointerFlags.WithoutWeight();
+                    int weight = pointerInfo.PointerFlags.Weight();
+                    if (weight != 0)
+                    {
+                        sb.AppendFormat(" ({0}, weight {1})", baseFlags, weight);
+                    }
+                    else
+                    {
+                        sb.AppendFormat(" ({0})", baseFlags);
+                    }
+                }
+            }
+        }
+
         // Append a one-line description about the object to the given string builder.
         void DescribeObject(int postorderIndex, NativeWord objectAddress, StringBuilder sb)
         {
@@ -217,6 +238,12 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             {
                 CurrentTracedHeap.DescribeRootIndices(postorderIndex, sb);
                 return;
+            }
+
+            if (Context.CurrentBacktracer != null)
+            {
+                int nodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex);
+                AppendWeight(CurrentBacktracer.Weight(nodeIndex), sb);
             }
 
             sb.AppendFormat("live object[index {0}", postorderIndex);
@@ -256,6 +283,26 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
 
             AppendTags(objectAddress, sb);
+        }
+
+        protected static void AppendWeight(int weight, StringBuilder sb)
+        {
+            if (weight == 1)
+            {
+                sb.Append("** ");
+            }
+            else if (weight > 1)
+            {
+                sb.AppendFormat("**({0}) ", weight);
+            }
+            else if (weight == -1)
+            {
+                sb.Append(".. ");
+            }
+            else if (weight < -1)
+            {
+                sb.AppendFormat("..({0}) ", weight);
+            }
         }
 
         protected void AppendTags(NativeWord address, StringBuilder sb)
@@ -298,17 +345,10 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             var sb = new StringBuilder();
             foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetPointers(address, typeIndex))
             {
-                DescribeAddress(pointerInfo.Value, sb);
+                DescribePointerInfo(pointerInfo, sb);
                 if (sb.Length > 0)
                 {
-                    if (pointerInfo.PointerFlags != PointerFlags.None)
-                    {
-                        Output.WriteLineIndented(1, "{0} ({1})", sb, pointerInfo.PointerFlags);
-                    }
-                    else
-                    {
-                        Output.WriteLineIndented(1, sb.ToString());
-                    }
+                    Output.WriteLineIndented(1, sb.ToString());
                     sb.Clear();
                 }
             }
