@@ -28,6 +28,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             m_typeIndexToGenericNameWithArity = new();
         }
 
+        public ReferenceClassifierFactory ReferenceClassifierFactory => m_referenceClassifierFactory;
+
         public abstract int PointerSize { get; }
 
         public abstract int NumberOfTypeIndices { get; }

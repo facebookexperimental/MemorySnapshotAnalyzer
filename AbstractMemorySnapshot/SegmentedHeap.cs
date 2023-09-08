@@ -35,6 +35,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             m_segments = segments;
         }
 
+        public HeapSegment[] HeapSegments => m_segments;
+
         // This method provides an implementation for TraceableHeap.GetPointers, for heaps whose memory we have access to.
         public IEnumerable<PointerInfo<NativeWord>> GetPointers(NativeWord address, int typeIndex)
         {

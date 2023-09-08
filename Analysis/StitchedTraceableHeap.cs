@@ -11,11 +11,31 @@ using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.Analysis
 {
-    public sealed class StitchedTraceableHeap : TraceableHeap
+    public sealed class StitchedTraceableHeap : SegmentedTraceableHeap
     {
+        sealed class StitchedSegmentedHeap : SegmentedHeap
+        {
+            // TODO: if both heaps have a segmented heap, we can try to stitch those together instead of taking just the primary one
+            readonly SegmentedHeap m_primarySegmentedHeap;
+
+            // Creating a StitchedSegmentedHeap instead of taking just the primary segmented heap effectively
+            // replaces the primary segmented heap's type system with the stitched type system.
+            internal StitchedSegmentedHeap(StitchedTraceableHeap stitchedTraceableHeap, SegmentedHeap primarySegmentedHeap)
+                : base(stitchedTraceableHeap, primarySegmentedHeap.HeapSegments)
+            {
+                m_primarySegmentedHeap = primarySegmentedHeap;
+            }
+
+            public override int ReadArraySize(MemoryView objectView)
+            {
+                return m_primarySegmentedHeap.ReadArraySize(objectView);
+            }
+        }
+
         readonly TraceableHeap m_primary;
         readonly TraceableHeap m_secondary;
         readonly string m_description;
+        readonly List<NativeWord> m_secondaryGCHandles;
         readonly bool m_computingObjectPairs;
         readonly Dictionary<ulong, ulong>? m_fusedObjectParent;
 
@@ -24,27 +44,41 @@ namespace MemorySnapshotAnalyzer.Analysis
         {
             m_primary = primary;
             m_secondary = secondary;
+            Init(new StitchedSegmentedHeap(this, primary.SegmentedHeapOpt!));
             m_description = $"{primary.Description} -> {secondary.Description}";
+            m_secondaryGCHandles = new();
 
-            if (fuseObjectPairs)
+            // Create a temporary traced heap for two purposes:
+            // (1) If we're fusing object pairs, this allows us to discover all object pairs.
+            // (2) We discover which objects on the secondary heap are not reachable from
+            //     objects on the primary heap (transitively).
+            m_computingObjectPairs = fuseObjectPairs;
+            m_fusedObjectParent = new Dictionary<ulong, ulong>();
+            var tempTracedHeap = new TracedHeap(new RootSet(this, gcHandleWeight: 0), logger);
+            m_computingObjectPairs = false;
+
+            // Create GC handles for otherwise unreachable objects on the secondary heap, lest these objects become invisible.
+            for (int gcHandleIndex = 0; gcHandleIndex < m_secondary.NumberOfGCHandles; gcHandleIndex++)
             {
-                m_computingObjectPairs = true;
-                m_fusedObjectParent = new Dictionary<ulong, ulong>();
-                // Perform heap tracing once, for the side effect of discovering all object pairs.
-                var _ = new TracedHeap(new RootSet(this, gcHandleWeight: 0), logger);
-                m_computingObjectPairs = false;
+                NativeWord gcHandleTarget = m_secondary.GCHandleTarget(gcHandleIndex);
+                int postorderIndex = tempTracedHeap.ObjectAddressToPostorderIndex(gcHandleTarget);
+                if (postorderIndex == -1)
+                {
+                    m_secondaryGCHandles.Add(gcHandleTarget);
+                }
             }
         }
 
         public override string Description => m_description;
 
-        public override int NumberOfGCHandles => m_primary.NumberOfGCHandles;
+        public override int NumberOfGCHandles => m_primary.NumberOfGCHandles + m_secondaryGCHandles.Count;
 
         public override NativeWord GCHandleTarget(int gcHandleIndex)
         {
-            // We are only considering the primary heap to have GCHandles.
-            // Everything on the secondary heap is reachable only through cross-heap pointers from the primary heap.
-            return m_primary.GCHandleTarget(gcHandleIndex);
+            // We are only considering GCHandles on the secondary heap for objects that are not already
+            // reachable from the primary heap.
+            return gcHandleIndex < m_primary.NumberOfGCHandles ?
+                m_primary.GCHandleTarget(gcHandleIndex) : m_secondaryGCHandles[gcHandleIndex - m_primary.NumberOfGCHandles];
         }
 
         public override int TryGetTypeIndex(NativeWord objectAddress)
@@ -81,8 +115,9 @@ namespace MemorySnapshotAnalyzer.Analysis
         {
             if (m_secondary.ContainsAddress(address))
             {
-                foreach (PointerInfo<NativeWord> pointerInfo in m_secondary.GetPointers(address, typeIndex - m_primary.TypeSystem.NumberOfTypeIndices))
+                foreach (PointerInfo<NativeWord> secondaryPointerInfo in m_secondary.GetPointers(address, typeIndex - m_primary.TypeSystem.NumberOfTypeIndices))
                 {
+                    PointerInfo<NativeWord> pointerInfo = secondaryPointerInfo.WithTypeIndex(secondaryPointerInfo.TypeIndex + m_primary.TypeSystem.NumberOfTypeIndices);
                     if (m_fusedObjectParent != null && !m_computingObjectPairs)
                     {
                         if (m_fusedObjectParent.TryGetValue(pointerInfo.Value.Value, out ulong parentAddress))
@@ -97,7 +132,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
             else
             {
-                foreach (PointerInfo<NativeWord> pointerInfo in m_primary.GetPointers(address, typeIndex))
+                foreach (PointerInfo<NativeWord> pointerInfo in base.GetPointers(address, typeIndex))
                 {
                     if ((pointerInfo.PointerFlags & PointerFlags.IsExternalReference) != 0)
                     {
@@ -129,21 +164,21 @@ namespace MemorySnapshotAnalyzer.Analysis
         {
             return m_secondary.ContainsAddress(anchorObjectAddress) ?
                 m_secondary.GetWeightedReferencesFromAnchor(logWarning, anchorObjectAddress, pointerInfo) :
-                m_primary.GetWeightedReferencesFromAnchor(logWarning, anchorObjectAddress, pointerInfo);
+                base.GetWeightedReferencesFromAnchor(logWarning, anchorObjectAddress, pointerInfo);
         }
 
         public override IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(Action<string, string> logWarning, NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
         {
             return m_secondary.ContainsAddress(anchorObjectAddress) ?
                 m_secondary.GetTagsFromAnchor(logWarning, anchorObjectAddress, pointerInfo) :
-                m_primary.GetTagsFromAnchor(logWarning, anchorObjectAddress, pointerInfo);
+                base.GetTagsFromAnchor(logWarning, anchorObjectAddress, pointerInfo);
         }
 
         public override int NumberOfObjectPairs => m_fusedObjectParent == null ? 0 : m_fusedObjectParent.Count;
 
         public override bool ContainsAddress(NativeWord address)
         {
-            return m_secondary.ContainsAddress(address) || m_primary.ContainsAddress(address);
+            return m_secondary.ContainsAddress(address) || base.ContainsAddress(address);
         }
 
         public override string? DescribeAddress(NativeWord address)
@@ -156,8 +191,5 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
             return primaryDescription ?? secondaryDescription;
         }
-
-        // TODO: if both heaps have a segmented heap, we can try to stitch those together as well
-        public override SegmentedHeap? SegmentedHeapOpt => null;
     }
 }

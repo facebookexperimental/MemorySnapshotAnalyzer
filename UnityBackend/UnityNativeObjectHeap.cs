@@ -103,7 +103,9 @@ namespace MemorySnapshotAnalyzer.UnityBackend
                     yield return new PointerInfo<NativeWord>
                     {
                         Value = m_nativeObjectsByInstanceId[successorInstanceId].ObjectAddress,
-                        PointerFlags = PointerFlags.Weighted,
+                        // Using a weight of -1 means that if we analyze a stitched heap, managed references trump
+                        // native cross-references. This seems to be giving more useful results in terms of attribution.
+                        PointerFlags = PointerFlags.Weighted.WithWeight(-1),
                         TypeIndex = -1,
                         FieldNumber = -1
                     };
