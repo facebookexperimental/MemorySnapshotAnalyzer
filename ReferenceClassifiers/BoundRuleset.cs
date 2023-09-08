@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -18,8 +18,8 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         readonly TypeSystem m_typeSystem;
         readonly ILogger m_logger;
         readonly Dictionary<(int typeIndex, int fieldNumber), PointerFlags> m_specialReferences;
-        readonly Dictionary<(int typeIndex, int fieldNumber), List<(Selector selector, int weight)>> m_weightAnchors;
-        readonly Dictionary<(int typeIndex, int fieldNumber), List<(Selector selector, List<string> tag)>> m_tagAnchors;
+        readonly Dictionary<(int typeIndex, int fieldNumber), List<(Selector selector, int weight, string location)>> m_weightAnchors;
+        readonly Dictionary<(int typeIndex, int fieldNumber), List<(Selector selector, List<string> tag, string location)>> m_tagAnchors;
         readonly Dictionary<(int typeIndex, int fieldNumber), (List<string> zeroTags, List<string> nonZeroTags)> m_tags;
 
         internal BoundRuleset(TypeSystem typeSystem, List<Rule> rules, ILogger logger)
@@ -76,30 +76,32 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
                 if (rules[data.ruleNumber] is OwnsRule ownsRule && ownsRule.Selector.Length > 1)
                 {
-                    if (!m_weightAnchors.TryGetValue((typeIndex, fieldNumber), out List<(Selector selector, int weight)>? selectors))
+                    if (!m_weightAnchors.TryGetValue((typeIndex, fieldNumber), out List<(Selector selector, int weight, string location)>? selectors))
                     {
                         selectors = new();
                         m_weightAnchors.Add((typeIndex, fieldNumber), selectors);
                     }
 
-                    var selector = BindSelector(ownsRule, typeIndex, ownsRule.Selector, isDynamic: ownsRule.IsDynamic);
+                    var selector = m_typeSystem.BindSelector(s => m_logger.Log(LOG_SOURCE, ownsRule.Location, s),
+                        typeIndex, ownsRule.Selector, isDynamic: ownsRule.IsDynamic);
                     if (selector.StaticPrefix != null)
                     {
-                        selectors.Add((selector, ownsRule.Weight));
+                        selectors.Add((selector, weight: ownsRule.Weight, location: ownsRule.Location));
                     }
                 }
                 else if (rules[data.ruleNumber] is TagSelectorRule tagSelectorRule)
                 {
-                    if (!m_tagAnchors.TryGetValue((typeIndex, fieldNumber), out List<(Selector selector, List<string> tags)>? selectors))
+                    if (!m_tagAnchors.TryGetValue((typeIndex, fieldNumber), out List<(Selector selector, List<string> tags, string location)>? selectors))
                     {
                         selectors = new();
                         m_tagAnchors.Add((typeIndex, fieldNumber), selectors);
                     }
 
-                    var selector = BindSelector(tagSelectorRule, typeIndex, tagSelectorRule.Selector, tagSelectorRule.IsDynamic);
+                    var selector = m_typeSystem.BindSelector(s => m_logger.Log(LOG_SOURCE, tagSelectorRule.Location, s),
+                        typeIndex, tagSelectorRule.Selector, tagSelectorRule.IsDynamic);
                     if (selector.StaticPrefix != null)
                     {
-                        selectors.Add((selector, new List<string>(tagSelectorRule.Tags)));
+                        selectors.Add((selector, tags: new List<string>(tagSelectorRule.Tags), location: tagSelectorRule.Location));
                     }
                 }
                 else if (rules[data.ruleNumber] is TagConditionRule tagRule)
@@ -134,89 +136,17 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             }
         }
 
-        static readonly int s_fieldIsArraySentinel = Int32.MaxValue;
-
-        Selector BindSelector(Rule rule, int typeIndex, string[] fieldNames, bool isDynamic)
-        {
-            List<(int typeIndex, int fieldNumber)> fieldPath = new(fieldNames.Length);
-            int currentTypeIndex = typeIndex;
-            for (int i = 0; i < fieldNames.Length; i++)
-            {
-                int fieldNumber;
-                int fieldTypeIndex;
-                if (fieldNames[i] == "[]")
-                {
-                    // Sentinel value for array indexing (all elements)
-                    fieldNumber = s_fieldIsArraySentinel;
-                    if (!m_typeSystem.IsArray(currentTypeIndex))
-                    {
-                        m_logger.Log(LOG_SOURCE, rule.Location,
-                            $"field was expected to be an array type; found {m_typeSystem.QualifiedName(currentTypeIndex)}");
-                        return default;
-                    }
-
-                    fieldTypeIndex = m_typeSystem.BaseOrElementTypeIndex(currentTypeIndex);
-                }
-                else
-                {
-                    (int baseTypeIndex, fieldNumber) = m_typeSystem.GetFieldNumber(currentTypeIndex, fieldNames[i]);
-                    if (fieldNumber == -1)
-                    {
-                        if (!isDynamic)
-                        {
-                            m_logger.Log(LOG_SOURCE, rule.Location,
-                                $"field {fieldNames[i]} not found in type {m_typeSystem.QualifiedName(currentTypeIndex)}; switching to dynamic lookup");
-                        }
-
-                        var dynamicFieldNames = new string[fieldNames.Length - i];
-                        for (int j = i; j < fieldNames.Length; j++)
-                        {
-                            dynamicFieldNames[j - i] = fieldNames[j];
-                        }
-                        return new Selector { StaticPrefix = fieldPath, DynamicTail = dynamicFieldNames };
-                    }
-
-                    currentTypeIndex = baseTypeIndex;
-                    fieldTypeIndex = m_typeSystem.FieldType(currentTypeIndex, fieldNumber);
-                }
-
-                fieldPath.Add((currentTypeIndex, fieldNumber));
-                currentTypeIndex = fieldTypeIndex;
-            }
-
-            if (m_typeSystem.IsValueType(currentTypeIndex))
-            {
-                m_logger.Log(LOG_SOURCE, rule.Location,
-                    string.Format("field path for {0}.{1} ending in non-reference type field {2} of type {3}",
-                        m_typeSystem.QualifiedName(typeIndex),
-                        fieldNames[0],
-                        fieldNames[^1],
-                        m_typeSystem.QualifiedName(currentTypeIndex)));
-                return default;
-            }
-
-            if (isDynamic)
-            {
-                m_logger.Log(LOG_SOURCE, rule.Location,
-                    string.Format("field path for {0}.{1} uses *_DYNAMIC rule, but is statically resolved",
-                        m_typeSystem.QualifiedName(typeIndex),
-                        fieldNames[0]));
-            }
-
-            return new Selector { StaticPrefix = fieldPath };
-        }
-
         internal PointerFlags GetPointerFlags(int typeIndex, int fieldNumber)
         {
             return m_specialReferences.GetValueOrDefault((typeIndex, fieldNumber), default(PointerFlags));
         }
 
-        internal List<(Selector selector, int weight)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
+        internal List<(Selector selector, int weight, string location)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
         {
             return m_weightAnchors[(typeIndex, fieldNumber)];
         }
 
-        internal List<(Selector selector, List<string> tag)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
+        internal List<(Selector selector, List<string> tag, string location)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
         {
             return m_tagAnchors[(typeIndex, fieldNumber)];
         }

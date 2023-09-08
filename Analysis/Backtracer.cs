@@ -24,6 +24,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly List<int> m_rootPredecessors;
         readonly List<int>[] m_predecessors;
         readonly Dictionary<int, int> m_nodeWeights;
+        readonly Action<string, string> m_logWarning;
 
         public Backtracer(TracedHeap tracedHeap, ILogger logger, bool fuseRoots)
         {
@@ -43,6 +44,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_nodeWeights = new Dictionary<int, int>();
 
             m_logger.Clear(LOG_SOURCE);
+            m_logWarning = LogWarning;
+
             ComputePredecessors(fuseRoots);
 
             // Warn about multiple owning references of the same (owning) weight.
@@ -282,7 +285,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         void ProcessWeightAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
         {
-            foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress, int weight) in m_traceableHeap.GetWeightedReferencesFromAnchor(anchorObjectAddress, pointerInfo))
+            foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress, int weight) in m_traceableHeap.GetWeightedReferencesFromAnchor(m_logWarning, anchorObjectAddress, pointerInfo))
             {
                 int childPostorderIndex = m_tracedHeap.ObjectAddressToPostorderIndex(childObjectAddress);
                 int parentPostorderIndex = m_tracedHeap.ObjectAddressToPostorderIndex(parentObjectAddress);
@@ -292,6 +295,11 @@ namespace MemorySnapshotAnalyzer.Analysis
                     AddPredecessor(childPostorderIndex, parentPostorderIndex, weight);
                 }
             }
+        }
+
+        void LogWarning(string location, string message)
+        {
+            m_logger.Log(LOG_SOURCE, location, message);
         }
     }
 }

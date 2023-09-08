@@ -323,6 +323,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                         m_currentTraceableHeap = new StitchedTraceableHeap(
                             m_currentMemorySnapshot.ManagedHeap(referenceClassifierFactory),
                             m_currentMemorySnapshot.NativeHeap(referenceClassifierFactory),
+                            m_logger,
                             m_traceableHeap_fuseObjectPairs);
                         break;
                     default:
@@ -409,7 +410,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             if (m_currentTracedHeap == null)
             {
                 m_output.Write("[context {0}] tracing heap ...", m_id);
-                m_currentTracedHeap = new TracedHeap(CurrentRootSet!);
+                m_currentTracedHeap = new TracedHeap(CurrentRootSet!, m_logger);
                 m_output.WriteLine(" {0} live objects and {1} distinct roots ({2} invalid roots, {3} invalid pointers)",
                     m_currentTracedHeap.NumberOfLiveObjects,
                     m_currentTracedHeap.NumberOfDistinctRoots,
@@ -516,13 +517,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 return (int)addressOrIndex.Value;
             }
 
-            SegmentedHeap? segmentedHeap = m_currentTraceableHeap!.SegmentedHeapOpt;
-            if (segmentedHeap != null && !segmentedHeap.GetMemoryViewForAddress(addressOrIndex).IsValid)
-            {
-                throw new CommandException($"{addressOrIndex} is neither an address in mapped memory, nor is {addressOrIndex.Value} a valid index");
-            }
-
-            throw new CommandException($"no live object at address {addressOrIndex}");
+            throw new CommandException($"{addressOrIndex} is neither a live object address, nor is {addressOrIndex.Value} a valid index");
         }
 
         #endregion

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -215,11 +215,13 @@ namespace MemorySnapshotAnalyzer.Commands
                         break;
                 }
 
+                TypeSystem typeSystem = m_context.CurrentTraceableHeap!.TypeSystem;
                 foreach (KeyValuePair<int, (int count, long size)> kvp in kvps)
                 {
-                    output.WriteLine("{0} object(s) of type {1} (type index {2}, total size {3})",
+                    output.WriteLine("{0} object(s) of type {1}:{2} (type index {3}, total size {4})",
                         kvp.Value.count,
-                        m_context.CurrentTracedHeap!.RootSet.TraceableHeap.TypeSystem.QualifiedName(kvp.Key),
+                        typeSystem.Assembly(kvp.Key),
+                        typeSystem.QualifiedName(kvp.Key),
                         kvp.Key,
                         kvp.Value.size);
                 }

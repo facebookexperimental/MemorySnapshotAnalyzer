@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -13,6 +13,6 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         MemoryView GetRange(long offset, long size);
 
-        void Read<T>(long position, out T sructure) where T : struct;
+        void Read<T>(long position, out T structure) where T : struct;
     }
 }

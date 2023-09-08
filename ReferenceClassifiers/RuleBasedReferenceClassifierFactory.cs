@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -24,12 +24,12 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             return m_boundRuleset.GetPointerFlags(typeIndex, fieldNumber);
         }
 
-        public override IEnumerable<(Selector selector, int weight)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
+        public override IEnumerable<(Selector selector, int weight, string location)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
         {
             return m_boundRuleset.GetWeightAnchorSelectors(typeIndex, fieldNumber);
         }
 
-        public override IEnumerable<(Selector selector, List<string> tags)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
+        public override IEnumerable<(Selector selector, List<string> tags, string location)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
         {
             return m_boundRuleset.GetTagAnchorSelectors(typeIndex, fieldNumber);
         }

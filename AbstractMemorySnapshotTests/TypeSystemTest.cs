@@ -283,6 +283,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
         }
 
         [Test]
+        public void TestBindSelector()
+        {
+            // TODO:
+            Assert.Pass();
+        }
+
+        [Test]
         public void TestGetWeightAnchorSelectors()
         {
             // Before the corresponding PointerFlags have been returned, the ReferenceClassifier instance has not been built from the factory.
@@ -295,12 +302,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 Assert.That(pointerInfos[0].FieldNumber, Is.EqualTo(0));
             }
 
-            List<(Selector selector, int weight)> selectors = m_typeSystem.GetWeightAnchorSelectors((int)TestTypeIndex.ReferenceClassifiers, fieldNumber: 0).ToList();
+            List<(Selector selector, int weight, string location)> selectors = m_typeSystem.GetWeightAnchorSelectors((int)TestTypeIndex.ReferenceClassifiers, fieldNumber: 0).ToList();
             Assert.That(selectors.Count, Is.EqualTo(1));
             {
                 Assert.That(selectors[0].selector.StaticPrefix.Count, Is.EqualTo(1));
                 Assert.That(selectors[0].selector.DynamicTail, Is.Null);
                 Assert.That(selectors[0].weight, Is.EqualTo(0));
+                Assert.That(selectors[0].location, Is.EqualTo($"{(int)TestTypeIndex.ReferenceClassifiers}:0"));
             }
 
             selectors = m_typeSystem.GetWeightAnchorSelectors((int)TestTypeIndex.ReferenceClassifiers, fieldNumber: 1).ToList();
@@ -326,7 +334,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 Assert.That(pointerInfos[2].FieldNumber, Is.EqualTo(2));
             }
 
-            List<(Selector selector, List<string> tags)> result = m_typeSystem.GetTagAnchorSelectors((int)TestTypeIndex.ReferenceClassifiers, 2).ToList();
+            List<(Selector selector, List<string> tags, string location)> result = m_typeSystem.GetTagAnchorSelectors((int)TestTypeIndex.ReferenceClassifiers, 2).ToList();
             Assert.That(result.Count, Is.EqualTo(1));
             {
                 Assert.That(result[0].selector.StaticPrefix.Count, Is.EqualTo(1));

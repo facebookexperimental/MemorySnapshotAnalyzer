@@ -354,7 +354,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
         }
 
-        protected void DumpObjectMemory(NativeWord address, MemoryView objectView, string? fieldNameOpt = null)
+        protected void DumpObjectMemory(NativeWord address, MemoryView objectView, int indent, string? fieldNameOpt = null)
         {
             // TODO: if the address is not valid, later reads into the assumed object memory range can throw
 
@@ -364,7 +364,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 throw new CommandException($"unable to determine object type");
             }
 
-            DumpObjectMemory(objectView, typeIndex, 0, fieldNameOpt);
+            DumpObjectMemory(objectView, typeIndex, indent, fieldNameOpt);
         }
 
         protected void DumpObjectMemory(MemoryView objectView, int typeIndex, int indent, string? fieldNameOpt = null)
@@ -382,8 +382,9 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             {
                 int elementTypeIndex = typeSystem.BaseOrElementTypeIndex(typeIndex);
                 int arraySize = CurrentSegmentedHeapOpt!.ReadArraySize(objectView);
-                Output.WriteLineIndented(indent, "Array of length {0} with element type {1} (type index {2})",
+                Output.WriteLineIndented(indent, "Array of length {0} with element type {1}:{2} (type index {3})",
                     arraySize,
+                    typeSystem.Assembly(elementTypeIndex),
                     typeSystem.QualifiedName(elementTypeIndex),
                     elementTypeIndex);
 
@@ -425,10 +426,11 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
                     int fieldOffset = typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: true);
                     int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
-                    Output.WriteLineIndented(indent + 1, "+{0}  {1} : {2} {3} (type index {4})",
+                    Output.WriteLineIndented(indent + 1, "+{0}  {1} : {2} {3}:{4} (type index {5})",
                         fieldOffset,
                         fieldName,
                         typeSystem.IsValueType(fieldTypeIndex) ? "value" : typeSystem.IsArray(fieldTypeIndex) ? "array" : "object",
+                        typeSystem.Assembly(fieldTypeIndex),
                         typeSystem.QualifiedName(fieldTypeIndex),
                         fieldTypeIndex);
                     DumpFieldMemory(objectView.GetRange(fieldOffset, objectView.Size - fieldOffset), fieldTypeIndex, indent + 2);
@@ -504,10 +506,11 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 // Avoid infinite recursion due to the way that primitive types (such as System.Int32) are defined.
                 if (fieldTypeIndex != typeIndex)
                 {
-                    Output.WriteLineIndented(indent, "+{0}  {1} : {2} {3} (type index {4})",
+                    Output.WriteLineIndented(indent, "+{0}  {1} : {2} {3}:{4} (type index {5})",
                         fieldOffset,
                         fieldName,
                         typeSystem.IsValueType(fieldTypeIndex) ? "value" : typeSystem.IsArray(fieldTypeIndex) ? "array" : "object",
+                        typeSystem.Assembly(fieldTypeIndex),
                         typeSystem.QualifiedName(fieldTypeIndex),
                         fieldTypeIndex);
                     DumpFieldMemory(objectView.GetRange(fieldOffset, objectView.Size - fieldOffset), fieldTypeIndex, indent + 1);

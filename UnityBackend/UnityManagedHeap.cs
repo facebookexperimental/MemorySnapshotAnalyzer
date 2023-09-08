@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -6,11 +6,10 @@
  */
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
-using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.UnityBackend
 {
-    sealed class UnityManagedHeap : TraceableHeap
+    sealed class UnityManagedHeap : SegmentedTraceableHeap
     {
         sealed class UnityManagedSegmentedHeap : SegmentedHeap
         {
@@ -41,6 +40,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             // Keep a concretely-typed reference to the type system around.
             m_unityManagedTypeSystem = unityManagedTypeSystem;
             m_segmentedHeap = new UnityManagedSegmentedHeap(unityManagedTypeSystem, this, segments);
+            Init(m_segmentedHeap);
             m_gcHandleTargets = gcHandleTargets;
         }
 
@@ -87,50 +87,17 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return m_segmentedHeap.UnityManagedTypeSystem.GetObjectSize(objectView, typeIndex, committedOnly);
         }
 
-        public override string GetObjectNodeType(NativeWord address)
-        {
-            return "object";
-        }
-
-        public override string? GetObjectName(NativeWord objectAddress)
-        {
-            return null;
-        }
-
-        public override IEnumerable<PointerInfo<NativeWord>> GetPointers(NativeWord address, int typeIndex)
-        {
-            return m_segmentedHeap.GetPointers(address, typeIndex);
-        }
-
-        public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress, int weight)> GetWeightedReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
-        {
-            return m_segmentedHeap.GetWeightedReferencesFromAnchor(anchorObjectAddress, pointerInfo);
-        }
-
-        public override IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
-        {
-            return m_segmentedHeap.GetTagsFromAnchor(anchorObjectAddress, pointerInfo);
-        }
-
-        public override int NumberOfObjectPairs => 0;
-
-        public override bool ContainsAddress(NativeWord address)
-        {
-            return m_segmentedHeap.GetSegmentForAddress(address) != null;
-        }
-
         public override string? DescribeAddress(NativeWord address)
         {
             int typeInfoIndex = m_unityManagedTypeSystem.TypeInfoAddressToIndex(address);
             if (typeInfoIndex != -1)
             {
-                return string.Format("VTable[{0}, type index {1}]",
+                return string.Format("VTable[{0}:{1}, type index {2}]",
+                    m_unityManagedTypeSystem.Assembly(typeInfoIndex),
                     m_unityManagedTypeSystem.QualifiedName(typeInfoIndex),
                     typeInfoIndex);
             }
             return null;
         }
-
-        public override SegmentedHeap? SegmentedHeapOpt => m_segmentedHeap;
     }
 }

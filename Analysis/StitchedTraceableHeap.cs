@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -6,6 +6,7 @@
  */
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using System;
 using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.Analysis
@@ -18,7 +19,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly bool m_computingObjectPairs;
         readonly Dictionary<ulong, ulong>? m_fusedObjectParent;
 
-        public StitchedTraceableHeap(TraceableHeap primary, TraceableHeap secondary, bool fuseObjectPairs) :
+        public StitchedTraceableHeap(TraceableHeap primary, TraceableHeap secondary, ILogger logger, bool fuseObjectPairs) :
             base(new StitchedTypeSystem(primary.TypeSystem, secondary.TypeSystem))
         {
             m_primary = primary;
@@ -30,7 +31,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                 m_computingObjectPairs = true;
                 m_fusedObjectParent = new Dictionary<ulong, ulong>();
                 // Perform heap tracing once, for the side effect of discovering all object pairs.
-                var _ = new TracedHeap(new RootSet(this, gcHandleWeight: 0));
+                var _ = new TracedHeap(new RootSet(this, gcHandleWeight: 0), logger);
                 m_computingObjectPairs = false;
             }
         }
@@ -124,18 +125,18 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress, int weight)> GetWeightedReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        public override IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress, int weight)> GetWeightedReferencesFromAnchor(Action<string, string> logWarning, NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
         {
             return m_secondary.ContainsAddress(anchorObjectAddress) ?
-                m_secondary.GetWeightedReferencesFromAnchor(anchorObjectAddress, pointerInfo) :
-                m_primary.GetWeightedReferencesFromAnchor(anchorObjectAddress, pointerInfo);
+                m_secondary.GetWeightedReferencesFromAnchor(logWarning, anchorObjectAddress, pointerInfo) :
+                m_primary.GetWeightedReferencesFromAnchor(logWarning, anchorObjectAddress, pointerInfo);
         }
 
-        public override IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        public override IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(Action<string, string> logWarning, NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
         {
             return m_secondary.ContainsAddress(anchorObjectAddress) ?
-                m_secondary.GetTagsFromAnchor(anchorObjectAddress, pointerInfo) :
-                m_primary.GetTagsFromAnchor(anchorObjectAddress, pointerInfo);
+                m_secondary.GetTagsFromAnchor(logWarning, anchorObjectAddress, pointerInfo) :
+                m_primary.GetTagsFromAnchor(logWarning, anchorObjectAddress, pointerInfo);
         }
 
         public override int NumberOfObjectPairs => m_fusedObjectParent == null ? 0 : m_fusedObjectParent.Count;

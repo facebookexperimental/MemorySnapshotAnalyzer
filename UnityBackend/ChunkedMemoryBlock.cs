@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -37,20 +37,6 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             }
             m_chunkPositions = new long[numberOfChunks];
             m_viewAccessor.ReadArray(position + Marshal.SizeOf(typeof(Block)), m_chunkPositions, 0, m_chunkPositions.Length);
-
-            // TODO: remove once done with decoding RTTI segments
-            //Console.WriteLine("Chunked Memory Block: chunk size = {0}, number of chunks = {1}, total size = {2}",
-            //    m_chunkSizeInBytes,
-            //    m_chunkPositions.Length,
-            //    m_totalSizeInBytes);
-            //for (int i = 0; i < m_chunkPositions.Length; i++)
-            //{
-            //    Console.WriteLine("  Chunk {0}: position {1}", i, m_chunkPositions[i]);
-            //    if (i >= 15)
-            //    {
-            //        break;
-            //    }
-            //}
         }
 
         internal long TotalSizeInBytes { get { return m_totalSizeInBytes; } }

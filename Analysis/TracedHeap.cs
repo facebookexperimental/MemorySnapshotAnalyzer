@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -37,7 +37,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             public int TypeIndexOrRootSentinel;
         }
 
+        static readonly string LOG_SOURCE = "TracedHeap";
+
         readonly IRootSet m_rootSet;
+        readonly ILogger m_logger;
         readonly TraceableHeap m_traceableHeap;
         readonly Native m_native;
         readonly Dictionary<ulong, SortedSet<string>> m_tags;
@@ -45,14 +48,16 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly Dictionary<ulong, int> m_numberOfPredecessors;
         readonly Dictionary<ulong, List<(int rootIndex, PointerInfo<NativeWord> pointerInfo)>> m_objectAddressToRootIndices;
         readonly Stack<MarkStackEntry>? m_markStack;
+        readonly Action<string, string> m_logWarning;
         readonly int m_rootIndexBeingMarked;
         readonly List<(int rootIndex, ulong invalidReference)> m_invalidRoots;
         readonly List<(ulong reference, ulong objectAddress)> m_invalidPointers;
         readonly ObjectAddressToPostorderIndexEntry[] m_objectAddressToPostorderIndex;
 
-        public TracedHeap(IRootSet rootSet)
+        public TracedHeap(IRootSet rootSet, ILogger logger)
         {
             m_rootSet = rootSet;
+            m_logger = logger;
             m_traceableHeap = rootSet.TraceableHeap;
             m_native = m_traceableHeap.Native;
 
@@ -82,6 +87,8 @@ namespace MemorySnapshotAnalyzer.Analysis
                     }
                 }
             }
+
+            m_logWarning = LogWarning;
 
             for (int rootIndex = 0; rootIndex < rootSet.NumberOfRoots; rootIndex++)
             {
@@ -329,7 +336,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         void CheckTagSelector(NativeWord address, PointerInfo<NativeWord> pointerInfo)
         {
-            foreach ((NativeWord taggedObjectAddress, List<string> tags) in m_traceableHeap.GetTagsFromAnchor(address, pointerInfo))
+            foreach ((NativeWord taggedObjectAddress, List<string> tags) in m_traceableHeap.GetTagsFromAnchor(m_logWarning, address, pointerInfo))
             {
                 RecordTags(taggedObjectAddress, tags);
             }
@@ -361,6 +368,11 @@ namespace MemorySnapshotAnalyzer.Analysis
             {
                 objectTags.Add(tag);
             }
+        }
+
+        void LogWarning(string location, string message)
+        {
+            m_logger.Log(LOG_SOURCE, location, message);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -73,7 +73,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             TypeSpec = typeSpec;
         }
 
-        protected static string[] ParseSelector(string value)
+        public static string[] ParseSelector(string value)
         {
             var pieces = new List<string>();
             int startIndex = 0;

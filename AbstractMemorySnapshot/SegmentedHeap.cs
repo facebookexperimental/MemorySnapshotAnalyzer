@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -103,41 +103,67 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
         }
 
-        public IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress, int weight)> GetWeightedReferencesFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        public struct ValueReference
         {
-            foreach ((Selector selector, int weight) in m_typeSystem.GetWeightAnchorSelectors(pointerInfo.TypeIndex, pointerInfo.FieldNumber))
+            public NativeWord AddressOfContainingObject;
+            public MemoryView ValueView;
+            public int TypeIndex;
+            public bool WithHeader;
+        }
+
+        public IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress, int weight)> GetWeightedReferencesFromAnchor(Action<string, string> logWarning, NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        {
+            foreach ((Selector selector, int weight, string location) in m_typeSystem.GetWeightAnchorSelectors(pointerInfo.TypeIndex, pointerInfo.FieldNumber))
             {
-                foreach ((NativeWord childObjectAddress, NativeWord parentObjectAddress) in InterpretSelector(anchorObjectAddress, selector))
+                foreach ((ValueReference valueReference, NativeWord parentObjectAddress) in InterpretSelector(logWarning, anchorObjectAddress, location, selector))
                 {
-                    yield return (childObjectAddress, parentObjectAddress, weight);
+                    if (!valueReference.WithHeader)
+                    {
+                        logWarning(location, string.Format("weighted reference selector returned non-reference type value of type {0}:{1} (type index {2})",
+                            m_typeSystem.Assembly(valueReference.TypeIndex),
+                            m_typeSystem.QualifiedName(valueReference.TypeIndex),
+                            valueReference.TypeIndex));
+                    }
+
+                    yield return (valueReference.AddressOfContainingObject, parentObjectAddress, weight);
                 }
             }
         }
 
-        public IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
+        public IEnumerable<(NativeWord objectAddress, List<string> tags)> GetTagsFromAnchor(Action<string, string> logWarning, NativeWord anchorObjectAddress, PointerInfo<NativeWord> pointerInfo)
         {
-            foreach ((Selector selector, List<string> tags) in m_typeSystem.GetTagAnchorSelectors(pointerInfo.TypeIndex, pointerInfo.FieldNumber))
+            foreach ((Selector selector, List<string> tags, string location) in m_typeSystem.GetTagAnchorSelectors(pointerInfo.TypeIndex, pointerInfo.FieldNumber))
             {
-                foreach ((NativeWord childObjectAddress, NativeWord _) in InterpretSelector(anchorObjectAddress, selector))
+                foreach ((ValueReference valueReference, NativeWord _) in InterpretSelector(logWarning, anchorObjectAddress, location, selector))
                 {
-                    yield return (childObjectAddress, tags);
+                    if (!valueReference.WithHeader)
+                    {
+                        logWarning(location, string.Format("tag selector returned non-reference type value of type {0}:{1} (type index {2})",
+                            m_typeSystem.Assembly(valueReference.TypeIndex),
+                            m_typeSystem.QualifiedName(valueReference.TypeIndex),
+                            valueReference.TypeIndex));
+                    }
+
+                    yield return (valueReference.AddressOfContainingObject, tags);
                 }
             }
         }
 
-        public IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> InterpretSelector(NativeWord referrer, Selector selector)
+        public IEnumerable<(ValueReference valueReference, NativeWord parentObjectAddress)> InterpretSelector(Action<string, string> logWarning, NativeWord referrer, string location, Selector selector)
         {
-            MemoryView memoryView = GetMemoryViewForAddress(referrer);
-            int typeIndex = m_traceableHeap.TryGetTypeIndex(referrer);
-            return InterpretSelector(memoryView, true, typeIndex, referrer, referrer, selector, inStaticPrefix: true, pathIndex: 0);
+            ValueReference valueReference = new()
+            {
+                AddressOfContainingObject = referrer,
+                ValueView = GetMemoryViewForAddress(referrer),
+                TypeIndex = m_traceableHeap.TryGetTypeIndex(referrer),
+                WithHeader = true,
+            };
+            return InterpretSelector(logWarning, valueReference, referrer, location, selector, inStaticPrefix: true, pathIndex: 0);
         }
 
-        public IEnumerable<(NativeWord childObjectAddress, NativeWord parentObjectAddress)> InterpretSelector(MemoryView inputView, bool inputWithHeader, int inputTypeIndex, NativeWord inputObjectAddress, NativeWord inputReferrer, Selector selector, bool inStaticPrefix, int pathIndex)
+        public IEnumerable<(ValueReference valueReference, NativeWord parentObjectAddress)> InterpretSelector(Action<string, string> logWarning, ValueReference inputValueReference, NativeWord inputReferrer, string location, Selector selector, bool inStaticPrefix, int pathIndex)
         {
-            MemoryView memoryView = inputView;
-            bool withHeader = inputWithHeader;
-            int typeIndex = inputTypeIndex;
-            NativeWord objectAddress = inputObjectAddress;
+            ValueReference valueReference = inputValueReference;
             NativeWord referrer = inputReferrer;
             while (true)
             {
@@ -149,19 +175,14 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 }
                 else if (!inStaticPrefix && (selector.DynamicTail == null || pathIndex == selector.DynamicTail.Length))
                 {
-                    if (m_typeSystem.IsValueType(typeIndex))
-                    {
-                        // TODO: emit warning
-                    }
-
-                    yield return (objectAddress, referrer);
-                    break;
+                    yield return (valueReference, referrer);
+                    yield break;
                 }
 
                 int fieldNumber;
                 if (inStaticPrefix)
                 {
-                    (typeIndex, fieldNumber) = selector.StaticPrefix[pathIndex];
+                    (valueReference.TypeIndex, fieldNumber) = selector.StaticPrefix[pathIndex];
                 }
                 else
                 {
@@ -172,10 +193,15 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     }
                     else
                     {
-                        (typeIndex, fieldNumber) = m_typeSystem.GetFieldNumber(typeIndex, fieldName);
+                        (valueReference.TypeIndex, fieldNumber) = m_typeSystem.GetFieldNumber(valueReference.TypeIndex, fieldName);
                         if (fieldNumber == -1)
                         {
-                            // TODO: emit warning
+                            logWarning(location, string.Format("field {0} not found in field or object at address {1} of type {2}:{3} (type index {4})",
+                                fieldName,
+                                valueReference.AddressOfContainingObject,
+                                m_typeSystem.Assembly(valueReference.TypeIndex),
+                                m_typeSystem.QualifiedName(valueReference.TypeIndex),
+                                valueReference.TypeIndex));
                             yield break;
                         }
                     }
@@ -183,36 +209,47 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
                 if (fieldNumber == Int32.MaxValue)
                 {
-                    if (!m_typeSystem.IsArray(typeIndex))
+                    if (!m_typeSystem.IsArray(valueReference.TypeIndex))
                     {
-                        // TODO: emit warning
+                        logWarning(location, string.Format("object at address {0} is expected to be of array type, but found type {1}:{2} (type index {3})",
+                            valueReference.AddressOfContainingObject,
+                            m_typeSystem.Assembly(valueReference.TypeIndex),
+                            m_typeSystem.QualifiedName(valueReference.TypeIndex),
+                            valueReference.TypeIndex));
                         yield break;
                     }
 
-                    int elementTypeIndex = m_typeSystem.BaseOrElementTypeIndex(typeIndex);
-                    int arraySize = ReadArraySize(memoryView);
+                    int elementTypeIndex = m_typeSystem.BaseOrElementTypeIndex(valueReference.TypeIndex);
+                    int arraySize = ReadArraySize(valueReference.ValueView);
                     int elementSize = m_typeSystem.GetArrayElementSize(elementTypeIndex);
                     for (int i = 0; i < arraySize; i++)
                     {
                         int elementOffset = m_typeSystem.GetArrayElementOffset(elementTypeIndex, i);
 
                         // Check for partially-committed array.
-                        if (elementOffset + elementSize > memoryView.Size)
+                        if (elementOffset + elementSize > valueReference.ValueView.Size)
                         {
                             break;
                         }
 
                         if (m_typeSystem.IsValueType(elementTypeIndex))
                         {
-                            MemoryView elementView = memoryView.GetRange(elementOffset, elementSize);
-                            foreach ((NativeWord, NativeWord) pair in InterpretSelector(elementView, false, elementTypeIndex, objectAddress, referrer, selector, inStaticPrefix, pathIndex + 1))
+                            ValueReference elementReference = new()
+                            {
+                                AddressOfContainingObject = valueReference.AddressOfContainingObject,
+                                ValueView = valueReference.ValueView.GetRange(elementOffset, elementSize),
+                                TypeIndex = elementTypeIndex,
+                                WithHeader = false,
+                            };
+
+                            foreach ((ValueReference, NativeWord) pair in InterpretSelector(logWarning, elementReference, referrer, location, selector, inStaticPrefix, pathIndex + 1))
                             {
                                 yield return pair;
                             }
                         }
                         else
                         {
-                            NativeWord elementObjectAddress = memoryView.ReadPointer(elementOffset, m_native);
+                            NativeWord elementObjectAddress = valueReference.ValueView.ReadPointer(elementOffset, m_native);
                             MemoryView elementView = GetMemoryViewForAddress(elementObjectAddress);
                             int effectiveElementTypeIndex = m_traceableHeap.TryGetTypeIndex(elementObjectAddress);
                             if (!elementView.IsValid || effectiveElementTypeIndex == -1)
@@ -220,7 +257,15 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                                 yield break;
                             }
 
-                            foreach ((NativeWord, NativeWord) pair in InterpretSelector(elementView, true, effectiveElementTypeIndex, elementObjectAddress, objectAddress, selector, inStaticPrefix, pathIndex + 1))
+                            ValueReference elementReference = new()
+                            {
+                                AddressOfContainingObject = elementObjectAddress,
+                                ValueView = elementView,
+                                TypeIndex = effectiveElementTypeIndex,
+                                WithHeader = true,
+                            };
+
+                            foreach ((ValueReference, NativeWord) pair in InterpretSelector(logWarning, elementReference, valueReference.AddressOfContainingObject, location, selector, inStaticPrefix, pathIndex + 1))
                             {
                                 yield return pair;
                             }
@@ -230,49 +275,73 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     yield break;
                 }
 
-                int fieldTypeIndex = m_typeSystem.FieldType(typeIndex, fieldNumber);
-                if (m_typeSystem.FieldIsStatic(typeIndex, fieldNumber))
+                int fieldTypeIndex = m_typeSystem.FieldType(valueReference.TypeIndex, fieldNumber);
+                if (m_typeSystem.FieldIsStatic(valueReference.TypeIndex, fieldNumber))
                 {
-                    memoryView = m_typeSystem.StaticFieldBytes(typeIndex, fieldNumber);
-                    withHeader = !m_typeSystem.IsValueType(fieldTypeIndex);
-                    if (withHeader)
+                    valueReference.ValueView = m_typeSystem.StaticFieldBytes(valueReference.TypeIndex, fieldNumber);
+                    valueReference.WithHeader = !m_typeSystem.IsValueType(fieldTypeIndex);
+                    if (valueReference.WithHeader)
                     {
-                        // TODO: what should the referrer be?
-                        referrer = objectAddress;
-                        objectAddress = memoryView.ReadPointer(0, m_native);
-                        memoryView = GetMemoryViewForAddress(objectAddress);
-                        typeIndex = m_traceableHeap.TryGetTypeIndex(objectAddress);
+                        referrer = default;
+                        valueReference.AddressOfContainingObject = valueReference.ValueView.ReadPointer(0, m_native);
+                        if (valueReference.AddressOfContainingObject.Value == 0)
+                        {
+                            yield break;
+                        }
+                        valueReference.ValueView = GetMemoryViewForAddress(valueReference.AddressOfContainingObject);
+                        valueReference.TypeIndex = m_traceableHeap.TryGetTypeIndex(valueReference.AddressOfContainingObject);
                     }
                     else
                     {
-                        typeIndex = fieldTypeIndex;
+                        valueReference.TypeIndex = fieldTypeIndex;
                     }
                 }
                 else
                 {
-                    int fieldOffset = m_typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader);
-                    if (m_typeSystem.IsValueType(fieldTypeIndex))
+                    int fieldOffset = m_typeSystem.FieldOffset(valueReference.TypeIndex, fieldNumber, valueReference.WithHeader);
+                    valueReference.WithHeader = !m_typeSystem.IsValueType(fieldTypeIndex);
+                    if (valueReference.WithHeader)
                     {
-                        memoryView = memoryView.GetRange(fieldOffset, memoryView.Size - fieldOffset);
-                        typeIndex = fieldTypeIndex;
+                        referrer = valueReference.AddressOfContainingObject;
+                        valueReference.AddressOfContainingObject = valueReference.ValueView.ReadPointer(fieldOffset, m_native);
+                        if (valueReference.AddressOfContainingObject.Value == 0)
+                        {
+                            yield break;
+                        }
+                        valueReference.ValueView = GetMemoryViewForAddress(valueReference.AddressOfContainingObject);
+                        valueReference.TypeIndex = m_traceableHeap.TryGetTypeIndex(valueReference.AddressOfContainingObject);
                     }
                     else
                     {
-                        referrer = objectAddress;
-                        objectAddress = memoryView.ReadPointer(fieldOffset, m_native);
-                        memoryView = GetMemoryViewForAddress(objectAddress);
-                        typeIndex = m_traceableHeap.TryGetTypeIndex(objectAddress);
+                        valueReference.ValueView = valueReference.ValueView.GetRange(fieldOffset, valueReference.ValueView.Size - fieldOffset);
+                        valueReference.TypeIndex = fieldTypeIndex;
                     }
                 }
 
-                if (!memoryView.IsValid)
+                if (valueReference.TypeIndex == -1 || !valueReference.ValueView.IsValid)
                 {
-                    // TODO: warning
-                    yield break;
-                }
-                else if (typeIndex == -1)
-                {
-                    // TODO: warning
+                    int parentTypeIndex = m_traceableHeap.TryGetTypeIndex(referrer);
+                    string fieldName;
+
+                    if (inStaticPrefix)
+                    {
+                        (int staticTypeIndex, int staticFieldNumber) = selector.StaticPrefix[pathIndex];
+                        fieldName = m_typeSystem.FieldName(staticTypeIndex, staticFieldNumber);
+                    }
+                    else
+                    {
+                        fieldName = selector.DynamicTail![pathIndex];
+                    }
+
+                    logWarning(location, string.Format("object at address {0} of type {1}:{2} (type index {3}) refers to address {4} which is in unmapped memory (field name \"{5}\", {6} selector path index {7})",
+                        referrer,
+                        m_typeSystem.Assembly(parentTypeIndex),
+                        m_typeSystem.QualifiedName(parentTypeIndex),
+                        parentTypeIndex,
+                        valueReference.AddressOfContainingObject,
+                        fieldName,
+                        inStaticPrefix ? "static" : "dynamic",
+                        pathIndex));
                     yield break;
                 }
 

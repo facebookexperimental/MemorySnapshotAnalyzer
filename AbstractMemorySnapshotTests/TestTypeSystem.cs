@@ -133,7 +133,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                     return default;
                 }
 
-                public override IEnumerable<(Selector selector, int weight)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
+                public override IEnumerable<(Selector selector, int weight, string location)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
                 {
                     if ((TestTypeIndex)typeIndex != TestTypeIndex.ReferenceClassifiers || (fieldNumber != 0 && fieldNumber != 1))
                     {
@@ -144,10 +144,10 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                     {
                         StaticPrefix = new() { ((int)TestTypeIndex.ReferenceClassifiers, 0) },
                         DynamicTail = fieldNumber == 0 ? null : new string[] { "derivedField" },
-                    }, weight: fieldNumber == 1 ? 3 : 0);
+                    }, weight: fieldNumber == 1 ? 3 : 0, location: $"{typeIndex}:{fieldNumber}");
                 }
 
-                public override IEnumerable<(Selector selector, List<string> tags)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
+                public override IEnumerable<(Selector selector, List<string> tags, string location)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
                 {
                     if ((TestTypeIndex)typeIndex != TestTypeIndex.ReferenceClassifiers || fieldNumber != 2)
                     {
@@ -160,7 +160,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                         DynamicTail = new string[] { "derivedField" },
                     };
                     List<string> tags = new() { "tag1", "tag2" };
-                    yield return (selector, tags);
+                    yield return (selector, tags, location: $"{typeIndex}:{fieldNumber}");
                 }
 
                 public override (List<string> zeroTags, List<string> nonZeroTags) GetTags(int typeIndex, int fieldNumber)
