@@ -70,14 +70,17 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
             }));
         }
 
-        void CheckGroup(List<Rule> rules, List<(string location, string rulesText)> expected)
+        static void CheckGroup(List<Rule> rules, List<(string location, string rulesText)> expected)
         {
-            Assert.That(rules.Count, Is.EqualTo(expected.Count));
-            for (int i = 0; i < rules.Count; i++)
+            Assert.That(rules, Has.Exactly(expected.Count).Items);
+            Assert.Multiple(() =>
             {
-                Assert.That(rules[i].Location, Is.EqualTo(expected[i].location));
-                Assert.That(rules[i].ToString(), Is.EqualTo(expected[i].rulesText));
-            }
+                for (int i = 0; i < rules.Count; i++)
+                {
+                    Assert.That(rules[i].Location, Is.EqualTo(expected[i].location));
+                    Assert.That(rules[i].ToString(), Is.EqualTo(expected[i].rulesText));
+                }
+            });
         }
     }
 }

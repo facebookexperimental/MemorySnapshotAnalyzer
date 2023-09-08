@@ -5,12 +5,16 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+using System;
 using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
     public struct Selector
     {
+        // Sentinel value for array indexing (all elements)
+        public static readonly int FieldNumberArraySentinel = Int32.MaxValue;
+
         public List<(int typeIndex, int fieldNumber)> StaticPrefix;
         public string[]? DynamicTail;
     }

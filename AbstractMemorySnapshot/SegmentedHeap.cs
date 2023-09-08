@@ -161,7 +161,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             return InterpretSelector(logWarning, valueReference, referrer, location, selector, inStaticPrefix: true, pathIndex: 0);
         }
 
-        public IEnumerable<(ValueReference valueReference, NativeWord parentObjectAddress)> InterpretSelector(Action<string, string> logWarning, ValueReference inputValueReference, NativeWord inputReferrer, string location, Selector selector, bool inStaticPrefix, int pathIndex)
+        IEnumerable<(ValueReference valueReference, NativeWord parentObjectAddress)> InterpretSelector(Action<string, string> logWarning, ValueReference inputValueReference, NativeWord inputReferrer, string location, Selector selector, bool inStaticPrefix, int pathIndex)
         {
             ValueReference valueReference = inputValueReference;
             NativeWord referrer = inputReferrer;
@@ -189,7 +189,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     string fieldName = selector.DynamicTail![pathIndex];
                     if (fieldName.Equals("[]", StringComparison.Ordinal))
                     {
-                        fieldNumber = Int32.MaxValue;
+                        fieldNumber = Selector.FieldNumberArraySentinel;
                     }
                     else
                     {
@@ -207,7 +207,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     }
                 }
 
-                if (fieldNumber == Int32.MaxValue)
+                if (fieldNumber == Selector.FieldNumberArraySentinel)
                 {
                     if (!m_typeSystem.IsArray(valueReference.TypeIndex))
                     {

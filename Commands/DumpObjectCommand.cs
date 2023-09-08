@@ -151,7 +151,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 Output.WriteLine(sb.ToString());
 
                 string[] fields = Rule.ParseSelector(Selector);
-                Selector selector = CurrentTraceableHeap.TypeSystem.BindSelector(Output.WriteLine, typeIndex, fields, isDynamic: false);
+                Selector selector = CurrentTraceableHeap.TypeSystem.BindSelector(Output.WriteLine, typeIndex, fields, expectDynamic: false, expectReferenceType: false);
                 if (selector.StaticPrefix != null)
                 {
                     foreach ((SegmentedHeap.ValueReference valueReference, NativeWord _) in segmentedHeap.InterpretSelector((_, message) => Output.WriteLine(message), address, "command line", selector))

@@ -182,7 +182,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
             Assert.That(backtracer.Predecessors(NodeIndex(traceableHeap.Target)),
                 Is.EquivalentTo(new int[] { NodeIndex(traceableHeap.Reference1), NodeIndex(traceableHeap.Reference2) }));
             Assert.That(backtracer.Weight(NodeIndex(traceableHeap.Target)), Is.EqualTo(0));
-            Assert.That(GetLog().Count, Is.EqualTo(0));
+            Assert.That(GetLog(), Has.Exactly(0).Items);
         }
 
         sealed class MultipleReferencesFromSameObjectTraceableHeap : MockTraceableHeap
@@ -216,7 +216,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
             Assert.That(backtracer.Predecessors(NodeIndex(traceableHeap.Target)),
                 Is.EquivalentTo(new int[] { NodeIndex(traceableHeap.Reference) }));
             Assert.That(backtracer.Weight(NodeIndex(traceableHeap.Target)), Is.EqualTo(0));
-            Assert.That(GetLog().Count, Is.EqualTo(0));
+            Assert.That(GetLog(), Has.Exactly(0).Items);
         }
 
         sealed class SubsequentWeakReferenceTraceableHeap : MockTraceableHeap
@@ -262,7 +262,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
             Assert.That(backtracer.Predecessors(NodeIndex(traceableHeap.Target)),
                 Is.EquivalentTo(new int[] { NodeIndex(traceableHeap.Reference) }));
             Assert.That(backtracer.Weight(NodeIndex(traceableHeap.Target)), Is.EqualTo(0));
-            Assert.That(GetLog().Count, Is.EqualTo(0));
+            Assert.That(GetLog(), Has.Exactly(0).Items);
         }
 
         sealed class MultipleWeakReferencesTraceableHeap : MockTraceableHeap
@@ -310,7 +310,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
             Assert.That(backtracer.Predecessors(NodeIndex(traceableHeap.Target)),
                 Is.EquivalentTo(new int[] { NodeIndex(traceableHeap.Reference1), NodeIndex(traceableHeap.Reference2) }));
             Assert.That(backtracer.Weight(NodeIndex(traceableHeap.Target)), Is.EqualTo(-1));
-            Assert.That(GetLog().Count, Is.EqualTo(0));
+            Assert.That(GetLog(), Has.Exactly(0).Items);
         }
 
         sealed class WeakThenRegularReferenceTraceableHeap : MockTraceableHeap
@@ -356,7 +356,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
             Assert.That(backtracer.Predecessors(NodeIndex(traceableHeap.Target)),
                 Is.EquivalentTo(new int[] { NodeIndex(traceableHeap.Reference) }));
             Assert.That(backtracer.Weight(NodeIndex(traceableHeap.Target)), Is.EqualTo(0));
-            Assert.That(GetLog().Count, Is.EqualTo(0));
+            Assert.That(GetLog(), Has.Exactly(0).Items);
         }
 
         sealed class RegularThenStrongReferenceTraceableHeap : MockTraceableHeap
@@ -402,7 +402,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
             Assert.That(backtracer.Predecessors(NodeIndex(traceableHeap.Target)),
                 Is.EquivalentTo(new int[] { NodeIndex(traceableHeap.Reference) }));
             Assert.That(backtracer.Weight(NodeIndex(traceableHeap.Target)), Is.EqualTo(1));
-            Assert.That(GetLog().Count, Is.EqualTo(0));
+            Assert.That(GetLog(), Has.Exactly(0).Items);
         }
 
         sealed class MultipleStrongReferencesTraceableHeap : MockTraceableHeap
@@ -450,7 +450,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
             Assert.That(backtracer.Predecessors(NodeIndex(traceableHeap.Target)),
                 Is.EquivalentTo(new int[] { NodeIndex(traceableHeap.Reference1), NodeIndex(traceableHeap.Reference2) }));
             Assert.That(backtracer.Weight(NodeIndex(traceableHeap.Target)), Is.EqualTo(1));
-            Assert.That(GetLog().Count, Is.EqualTo(1));
+            Assert.That(GetLog(), Has.Exactly(1).Items);
         }
     }
 }

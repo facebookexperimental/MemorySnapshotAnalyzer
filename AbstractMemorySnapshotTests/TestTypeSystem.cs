@@ -21,7 +21,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
         ValueTypeTwoPointers,
         ObjectTwoPointers,
         ObjectTwoPointersInValueType,
-        DerivedTypeThreePointers,
+        DerivedTypeFourPointers,
         ClassWithStaticFields,
         FieldWithPointerFlagsExternal,
         ObjectArray,
@@ -97,7 +97,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             {
                 public override PointerFlags GetPointerFlags(int typeIndex, int fieldNumber)
                 {
-                    if ((TestTypeIndex)typeIndex == TestTypeIndex.DerivedTypeThreePointers && fieldNumber == 0)
+                    if ((TestTypeIndex)typeIndex == TestTypeIndex.DerivedTypeFourPointers && fieldNumber == 0)
                     {
                         return PointerFlags.Weighted.WithWeight(1);
                     }
@@ -200,7 +200,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 TypeInfo.ForValueType("ValueTypeTwoPointers", 32, new()
                 {
                     new("object1", 16, TestTypeIndex.ObjectNoPointers),
-                    new("object2", 24, TestTypeIndex.ObjectNoPointers),
+                    new("object2", 24, TestTypeIndex.ObjectTwoPointers),
                 }));
             m_typeInfos.Add(TestTypeIndex.ObjectTwoPointers,
                 TypeInfo.ForObject("ObjectTwoPointers", 32, TestTypeIndex.None, new()
@@ -214,10 +214,11 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                     new("value", 16, TestTypeIndex.ValueTypeTwoPointers),
                     new("object", 32, TestTypeIndex.ObjectTwoPointersInValueType),
                 }));
-            m_typeInfos.Add(TestTypeIndex.DerivedTypeThreePointers,
-                TypeInfo.ForObject("DerivedTypeThreePointers", 48, TestTypeIndex.ObjectTwoPointers, new()
+            m_typeInfos.Add(TestTypeIndex.DerivedTypeFourPointers,
+                TypeInfo.ForObject("DerivedTypeFourPointers", 48, TestTypeIndex.ObjectTwoPointers, new()
                 {
                     new("object3", 32, TestTypeIndex.ObjectTwoPointers), // IsOwningReference
+                    new("next", 40, TestTypeIndex.DerivedTypeFourPointers),
                 }));
             m_typeInfos.Add(TestTypeIndex.ClassWithStaticFields,
                 TypeInfo.ForObject("ClassWithStaticFields", 40, TestTypeIndex.None, new()
@@ -238,13 +239,15 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             m_typeInfos.Add(TestTypeIndex.ValueTypeArray,
                 TypeInfo.ForArray("ValueTypeTwoPointers[]", TestTypeIndex.ValueTypeTwoPointers));
             m_typeInfos.Add(TestTypeIndex.ReferenceClassifiers,
-                TypeInfo.ForObject("ReferenceClassifiers", 56, TestTypeIndex.None, new()
+                TypeInfo.ForObject("ReferenceClassifiers", 72, TestTypeIndex.None, new()
                 {
                     new("weightAnchorStatic", 16, TestTypeIndex.ObjectTwoPointers), // IsWeightAnchhor
                     new("weightAnchorDynamic", 24, TestTypeIndex.ObjectTwoPointers), // IsWeightAnchor
                     new("tagAnchor", 32, TestTypeIndex.ObjectTwoPointers), // IsTagAnchor
                     new("tagIfZero", 40, TestTypeIndex.ObjectTwoPointers), // TagIfZero
                     new("object", 48, TestTypeIndex.ReferenceClassifiers),
+                    new("array", 56, TestTypeIndex.ObjectArray),
+                    new("valueTypeArray", 64, TestTypeIndex.ValueTypeArray),
                 }));
             m_typeInfos.Add(TestTypeIndex.DerivedFromReferenceClassifier,
                 TypeInfo.ForObject("ReferenceClassifiers", 64, TestTypeIndex.ReferenceClassifiers, new()
@@ -277,7 +280,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
 
         public override string Assembly(int typeIndex)
         {
-            throw new NotImplementedException();
+            return "Test.Assembly";
         }
 
         public override string QualifiedName(int typeIndex)

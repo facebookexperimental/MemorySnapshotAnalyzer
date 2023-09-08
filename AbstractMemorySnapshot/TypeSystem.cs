@@ -247,9 +247,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
         }
 
-        static readonly int s_fieldIsArraySentinel = Int32.MaxValue;
-
-        public Selector BindSelector(Action<string> logWarning, int typeIndex, string[] fieldNames, bool isDynamic)
+        public Selector BindSelector(Action<string> logWarning, int typeIndex, string[] fieldNames, bool expectDynamic, bool expectReferenceType)
         {
             List<(int typeIndex, int fieldNumber)> fieldPath = new(fieldNames.Length);
             int currentTypeIndex = typeIndex;
@@ -259,11 +257,10 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 int fieldTypeIndex;
                 if (fieldNames[i] == "[]")
                 {
-                    // Sentinel value for array indexing (all elements)
-                    fieldNumber = s_fieldIsArraySentinel;
+                    fieldNumber = Selector.FieldNumberArraySentinel;
                     if (!IsArray(currentTypeIndex))
                     {
-                        logWarning($"field was expected to be an array type; found {QualifiedName(currentTypeIndex)}");
+                        logWarning($"field was expected to be an array type; found {QualifiedName(currentTypeIndex)} - selector will never succeed");
                         return default;
                     }
 
@@ -274,7 +271,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     (int baseTypeIndex, fieldNumber) = GetFieldNumber(currentTypeIndex, fieldNames[i]);
                     if (fieldNumber == -1)
                     {
-                        if (!isDynamic)
+                        if (IsValueType(currentTypeIndex))
+                        {
+                            logWarning($"field {fieldNames[i]} not found in type {QualifiedName(currentTypeIndex)}, which is a value type - selector will never succeed");
+                            return default;
+                        }
+                        else if (!expectDynamic)
                         {
                             logWarning($"field {fieldNames[i]} not found in type {QualifiedName(currentTypeIndex)}; switching to dynamic lookup");
                         }
@@ -295,7 +297,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 currentTypeIndex = fieldTypeIndex;
             }
 
-            if (IsValueType(currentTypeIndex))
+            if (expectReferenceType && IsValueType(currentTypeIndex))
             {
                 logWarning(string.Format("field path for {0}.{1} ending in non-reference type field {2} of type {3}:{4} (type index {5})",
                     QualifiedName(typeIndex),
@@ -306,7 +308,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     currentTypeIndex));
             }
 
-            if (isDynamic)
+            if (expectDynamic)
             {
                 logWarning(string.Format("field path for {0}.{1} uses *_DYNAMIC rule, but is statically resolved",
                     QualifiedName(typeIndex),

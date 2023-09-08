@@ -83,7 +83,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     }
 
                     var selector = m_typeSystem.BindSelector(s => m_logger.Log(LOG_SOURCE, ownsRule.Location, s),
-                        typeIndex, ownsRule.Selector, isDynamic: ownsRule.IsDynamic);
+                        typeIndex, ownsRule.Selector, expectDynamic: ownsRule.IsDynamic, expectReferenceType: true);
                     if (selector.StaticPrefix != null)
                     {
                         selectors.Add((selector, weight: ownsRule.Weight, location: ownsRule.Location));
@@ -98,7 +98,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     }
 
                     var selector = m_typeSystem.BindSelector(s => m_logger.Log(LOG_SOURCE, tagSelectorRule.Location, s),
-                        typeIndex, tagSelectorRule.Selector, tagSelectorRule.IsDynamic);
+                        typeIndex, tagSelectorRule.Selector, tagSelectorRule.IsDynamic, expectReferenceType: true);
                     if (selector.StaticPrefix != null)
                     {
                         selectors.Add((selector, tags: new List<string>(tagSelectorRule.Tags), location: tagSelectorRule.Location));

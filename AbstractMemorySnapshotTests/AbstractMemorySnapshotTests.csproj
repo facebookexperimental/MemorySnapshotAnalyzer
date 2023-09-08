@@ -5,6 +5,10 @@
     <RootNamespace>MemorySnapshotAnalyzer.AbstractMemorySnapshotTests</RootNamespace>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\AbstractMemorySnapshot\AbstractMemorySnapshot.csproj" />
   </ItemGroup>
