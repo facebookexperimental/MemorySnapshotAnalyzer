@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -19,14 +19,6 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         public ILogger MakeLogger()
         {
             return new MemoryLogger();
-        }
-    }
-
-    public sealed class ConsoleLoggerFactory : ILoggerFactory
-    {
-        public ILogger MakeLogger()
-        {
-            return new ConsoleLogger();
         }
     }
 }

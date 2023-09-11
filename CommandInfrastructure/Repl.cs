@@ -291,6 +291,11 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             finally
             {
                 m_currentCommandLine = null;
+
+                foreach (var kvp in m_contexts)
+                {
+                    kvp.Value.SummarizeNewWarnings();
+                }
             }
         }
 

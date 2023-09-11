@@ -71,6 +71,11 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             return newContext;
         }
 
+        public void SummarizeNewWarnings()
+        {
+            m_logger.SummarizeNew(s => m_output.WriteLine(s));
+        }
+
         public void FlushWarnings()
         {
             m_logger.Flush(s => m_output.WriteLine(s));

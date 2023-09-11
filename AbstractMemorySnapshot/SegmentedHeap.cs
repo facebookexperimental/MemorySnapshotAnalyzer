@@ -160,10 +160,10 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 TypeIndex = m_traceableHeap.TryGetTypeIndex(referrer),
                 WithHeader = true,
             };
-            return InterpretSelector(logWarning, valueReference, referrer, location, selector, inStaticPrefix: true, pathIndex: 0);
+            return InterpretSelector(logWarning, valueReference, referrer, referrer, location, selector, inStaticPrefix: true, pathIndex: 0);
         }
 
-        IEnumerable<(ValueReference valueReference, NativeWord parentObjectAddress)> InterpretSelector(Action<string, string> logWarning, ValueReference inputValueReference, NativeWord inputReferrer, string location, Selector selector, bool inStaticPrefix, int pathIndex)
+        IEnumerable<(ValueReference valueReference, NativeWord parentObjectAddress)> InterpretSelector(Action<string, string> logWarning, ValueReference inputValueReference, NativeWord inputReferrer, NativeWord topReferrer, string location, Selector selector, bool inStaticPrefix, int pathIndex)
         {
             ValueReference valueReference = inputValueReference;
             NativeWord referrer = inputReferrer;
@@ -198,12 +198,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                         (valueReference.TypeIndex, fieldNumber) = m_typeSystem.GetFieldNumber(valueReference.TypeIndex, fieldName);
                         if (fieldNumber == -1)
                         {
-                            logWarning(location, string.Format("field {0} not found in field or object at address {1} of type {2}:{3} (type index {4})",
-                                fieldName,
-                                valueReference.AddressOfContainingObject,
-                                m_typeSystem.Assembly(valueReference.TypeIndex),
-                                m_typeSystem.QualifiedName(valueReference.TypeIndex),
-                                valueReference.TypeIndex));
+                            int topTypeIndex = selector.StaticPrefix[0].typeIndex;
+                            logWarning(location, string.Format("{0}:{1} (type index {2}) selector {3} at {4}: field not found",
+                                m_typeSystem.Assembly(topTypeIndex),
+                                m_typeSystem.QualifiedName(topTypeIndex),
+                                topTypeIndex,
+                                selector.Stringify(m_typeSystem, pathIndex, inStaticPrefix: inStaticPrefix),
+                                topReferrer));
                             yield break;
                         }
                     }
@@ -213,11 +214,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 {
                     if (!m_typeSystem.IsArray(valueReference.TypeIndex))
                     {
-                        logWarning(location, string.Format("object at address {0} is expected to be of array type, but found type {1}:{2} (type index {3})",
-                            valueReference.AddressOfContainingObject,
-                            m_typeSystem.Assembly(valueReference.TypeIndex),
-                            m_typeSystem.QualifiedName(valueReference.TypeIndex),
-                            valueReference.TypeIndex));
+                        int topTypeIndex = selector.StaticPrefix[0].typeIndex;
+                        logWarning(location, string.Format("{0}:{1} (type index {2}) selector {3} at {4}: expected array",
+                            m_typeSystem.Assembly(topTypeIndex),
+                            m_typeSystem.QualifiedName(topTypeIndex),
+                            topTypeIndex,
+                            selector.Stringify(m_typeSystem, pathIndex, inStaticPrefix: inStaticPrefix),
+                            topReferrer));
                         yield break;
                     }
 
@@ -244,7 +247,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                                 WithHeader = false,
                             };
 
-                            foreach ((ValueReference, NativeWord) pair in InterpretSelector(logWarning, elementReference, referrer, location, selector, inStaticPrefix, pathIndex + 1))
+                            foreach ((ValueReference, NativeWord) pair in InterpretSelector(logWarning, elementReference, referrer, topReferrer, location, selector, inStaticPrefix, pathIndex + 1))
                             {
                                 yield return pair;
                             }
@@ -267,7 +270,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                                 WithHeader = true,
                             };
 
-                            foreach ((ValueReference, NativeWord) pair in InterpretSelector(logWarning, elementReference, valueReference.AddressOfContainingObject, location, selector, inStaticPrefix, pathIndex + 1))
+                            foreach ((ValueReference, NativeWord) pair in InterpretSelector(logWarning, elementReference, valueReference.AddressOfContainingObject, topReferrer, location, selector, inStaticPrefix, pathIndex + 1))
                             {
                                 yield return pair;
                             }
@@ -322,28 +325,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
                 if (valueReference.TypeIndex == -1 || !valueReference.ValueView.IsValid)
                 {
-                    int parentTypeIndex = m_traceableHeap.TryGetTypeIndex(referrer);
-                    string fieldName;
-
-                    if (inStaticPrefix)
-                    {
-                        (int staticTypeIndex, int staticFieldNumber) = selector.StaticPrefix[pathIndex];
-                        fieldName = m_typeSystem.FieldName(staticTypeIndex, staticFieldNumber);
-                    }
-                    else
-                    {
-                        fieldName = selector.DynamicTail![pathIndex];
-                    }
-
-                    logWarning(location, string.Format("object at address {0} of type {1}:{2} (type index {3}) refers to address {4} which is in unmapped memory (field name \"{5}\", {6} selector path index {7})",
-                        referrer,
-                        m_typeSystem.Assembly(parentTypeIndex),
-                        m_typeSystem.QualifiedName(parentTypeIndex),
-                        parentTypeIndex,
-                        valueReference.AddressOfContainingObject,
-                        fieldName,
-                        inStaticPrefix ? "static" : "dynamic",
-                        pathIndex));
+                    int topTypeIndex = selector.StaticPrefix[0].typeIndex;
+                    logWarning(location, string.Format("{0}:{1} (type index {2}) selector {3} at {4}: unmapped memory",
+                        m_typeSystem.Assembly(topTypeIndex),
+                        m_typeSystem.QualifiedName(topTypeIndex),
+                        topTypeIndex,
+                        selector.Stringify(m_typeSystem, pathIndex, inStaticPrefix: inStaticPrefix),
+                        topReferrer));
                     yield break;
                 }
 

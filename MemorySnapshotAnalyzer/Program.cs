@@ -101,25 +101,21 @@ static class Program
             }
 
             IOutput output;
-            ILoggerFactory loggerFactory;
             if (commandLineArguments.LogOutputFilename != null)
             {
                 errorOutput = new FileOutput(commandLineArguments.LogOutputFilename, useUnixNewlines: false);
                 output = errorOutput;
-                loggerFactory = new MemoryLoggerFactory();
             }
             else if (commandLineArguments.NonInteractive)
             {
                 output = new FileOutput(Console.Out);
-                loggerFactory = new MemoryLoggerFactory();
             }
             else
             {
                 output = new ConsoleOutput();
-                loggerFactory = new ConsoleLoggerFactory();
             }
 
-            using Repl repl = new(configuration, output, loggerFactory, isInteractive: !commandLineArguments.NonInteractive);
+            using Repl repl = new(configuration, output, new MemoryLoggerFactory(), isInteractive: !commandLineArguments.NonInteractive);
 
             repl.AddMemorySnapshotLoader(new UnityMemorySnapshotLoader());
 

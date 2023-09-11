@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text;
 
 namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
@@ -249,6 +250,21 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             }
         }
 
+        public static string StringifySelector(string[] selector)
+        {
+            StringBuilder sb = new();
+            foreach (string fieldName in selector)
+            {
+                if (sb.Length > 0 && !fieldName.Equals("[]", StringComparison.Ordinal))
+                {
+                    sb.Append('.');
+                }
+                sb.Append(fieldName);
+            }
+            return sb.ToString();
+        }
+
+        // If binding fails, returns a selector whose StaticPrefix is null.
         public Selector BindSelector(Action<string> logWarning, int typeIndex, string[] fieldNames, bool expectDynamic, bool expectReferenceType)
         {
             List<(int typeIndex, int fieldNumber)> fieldPath = new(fieldNames.Length);
@@ -301,10 +317,11 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
             if (expectReferenceType && IsValueType(currentTypeIndex))
             {
-                logWarning(string.Format("field path for {0}.{1} ending in non-reference type field {2} of type {3}:{4} (type index {5})",
+                logWarning(string.Format("type {0}:{1} (type index {2}) selector \"{3}\" ending in non-reference type {4}:{5} (type index {6})",
+                    Assembly(typeIndex),
                     QualifiedName(typeIndex),
-                    fieldNames[0],
-                    fieldNames[^1],
+                    typeIndex,
+                    StringifySelector(fieldNames),
                     Assembly(currentTypeIndex),
                     QualifiedName(currentTypeIndex),
                     currentTypeIndex));
@@ -312,9 +329,11 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
             if (expectDynamic)
             {
-                logWarning(string.Format("field path for {0}.{1} uses *_DYNAMIC rule, but is statically resolved",
+                logWarning(string.Format("type {0}:{1} (type index {2}) selector \"{3}\" uses *_DYNAMIC rule, but is statically resolved",
+                    Assembly(typeIndex),
                     QualifiedName(typeIndex),
-                    fieldNames[0]));
+                    typeIndex,
+                    StringifySelector(fieldNames)));
             }
 
             return new Selector { StaticPrefix = fieldPath };

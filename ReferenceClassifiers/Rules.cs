@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -114,20 +115,6 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             return pieces.ToArray();
         }
 
-        protected static string StringifySelector(string[] selector)
-        {
-            StringBuilder sb = new();
-            foreach (string fieldName in selector)
-            {
-                if (sb.Length > 0 && !fieldName.Equals("[]", StringComparison.Ordinal))
-                {
-                    sb.Append('.');
-                }
-                sb.Append(fieldName);
-            }
-            return sb.ToString();
-        }
-
         protected static string[] ParseTags(string tags)
         {
             return tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -170,11 +157,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             string keyword = IsDynamic ? "OWNS_DYNAMIC" : "OWNS";
             if (Weight == 1)
             {
-                return $"{TypeSpec} {keyword} \"{StringifySelector(Selector)}\";";
+                return $"{TypeSpec} {keyword} \"{TypeSystem.StringifySelector(Selector)}\";";
             }
             else
             {
-                return $"{TypeSpec} {keyword}({Weight}) \"{StringifySelector(Selector)}\";";
+                return $"{TypeSpec} {keyword}({Weight}) \"{TypeSystem.StringifySelector(Selector)}\";";
             }
         }
     }
@@ -213,7 +200,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         public override string ToString()
         {
             string keyword = IsDynamic ? "TAG_DYNAMIC" : "TAG";
-            return $"{TypeSpec} {keyword}({StringifyTags(Tags)}) \"{StringifySelector(Selector)}\";";
+            return $"{TypeSpec} {keyword}({StringifyTags(Tags)}) \"{TypeSystem.StringifySelector(Selector)}\";";
         }
     }
 

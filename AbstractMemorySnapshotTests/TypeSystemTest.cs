@@ -304,8 +304,24 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
         {
             List<string> warnings = new();
 
-            // Base case: single field
+            // Empty selector
             Selector selector = m_typeSystem!.BindSelector(warnings.Add,
+                (int)TestTypeIndex.ReferenceClassifiers,
+                new string[0],
+                expectDynamic: false,
+                expectReferenceType: true);
+            Assert.Multiple(() =>
+            {
+                Assert.That(warnings, Is.Empty);
+
+                Assert.That(selector.StaticPrefix, Has.Exactly(0).Items);
+                Assert.That(selector.DynamicTail, Is.Null);
+
+                Assert.That(selector.Stringify(m_typeSystem!, pathIndex: 0, inStaticPrefix: true), Is.EqualTo(""));
+            });
+
+            // Base case: single field
+            selector = m_typeSystem!.BindSelector(warnings.Add,
                 (int)TestTypeIndex.ValueTypeTwoPointers,
                 new string[] { "object2" },
                 expectDynamic: false,
@@ -317,8 +333,9 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 Assert.That(selector.StaticPrefix, Has.Exactly(1).Items);
                 Assert.That(selector.StaticPrefix[0].typeIndex, Is.EqualTo((int)TestTypeIndex.ValueTypeTwoPointers));
                 Assert.That(selector.StaticPrefix[0].fieldNumber, Is.EqualTo(1));
-
                 Assert.That(selector.DynamicTail, Is.Null);
+
+                Assert.That(selector.Stringify(m_typeSystem!, pathIndex: 0, inStaticPrefix: true), Is.EqualTo("^object2"));
             });
 
             // Two fields looked up statically
@@ -403,6 +420,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 Assert.That(selector.StaticPrefix[1].typeIndex, Is.EqualTo((int)TestTypeIndex.ObjectArray));
                 Assert.That(selector.StaticPrefix[1].fieldNumber, Is.EqualTo(Selector.FieldNumberArraySentinel));
                 Assert.That(selector.DynamicTail, Is.Null);
+
+                Assert.That(selector.Stringify(m_typeSystem!, pathIndex: 1, inStaticPrefix: true), Is.EqualTo("array^[]"));
             });
 
             // Finding array type of value types, and selecting a field from all elements
@@ -422,6 +441,24 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 Assert.That(selector.StaticPrefix[2].typeIndex, Is.EqualTo((int)TestTypeIndex.ValueTypeTwoPointers));
                 Assert.That(selector.StaticPrefix[2].fieldNumber, Is.EqualTo(1));
                 Assert.That(selector.DynamicTail, Is.Null);
+
+                Assert.That(selector.Stringify(m_typeSystem!, pathIndex: 2, inStaticPrefix: true), Is.EqualTo("valueTypeArray[].^object2"));
+            });
+
+            // Empty static prefix
+            selector = m_typeSystem!.BindSelector(warnings.Add,
+                (int)TestTypeIndex.ReferenceClassifiers,
+                new string[] { "dynamicField" },
+                expectDynamic: true,
+                expectReferenceType: true);
+            Assert.Multiple(() =>
+            {
+                Assert.That(warnings, Is.Empty);
+
+                Assert.That(selector.StaticPrefix, Has.Exactly(0).Items);
+                Assert.That(selector.DynamicTail, Is.EquivalentTo(new string[] { "dynamicField" }));
+
+                Assert.That(selector.Stringify(m_typeSystem!, pathIndex: 0, inStaticPrefix: false), Is.EqualTo("^dynamicField"));
             });
 
             // Switching to dynamic lookup on object field not found
@@ -437,6 +474,10 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 Assert.That(selector.StaticPrefix[0].typeIndex, Is.EqualTo((int)TestTypeIndex.ValueTypeTwoPointers));
                 Assert.That(selector.StaticPrefix[0].fieldNumber, Is.EqualTo(0));
                 Assert.That(selector.DynamicTail, Is.EquivalentTo(new string[] { "dynamicField", "[]", "value" }));
+
+                Assert.That(selector.Stringify(m_typeSystem!, pathIndex: 0, inStaticPrefix: true), Is.EqualTo("^object1.dynamicField[].value"));
+                Assert.That(selector.Stringify(m_typeSystem!, pathIndex: 0, inStaticPrefix: false), Is.EqualTo("object1.^dynamicField[].value"));
+                Assert.That(selector.Stringify(m_typeSystem!, pathIndex: 2, inStaticPrefix: false), Is.EqualTo("object1.dynamicField[].^value"));
             });
 
             // Same, but expecting static lookup, hence getting a warning
