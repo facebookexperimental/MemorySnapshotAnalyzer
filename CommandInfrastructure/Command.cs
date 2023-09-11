@@ -305,6 +305,29 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
         }
 
+        protected void AppendFields(int postorderIndex, NativeWord targetAddress, StringBuilder sb)
+        {
+            NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
+            int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+            bool first = true;
+            foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetPointers(address, typeIndex))
+            {
+                if (pointerInfo.FieldNumber != -1 && pointerInfo.Value == targetAddress)
+                {
+                    if (!first)
+                    {
+                        sb.Append(", ");
+                    }
+                    else
+                    {
+                        sb.Append(' ');
+                        first = false;
+                    }
+                    sb.Append(CurrentTraceableHeap.TypeSystem.FieldName(pointerInfo.TypeIndex, pointerInfo.FieldNumber));
+                }
+            }
+        }
+
         protected void AppendTags(NativeWord address, StringBuilder sb)
         {
             bool first = true;

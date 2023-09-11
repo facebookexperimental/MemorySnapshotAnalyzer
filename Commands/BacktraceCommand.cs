@@ -156,25 +156,9 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             if (successorNodeIndex != -1)
             {
-                NativeWord address = CurrentTracedHeap.PostorderAddress(nodeIndex);
-                int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(nodeIndex);
-                bool first = true;
-                foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetPointers(address, typeIndex))
-                {
-                    if (pointerInfo.FieldNumber != -1 && CurrentTracedHeap.ObjectAddressToPostorderIndex(pointerInfo.Value) == successorNodeIndex)
-                    {
-                        if (!first)
-                        {
-                            sb.Append(", ");
-                        }
-                        else
-                        {
-                            sb.Append(' ');
-                            first = false;
-                        }
-                        sb.Append(CurrentTraceableHeap.TypeSystem.FieldName(pointerInfo.TypeIndex, pointerInfo.FieldNumber));
-                    }
-                }
+                int postorderIndex = CurrentBacktracer.PostorderIndexToNodeIndex(nodeIndex);
+                int successorPostorderIndex = CurrentBacktracer.PostorderIndexToNodeIndex(successorNodeIndex);
+                AppendFields(postorderIndex, CurrentTracedHeap.PostorderAddress(successorPostorderIndex), sb);
             }
         }
 

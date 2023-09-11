@@ -253,7 +253,7 @@ namespace MemorySnapshotAnalyzer.Analysis
                 CheckTag(referrer, pointerInfo);
             }
 
-            if ((pointerInfo.PointerFlags & PointerFlags.Untraced) != 0)
+            if ((pointerInfo.PointerFlags & (PointerFlags.IsExternalReference | PointerFlags.Untraced)) != 0)
             {
                 return;
             }
