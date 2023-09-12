@@ -53,6 +53,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly List<(int rootIndex, ulong invalidReference)> m_invalidRoots;
         readonly List<(ulong reference, ulong objectAddress)> m_invalidPointers;
         readonly ObjectAddressToPostorderIndexEntry[] m_objectAddressToPostorderIndex;
+        long m_numberOfLiveBytes;
 
         public TracedHeap(IRootSet rootSet, ILogger logger)
         {
@@ -103,14 +104,19 @@ namespace MemorySnapshotAnalyzer.Analysis
 
             // Create a lookup structure for object indices from addresses, suitable for binary search.
             m_objectAddressToPostorderIndex = new ObjectAddressToPostorderIndexEntry[m_postorderEntries.Count - m_objectAddressToRootIndices.Count];
+            m_numberOfLiveBytes = 0;
             int lookupEntryIndex = 0;
             for (int postorderIndex = 0; postorderIndex < m_postorderEntries.Count; postorderIndex++)
             {
-                if (m_postorderEntries[postorderIndex].TypeIndexOrRootSentinel != -1)
+                int typeIndex = m_postorderEntries[postorderIndex].TypeIndexOrRootSentinel;
+                if (typeIndex != -1)
                 {
-                    m_objectAddressToPostorderIndex[lookupEntryIndex].Address = m_postorderEntries[postorderIndex].Address;
+                    ulong address = m_postorderEntries[postorderIndex].Address;
+                    m_objectAddressToPostorderIndex[lookupEntryIndex].Address = address;
                     m_objectAddressToPostorderIndex[lookupEntryIndex].PostorderIndex = postorderIndex;
                     lookupEntryIndex++;
+
+                    m_numberOfLiveBytes += m_traceableHeap.GetObjectSize(m_native.From(address), typeIndex, committedOnly: true);
                 }
             }
             Array.Sort(m_objectAddressToPostorderIndex, (x, y) => x.Address.CompareTo(y.Address));
@@ -119,6 +125,8 @@ namespace MemorySnapshotAnalyzer.Analysis
         public IRootSet RootSet => m_rootSet;
 
         public int NumberOfPostorderNodes => m_postorderEntries.Count;
+
+        public long NumberOfLiveBytes => m_numberOfLiveBytes;
 
         public int NumberOfLiveObjects => m_objectAddressToPostorderIndex.Length;
 

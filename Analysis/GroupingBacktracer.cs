@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -20,6 +20,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly int m_firstClassIndex;
         readonly int m_firstNamespaceIndex;
         readonly int m_firstAssemblyIndex;
+        readonly int m_unreachableNodeIndex;
         readonly int m_rootNodeIndex;
         readonly List<int> m_assemblyPredecessors;
         readonly List<int>[] m_namespacePredecessors;
@@ -99,7 +100,8 @@ namespace MemorySnapshotAnalyzer.Analysis
 
             m_firstNamespaceIndex = m_firstClassIndex + m_classNames.Count;
             m_firstAssemblyIndex = m_firstNamespaceIndex + m_namespaceNames.Count;
-            m_rootNodeIndex = m_firstAssemblyIndex + m_assemblyNames.Count;
+            m_unreachableNodeIndex = m_firstAssemblyIndex + m_assemblyNames.Count;
+            m_rootNodeIndex = m_unreachableNodeIndex + 1;
 
             m_assemblyPredecessors = new List<int>() { m_rootNodeIndex };
 
@@ -121,6 +123,8 @@ namespace MemorySnapshotAnalyzer.Analysis
         public TracedHeap TracedHeap => m_parentBacktracer.TracedHeap;
 
         int IBacktracer.RootNodeIndex => m_rootNodeIndex;
+
+        int IBacktracer.UnreachableNodeIndex => m_unreachableNodeIndex;
 
         int IBacktracer.NumberOfNodes => m_rootNodeIndex + 1;
 
@@ -149,6 +153,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             if (nodeIndex == m_rootNodeIndex)
             {
                 return m_parentBacktracer.DescribeNodeIndex(m_parentBacktracer.RootNodeIndex, fullyQualified);
+            }
+            else if (nodeIndex == m_unreachableNodeIndex)
+            {
+                return m_parentBacktracer.DescribeNodeIndex(m_parentBacktracer.UnreachableNodeIndex, fullyQualified);
             }
             else if (nodeIndex >= m_firstAssemblyIndex)
             {
@@ -196,6 +204,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             if (nodeIndex == m_rootNodeIndex)
             {
                 return m_parentBacktracer.Predecessors(m_parentBacktracer.RootNodeIndex);
+            }
+            else if (nodeIndex == m_unreachableNodeIndex)
+            {
+                return m_parentBacktracer.Predecessors(m_parentBacktracer.UnreachableNodeIndex);
             }
             else if (nodeIndex >= m_firstAssemblyIndex)
             {

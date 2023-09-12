@@ -90,7 +90,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
 
             Assert.That(backtracer.TracedHeap, Is.EqualTo(m_tracedHeap));
 
-            Assert.That(backtracer.NumberOfNodes, Is.EqualTo(5));
+            Assert.That(backtracer.NumberOfNodes, Is.EqualTo(6));
 
             int postorderIndex1 = m_tracedHeap!.ObjectAddressToPostorderIndex(m_traceableHeap!.Native.From(0x100));
             int postorderIndex2 = m_tracedHeap.ObjectAddressToPostorderIndex(m_traceableHeap.Native.From(0x200));
@@ -98,29 +98,51 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
             int gcHandle0PostorderIndex = m_tracedHeap.ObjectAddressToRootPostorderIndex(m_traceableHeap.Native.From(0x300));
 
             int nodeIndex1 = backtracer.PostorderIndexToNodeIndex(postorderIndex1);
-            Assert.That(backtracer.NodeIndexToPostorderIndex(nodeIndex1), Is.EqualTo(postorderIndex1));
             int nodeIndex2 = backtracer.PostorderIndexToNodeIndex(postorderIndex2);
             int nodeIndex3 = backtracer.PostorderIndexToNodeIndex(postorderIndex3);
             int gcHandle0 = backtracer.PostorderIndexToNodeIndex(gcHandle0PostorderIndex);
-            Assert.That(backtracer.NodeIndexToPostorderIndex(nodeIndex1), Is.EqualTo(postorderIndex1));
-            Assert.That(backtracer.NodeIndexToPostorderIndex(backtracer.RootNodeIndex), Is.EqualTo(-1));
 
-            Assert.That(backtracer.IsLiveObjectNode(nodeIndex1), Is.True);
-            Assert.That(backtracer.IsLiveObjectNode(gcHandle0), Is.False);
-            Assert.That(backtracer.IsLiveObjectNode(backtracer.RootNodeIndex), Is.False);
+            Assert.Multiple(() =>
+            {
+                Assert.That(backtracer.NodeIndexToPostorderIndex(nodeIndex1), Is.EqualTo(postorderIndex1));
+                Assert.That(backtracer.NodeIndexToPostorderIndex(backtracer.RootNodeIndex), Is.EqualTo(-1));
+                Assert.That(backtracer.NodeIndexToPostorderIndex(backtracer.UnreachableNodeIndex), Is.EqualTo(-1));
 
-            Assert.That(backtracer.IsRootSentinel(nodeIndex1), Is.False);
-            Assert.That(backtracer.IsRootSentinel(gcHandle0), Is.True);
-            Assert.That(backtracer.IsRootSentinel(backtracer.RootNodeIndex), Is.False);
+                Assert.That(backtracer.IsLiveObjectNode(nodeIndex1), Is.True);
+                Assert.That(backtracer.IsLiveObjectNode(gcHandle0), Is.False);
+                Assert.That(backtracer.IsLiveObjectNode(backtracer.RootNodeIndex), Is.False);
 
-            Assert.That(backtracer.Predecessors(nodeIndex1), Is.EquivalentTo(new int[] { nodeIndex2 }));
-            Assert.That(backtracer.Predecessors(nodeIndex2), Is.EquivalentTo(new int[] { nodeIndex3 }));
-            Assert.That(backtracer.Predecessors(nodeIndex3), Is.EquivalentTo(new int[] { nodeIndex2, gcHandle0 }));
-            Assert.That(backtracer.Predecessors(gcHandle0), Is.EquivalentTo(new int[] { backtracer.RootNodeIndex }));
-            Assert.That(backtracer.Predecessors(backtracer.RootNodeIndex), Is.EquivalentTo(Array.Empty<int>()));
+                Assert.That(backtracer.IsRootSentinel(nodeIndex1), Is.False);
+                Assert.That(backtracer.IsRootSentinel(gcHandle0), Is.True);
+                Assert.That(backtracer.IsRootSentinel(backtracer.RootNodeIndex), Is.False);
 
-            // TODO: DescribeNodeIndex
-            // TODO: NodeType
+                Assert.That(backtracer.Predecessors(nodeIndex1), Is.EquivalentTo(new int[] { nodeIndex2 }));
+                Assert.That(backtracer.Predecessors(nodeIndex2), Is.EquivalentTo(new int[] { nodeIndex3 }));
+                Assert.That(backtracer.Predecessors(nodeIndex3), Is.EquivalentTo(new int[] { nodeIndex2, gcHandle0 }));
+                Assert.That(backtracer.Predecessors(gcHandle0), Is.EquivalentTo(new int[] { backtracer.RootNodeIndex }));
+                Assert.That(backtracer.Predecessors(backtracer.RootNodeIndex), Is.EquivalentTo(Array.Empty<int>()));
+
+                Assert.That(backtracer.DescribeNodeIndex(backtracer.RootNodeIndex, fullyQualified: true), Is.EqualTo("Process"));
+                Assert.That(backtracer.DescribeNodeIndex(backtracer.RootNodeIndex, fullyQualified: true), Is.EqualTo("Process"));
+                Assert.That(backtracer.DescribeNodeIndex(gcHandle0, fullyQualified: true), Is.EqualTo("GCHandle#0"));
+                Assert.That(backtracer.DescribeNodeIndex(nodeIndex1, fullyQualified: true), Is.EqualTo("Test.Assembly:System.Int64#0"));
+                Assert.That(backtracer.DescribeNodeIndex(nodeIndex1, fullyQualified: false), Is.EqualTo("Int64#0"));
+
+                Assert.That(backtracer.NodeType(backtracer.RootNodeIndex), Is.EqualTo("root"));
+                Assert.That(backtracer.NodeType(backtracer.UnreachableNodeIndex), Is.EqualTo("unreachable"));
+                Assert.That(backtracer.NodeType(gcHandle0), Is.EqualTo("gchandle"));
+                Assert.That(backtracer.NodeType(nodeIndex1), Is.EqualTo("box"));
+                Assert.That(backtracer.NodeType(nodeIndex2), Is.EqualTo("object"));
+            });
+
+            // TODO: DescribeNodeIndex for object without native name, fully qualified and not
+            // TODO: DescribeNodeIndex for object with name
+            // TODO: DescribeNodeIndex for static root
+            // TODO: DescribeNodeIndex for multiple roots referencing same object
+            // TODO: NodeType for array
+            // TODO: NodeType for static root
+            // TODO: NodeType for multiple roots referencing same object where all are GC handles
+            // TODO: NodeType for multiple roots referencing same object where one is static
         }
 
         [Test]

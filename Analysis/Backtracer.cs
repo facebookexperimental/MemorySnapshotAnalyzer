@@ -20,6 +20,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly ILogger m_logger;
         readonly IRootSet m_rootSet;
         readonly TraceableHeap m_traceableHeap;
+        readonly int m_unreachableNodeIndex;
         readonly int m_rootNodeIndex;
         readonly List<int> m_rootPredecessors;
         readonly List<int>[] m_predecessors;
@@ -36,8 +37,10 @@ namespace MemorySnapshotAnalyzer.Analysis
 
             // For the purposes of backtracing, we assign node indices as follows:
             //   0 ... N-1 : postorder indices (for objects and root sentinels) from TracedHeap
-            //   N : root node - representing the containing process
-            m_rootNodeIndex = tracedHeap.NumberOfPostorderNodes;
+            //   N : unreachable - reserved index for nodes not dominated by the root node
+            //   N + 1 : root node - representing the containing process
+            m_unreachableNodeIndex = tracedHeap.NumberOfPostorderNodes;
+            m_rootNodeIndex = m_unreachableNodeIndex + 1;
             m_rootPredecessors = new List<int>() { m_rootNodeIndex };
 
             m_predecessors = new List<int>[m_rootNodeIndex + 1];
@@ -63,6 +66,8 @@ namespace MemorySnapshotAnalyzer.Analysis
         public TracedHeap TracedHeap => m_tracedHeap;
 
         public int RootNodeIndex => m_rootNodeIndex;
+
+        public int UnreachableNodeIndex => m_unreachableNodeIndex;
 
         public int NumberOfNodes => m_rootNodeIndex + 1;
 
@@ -91,6 +96,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             if (nodeIndex == m_rootNodeIndex)
             {
                 return "Process";
+            }
+            else if (nodeIndex == m_unreachableNodeIndex)
+            {
+                return "Unreachable";
             }
 
             int postorderIndex = NodeIndexToPostorderIndex(nodeIndex);
@@ -135,6 +144,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             if (nodeIndex == m_rootNodeIndex)
             {
                 return "root";
+            }
+            else if (nodeIndex == m_unreachableNodeIndex)
+            {
+                return "unreachable";
             }
 
             int postorderIndex = NodeIndexToPostorderIndex(nodeIndex);
@@ -185,6 +198,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         void ComputePredecessors(bool fuseRoots)
         {
             m_predecessors[m_rootNodeIndex] = new List<int>();
+            m_predecessors[m_unreachableNodeIndex] = new List<int>();
 
             // For each postorder node, add it as a predecessor to all objects it references.
             for (int parentPostorderIndex = 0; parentPostorderIndex < m_tracedHeap.NumberOfPostorderNodes; parentPostorderIndex++)

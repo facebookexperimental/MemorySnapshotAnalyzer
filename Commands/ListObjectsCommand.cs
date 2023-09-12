@@ -96,6 +96,11 @@ namespace MemorySnapshotAnalyzer.Commands
                 throw new CommandException("at most one of 'sortbycount, 'sortbysize, and `sortbydomsize may be given");
             }
 
+            if (DirectlyDominatedBy.Size != 0 && NotInDominatorTree)
+            {
+                throw new CommandException("at most one of 'dominatedby and 'notindom may be given");
+            }
+
             int domParentNodeIndex;
             if (DirectlyDominatedBy.Size != 0)
             {
@@ -107,6 +112,10 @@ namespace MemorySnapshotAnalyzer.Commands
                 {
                     domParentNodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(Context.ResolveToPostorderIndex(DirectlyDominatedBy));
                 }
+            }
+            else if (NotInDominatorTree)
+            {
+                domParentNodeIndex = CurrentBacktracer.UnreachableNodeIndex;
             }
             else
             {
@@ -347,10 +356,6 @@ namespace MemorySnapshotAnalyzer.Commands
                     {
                         int domNodeIndex = CurrentHeapDom.GetDominator(CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex));
                         selected = domParentPostorderIndex == domNodeIndex;
-                    }
-                    else if (NotInDominatorTree)
-                    {
-                        selected = CurrentHeapDom.GetDominator(CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex)) == -1;
                     }
 
                     if (selected && WithTag != null)

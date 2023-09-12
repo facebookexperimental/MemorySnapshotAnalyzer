@@ -9,6 +9,7 @@ using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.AbstractMemorySnapshotTests;
 using System;
 using System.Collections.Generic;
+using System.Net;
 
 namespace MemorySnapshotAnalyzer.AnalysisTests
 {
@@ -96,17 +97,27 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
 
         public override int GetObjectSize(NativeWord objectAddress, int typeIndex, bool committedOnly)
         {
-            throw new System.NotImplementedException();
+            if (TypeSystem.IsArray(typeIndex))
+            {
+                var heapArray = (HeapArray)m_heapObjects[objectAddress.Value];
+                int arraySize = heapArray.Length;
+                int elementSize = TypeSystem.GetArrayElementSize(TypeSystem.BaseOrElementTypeIndex(typeIndex));
+                return TypeSystem.BaseSize(typeIndex) + arraySize * elementSize;
+            }
+            else
+            {
+                return TypeSystem.BaseSize(typeIndex);
+            }
         }
 
         public override string GetObjectNodeType(NativeWord address)
         {
-            throw new System.NotImplementedException();
+            return "object";
         }
 
         public override string? GetObjectName(NativeWord objectAddress)
         {
-            throw new System.NotImplementedException();
+            return null;
         }
 
         public override IEnumerable<PointerInfo<NativeWord>> GetPointers(NativeWord address, int typeIndex)

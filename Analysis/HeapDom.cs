@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -94,9 +94,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             // Given that indices are in postorder, the root node is the node with the highest index.
             int numberOfNodes = m_backtracer.NumberOfNodes;
             var doms = new int[numberOfNodes];
+            int unreachableNodeIndex = m_backtracer.UnreachableNodeIndex;
             for (int i = 0; i < m_rootNodeIndex; i++)
             {
-                doms[i] = -1;
+                doms[i] = unreachableNodeIndex;
             }
             doms[m_rootNodeIndex] = m_rootNodeIndex;
 
@@ -107,12 +108,12 @@ namespace MemorySnapshotAnalyzer.Analysis
                 // Note that Backtracer assigned node indices in postorder.
                 for (int nodeIndex = m_rootNodeIndex - 1; nodeIndex >= 0; nodeIndex--)
                 {
-                    int newIdom = -1;
+                    int newIdom = unreachableNodeIndex;
                     foreach (int predIndex in m_backtracer.Predecessors(nodeIndex))
                     {
-                        if (doms[predIndex] != -1)
+                        if (doms[predIndex] != unreachableNodeIndex)
                         {
-                            if (newIdom == -1)
+                            if (newIdom == unreachableNodeIndex)
                             {
                                 newIdom = predIndex;
                             }
@@ -136,6 +137,8 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         Dictionary<int, List<int>> BuildDomTree(out int numberOfNonLeafNodes)
         {
+            m_doms[m_backtracer.UnreachableNodeIndex] = m_rootNodeIndex;
+
             var domTree = new Dictionary<int, List<int>>();
             numberOfNonLeafNodes = 0;
             for (int nodeIndex = 0; nodeIndex < m_rootNodeIndex; nodeIndex++)

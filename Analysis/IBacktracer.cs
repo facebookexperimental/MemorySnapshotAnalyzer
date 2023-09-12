@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -14,6 +14,8 @@ namespace MemorySnapshotAnalyzer.Analysis
         TracedHeap TracedHeap { get; }
 
         int RootNodeIndex { get; }
+
+        int UnreachableNodeIndex { get; }
 
         int NumberOfNodes { get; }
 

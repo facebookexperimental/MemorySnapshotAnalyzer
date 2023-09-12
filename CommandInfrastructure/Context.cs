@@ -153,11 +153,12 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
             else
             {
-                yield return string.Format("TracedHeap: {0} live objects and {1} distinct roots ({2} invalid roots, {3} invalid pointers)",
-                    m_currentTracedHeap.NumberOfLiveObjects,
+                yield return string.Format("TracedHeap: {0} distinct roots ({1} invalid roots, {2} invalid pointers) holding {3} bytes live in {4} objects",
                     m_currentTracedHeap.NumberOfDistinctRoots,
                     m_currentTracedHeap.NumberOfInvalidRoots,
-                    m_currentTracedHeap.NumberOfInvalidPointers);
+                    m_currentTracedHeap.NumberOfInvalidPointers,
+                    m_currentTracedHeap.NumberOfLiveBytes,
+                    m_currentTracedHeap.NumberOfLiveObjects);
             }
 
             if (m_currentBacktracer == null)
@@ -416,11 +417,12 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             {
                 m_output.Write("[context {0}] tracing heap ...", m_id);
                 m_currentTracedHeap = new TracedHeap(CurrentRootSet!, m_logger);
-                m_output.WriteLine(" {0} live objects and {1} distinct roots ({2} invalid roots, {3} invalid pointers)",
-                    m_currentTracedHeap.NumberOfLiveObjects,
+                m_output.WriteLine(" {0} distinct roots ({1} invalid roots, {2} invalid pointers) holding {3} bytes live in {4} objects",
                     m_currentTracedHeap.NumberOfDistinctRoots,
                     m_currentTracedHeap.NumberOfInvalidRoots,
-                    m_currentTracedHeap.NumberOfInvalidPointers);
+                    m_currentTracedHeap.NumberOfInvalidPointers,
+                    m_currentTracedHeap.NumberOfLiveBytes,
+                    m_currentTracedHeap.NumberOfLiveObjects);
             }
         }
 

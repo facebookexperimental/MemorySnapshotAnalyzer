@@ -9,6 +9,7 @@ using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
 {
@@ -187,7 +188,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
         {
             m_typeInfos = new();
             m_typeInfos.Add(TestTypeIndex.Primitive,
-                TypeInfo.ForValueType("long", 8, new()
+                TypeInfo.ForValueType("System.Int64", 8, new()
                 {
                     new("value", 16, TestTypeIndex.Primitive),
                 }));
@@ -290,9 +291,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 QualifiedName(m_configurableTypeIndex);
         }
 
+        static readonly Regex s_identifierAndDotRegex = new("[a-zA-Z_][a-zA-Z0-9_]*\\.", RegexOptions.Compiled);
+
         public override string UnqualifiedName(int typeIndex)
         {
-            throw new NotImplementedException();
+            string qualifiedName = QualifiedName(typeIndex);
+            return s_identifierAndDotRegex.Replace(qualifiedName, string.Empty);
         }
 
         public override int BaseOrElementTypeIndex(int typeIndex)
