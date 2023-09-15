@@ -53,7 +53,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
         {
             // TODO: test selector that stops in the middle with a null
             // TODO: test selector that stops in the middle with am invalid address
-            // TODO: test static selector with [] of references, fully-committed array
+            // TODO: test static selector with [] of references, fully-committed array (place a null in the middle and verify it doesn't skip subsequent elements)
             // TODO: test static selector with [] of value types, fully-committed array
             // TODO: test static selector with [] of references, partially-committed array
             // TODO: test static selector with [] of value types, partially-committed array

@@ -527,6 +527,28 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             throw new CommandException($"{addressOrIndex} is neither a live object address, nor is {addressOrIndex.Value} a valid index");
         }
 
+        public int ResolveToNodeIndex(NativeWord addressOrIndex)
+        {
+            if (m_currentMemorySnapshot == null)
+            {
+                throw new CommandException("no active memory snapshot");
+            }
+
+            EnsureBacktracer();
+            int postorderIndex = CurrentTracedHeap!.ObjectAddressToPostorderIndex(addressOrIndex);
+            if (postorderIndex != -1)
+            {
+                return CurrentBacktracer!.PostorderIndexToNodeIndex(postorderIndex);
+            }
+
+            if (addressOrIndex.Value < (ulong)CurrentBacktracer!.NumberOfNodes)
+            {
+                return (int)addressOrIndex.Value;
+            }
+
+            throw new CommandException($"{addressOrIndex} is neither a live object address, nor is {addressOrIndex.Value} a valid index");
+        }
+
         #endregion
     }
 }

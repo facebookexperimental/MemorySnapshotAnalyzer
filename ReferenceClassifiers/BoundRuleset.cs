@@ -7,11 +7,10 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System.Collections.Generic;
-using System;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
-    sealed class BoundRuleset
+    public sealed class BoundRuleset
     {
         static readonly string LOG_SOURCE = "ReferenceClassifiers";
 
@@ -22,7 +21,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         readonly Dictionary<(int typeIndex, int fieldNumber), List<(Selector selector, List<string> tag, string location)>> m_tagAnchors;
         readonly Dictionary<(int typeIndex, int fieldNumber), (List<string> zeroTags, List<string> nonZeroTags)> m_tags;
 
-        internal BoundRuleset(TypeSystem typeSystem, List<Rule> rules, ILogger logger)
+        public BoundRuleset(TypeSystem typeSystem, List<Rule> rules, ILogger logger)
         {
             m_typeSystem = typeSystem;
             m_logger = logger;
@@ -33,7 +32,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
             m_logger.Clear(LOG_SOURCE);
 
-            List<(TypeSpec spec, string fieldPattern, (int ruleNumber, PointerFlags pointerFlags))> specs = new();
+            List<(TypeSpec typeSpec, string fieldPattern, (int ruleNumber, PointerFlags pointerFlags))> specs = new();
             for (int ruleNumber = 0; ruleNumber < rules.Count; ruleNumber++)
             {
                 if (rules[ruleNumber] is OwnsRule ownsRule)
@@ -61,8 +60,16 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
             var processField = (int typeIndex, int fieldNumber, (int ruleNumber, PointerFlags pointerFlags) data) =>
             {
-                _ = m_specialReferences.TryGetValue((typeIndex, fieldNumber), out PointerFlags existingPointerFlags);
-                PointerFlags newPointerFlags = existingPointerFlags.CombineWith(data.pointerFlags);
+                PointerFlags newPointerFlags;
+                if (m_specialReferences.TryGetValue((typeIndex, fieldNumber), out PointerFlags existingPointerFlags))
+                {
+                    newPointerFlags = existingPointerFlags.CombineWith(data.pointerFlags);
+                }
+                else
+                {
+                    newPointerFlags = data.pointerFlags;
+                }
+
                 if ((newPointerFlags & PointerFlags.IsExternalReference) != 0)
                 {
                     newPointerFlags &= ~PointerFlags.Untraced;
@@ -136,22 +143,22 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             }
         }
 
-        internal PointerFlags GetPointerFlags(int typeIndex, int fieldNumber)
+        public PointerFlags GetPointerFlags(int typeIndex, int fieldNumber)
         {
             return m_specialReferences.GetValueOrDefault((typeIndex, fieldNumber), default(PointerFlags));
         }
 
-        internal List<(Selector selector, int weight, string location)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
+        public List<(Selector selector, int weight, string location)> GetWeightAnchorSelectors(int typeIndex, int fieldNumber)
         {
             return m_weightAnchors[(typeIndex, fieldNumber)];
         }
 
-        internal List<(Selector selector, List<string> tag, string location)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
+        public List<(Selector selector, List<string> tag, string location)> GetTagAnchorSelectors(int typeIndex, int fieldNumber)
         {
             return m_tagAnchors[(typeIndex, fieldNumber)];
         }
 
-        internal (List<string> zeroTags, List<string> nonZeroTags) GetTags(int typeIndex, int fieldNumber)
+        public (List<string> zeroTags, List<string> nonZeroTags) GetTags(int typeIndex, int fieldNumber)
         {
             return m_tags[(typeIndex, fieldNumber)];
         }

@@ -8,6 +8,7 @@
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
@@ -15,13 +16,27 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
     sealed class Matcher<T>
     {
         readonly TypeSystem m_typeSystem;
-        readonly List<(TypeSpec spec, string fieldPattern, T data)> m_specs;
+        readonly List<(TypeSpec typeSpec, string fieldPattern, T data)> m_specs;
+        readonly List<(Regex regex, List<(string fieldPattern, T data)>)> m_regexSpecs;
         readonly Dictionary<string, Dictionary<string, List<(string fieldPattern, T data)>>> m_assemblyToConfiguration;
 
-        internal Matcher(TypeSystem typeSystem, List<(TypeSpec spec, string fieldPattern, T data)> specs)
+        internal Matcher(TypeSystem typeSystem, List<(TypeSpec typeSpec, string fieldPattern, T data)> specs)
         {
             m_typeSystem = typeSystem;
-            m_specs = specs;
+            m_specs = new();
+            m_regexSpecs = new();
+            foreach ((TypeSpec typeSpec, string fieldPattern, T data) spec in specs)
+            {
+                if (spec.typeSpec.IsRegex)
+                {
+                    Regex regex = new(spec.typeSpec.TypeName, RegexOptions.Compiled | RegexOptions.CultureInvariant);
+                    m_regexSpecs.Add((regex, new() { (spec.fieldPattern, spec.data) }));
+                }
+                else
+                {
+                    m_specs.Add(spec);
+                }
+            }
             m_assemblyToConfiguration = new(StringComparer.OrdinalIgnoreCase);
         }
 
@@ -36,6 +51,15 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             else if (assemblyConfiguration.TryGetValue(m_typeSystem.QualifiedGenericNameWithArity(typeIndex), out fieldPatterns))
             {
                 ForAllMatchingFieldsHelper(typeIndex, fieldPatterns, processField);
+            }
+
+            string qualifiedName = m_typeSystem.QualifiedName(typeIndex);
+            foreach ((Regex regex, List<(string fieldPattern, T data)> regexFieldPatterns) in m_regexSpecs)
+            {
+                if (regex.IsMatch(qualifiedName))
+                {
+                    ForAllMatchingFieldsHelper(typeIndex, regexFieldPatterns, processField);
+                }
             }
         }
 
@@ -75,17 +99,17 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 ReadOnlySpan<char> typeAssembly = TypeSpec.WithoutExtension(m_typeSystem.Assembly(typeIndex));
 
                 assemblyConfiguration = new Dictionary<string, List<(string fieldPattern, T data)>>();
-                foreach ((TypeSpec spec, string fieldPattern, T data) in m_specs)
+                foreach ((TypeSpec typeSpec, string fieldPattern, T data) in m_specs)
                 {
-                    if (spec.AssemblyMatches(typeAssembly))
+                    if (typeSpec.AssemblyMatches(typeAssembly))
                     {
-                        if (assemblyConfiguration.TryGetValue(spec.TypeName, out List<(string fieldPattern, T data)>? configurationFieldPatterns))
+                        if (assemblyConfiguration.TryGetValue(typeSpec.TypeName, out List<(string fieldPattern, T data)>? configurationFieldPatterns))
                         {
-                            configurationFieldPatterns!.Add((fieldPattern, data));
+                            configurationFieldPatterns.Add((fieldPattern, data));
                         }
                         else
                         {
-                            assemblyConfiguration.Add(spec.TypeName, new List<(string fieldPattern, T data)>() { (fieldPattern, data) });
+                            assemblyConfiguration.Add(typeSpec.TypeName, new List<(string fieldPattern, T data)>() { (fieldPattern, data) });
                         }
                     }
                 }

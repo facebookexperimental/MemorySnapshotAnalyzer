@@ -160,17 +160,17 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
             else if (nodeIndex >= m_firstAssemblyIndex)
             {
-                return m_assemblyNames[nodeIndex - m_firstAssemblyIndex];
+                return $"{m_assemblyNames[nodeIndex - m_firstAssemblyIndex]}#{nodeIndex}";
             }
             else if (nodeIndex >= m_firstNamespaceIndex)
             {
                 int namespaceIndex = nodeIndex - m_firstNamespaceIndex;
-                return m_namespaceNames[namespaceIndex];
+                return $"{m_namespaceNames[namespaceIndex]}#{nodeIndex}";
             }
             else if (nodeIndex >= m_firstClassIndex)
             {
                 int classIndex = nodeIndex - m_firstClassIndex;
-                return m_classNames[classIndex];
+                return $"{m_classNames[classIndex]}#{nodeIndex}";
             }
             else
             {

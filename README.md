@@ -99,9 +99,11 @@ The `referenceclassifier 'load` command takes the name of a configuration file w
 
 * A hash ('`#`') symbol marks the rest of the line as a comment. Comments and blank lines are ignored.
 * A name in square brackets ("`[groupname]`") introduces a *group*, to which all rules until the next group declaration belong. Reference classifiers can be enabled or disabled in groups.
-* A *rule* starts with an assembly-qualified type name, followed by a keyword that states the properties of a reference, followed by arguments specific to that keyword. Rules are terminates by a semicolon ('`;`').
-* The assembly-qualified type name is given in double quotes, and consists of an assembly, a colon ('`:`'), and the fully-qualified type name. The assembly name can be given with or without a `.dll` extension, and is matched case-insensitively. The type name must match exactly the name that is output by, say, the `dumptype` command.
-* A *field pattern* is either a field name, which needs to match exactly, or a prefix followed by an asterisk ('`*`'). A *selector* is a *field pattern* optionally followed by a sequence of field names and/or "`[]`" (indicating array indexing). This provides support for collections; for instance, to indicate that all values in field `foo` of a generic dictionary type are owning references, an appropriate selector could be `"foo._entries[].value"`.
+* A *rule* starts with a *type specifier*, followed by a keyword that states the properties of a reference, followed by arguments specific to that keyword. Rules are terminates by a semicolon ('`;`').
+* A *type specifier* is either an *assembly-qualified type name* or a regular expression (matched against all fully-qualified type names in all assemblies). A regular expression is given between slashes ('`/`'), e.g., `/Foo.*Node$/`.
+* An *assembly-qualified type name* is given in double quotes, and consists of an assembly, a colon ('`:`'), and the fully-qualified type name. The assembly name can be given with or without a `.dll` extension, and is matched case-insensitively. The type name must match exactly the name that is output by, say, the `dumptype` command.
+* A *field pattern* is either a field name, which needs to match exactly, or a prefix followed by an asterisk ('`*`').
+* A *selector* is a *field pattern* optionally followed by a sequence of field names and/or "`[]`" (indicating array indexing). This provides support for collections; for instance, to indicate that all values in field `foo` of a generic dictionary type are owning references, an appropriate selector could be `"foo._entries[].value"`.
 
 Specific rule keywords are:
 

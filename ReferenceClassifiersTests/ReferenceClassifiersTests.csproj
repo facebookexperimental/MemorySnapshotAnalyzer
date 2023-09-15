@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AbstractMemorySnapshotTests\AbstractMemorySnapshotTests.csproj" />
     <ProjectReference Include="..\ReferenceClassifiers\ReferenceClassifiers.csproj" />
   </ItemGroup>
 

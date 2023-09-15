@@ -17,6 +17,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
     {
         None = -1,
 
+        // Types in Test.Assembly
         Primitive = 0,
         ObjectNoPointers,
         ValueTypeTwoPointers,
@@ -27,9 +28,11 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
         FieldWithPointerFlagsExternal,
         ObjectArray,
         ValueTypeArray,
+        // Types in test2.assembly2
         ReferenceClassifiers,
         DerivedFromReferenceClassifier,
         GenericTypeWithNesting,
+        // Types in Assembly3
         GenericTypeArray,
         EmptyTypeNameCornerCase,
         WeightedReferences,
@@ -251,9 +254,9 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                     new("valueTypeArray", 64, TestTypeIndex.ValueTypeArray),
                 }));
             m_typeInfos.Add(TestTypeIndex.DerivedFromReferenceClassifier,
-                TypeInfo.ForObject("ReferenceClassifiers", 64, TestTypeIndex.ReferenceClassifiers, new()
+                TypeInfo.ForObject("DerivedFromReferenceClassifier", 80, TestTypeIndex.ReferenceClassifiers, new()
                 {
-                    new("derivedField", 56, TestTypeIndex.ReferenceClassifiers),
+                    new("derivedField", 72, TestTypeIndex.ReferenceClassifiers),
                 }));
             m_typeInfos.Add(TestTypeIndex.GenericTypeWithNesting,
                 TypeInfo.ForObject("GenericTypeWithNesting<int[], Dictionary<Foo, Bar>>", 32, TestTypeIndex.None, new() { }));
@@ -281,7 +284,18 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
 
         public override string Assembly(int typeIndex)
         {
-            return "Test.Assembly";
+            if (typeIndex >= (int)TestTypeIndex.GenericTypeArray)
+            {
+                return "Assembly3";
+            }
+            else if (typeIndex >= (int)TestTypeIndex.ReferenceClassifiers)
+            {
+                return "test2.assembly2";
+            }
+            else
+            {
+                return "Test.Assembly";
+            }
         }
 
         public override string QualifiedName(int typeIndex)

@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.ReferenceClassifierAttributes;
+using System.Security.AccessControl;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
@@ -88,9 +89,22 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             if (m_typeSpec == null)
             {
-                string namespaceName = m_metadataReader.GetString(m_currentTypeDefinition.Namespace);
-                string typeName = m_metadataReader.GetString(m_currentTypeDefinition.Name);
-                m_typeSpec = new TypeSpec(GetAssemblyName(), $"{namespaceName}.{typeName}");
+                string namespaceName, typeName;
+                if (m_currentTypeDefinition.IsNested)
+                {
+                    TypeDefinition enclosingTypeDefinition = m_metadataReader.GetTypeDefinition(m_currentTypeDefinition.GetDeclaringType());
+                    namespaceName = m_metadataReader.GetString(enclosingTypeDefinition.Namespace);
+                    string enclosingTypeName = m_metadataReader.GetString(enclosingTypeDefinition.Name);
+                    string nestedTypeName = m_metadataReader.GetString(m_currentTypeDefinition.Name);
+                    typeName = $"{enclosingTypeName}.{nestedTypeName}";
+                }
+                else
+                {
+                    namespaceName = m_metadataReader.GetString(m_currentTypeDefinition.Namespace);
+                    typeName = m_metadataReader.GetString(m_currentTypeDefinition.Name);
+                }
+                string qualifiedName = namespaceName.Length > 0 ? $"{namespaceName}.{typeName}" : typeName;
+                m_typeSpec = new TypeSpec(GetAssemblyName(), qualifiedName, isRegex: false);
             }
             return m_typeSpec;
         }
@@ -295,7 +309,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             m_attributeGroupName = null;
             m_selector = null;
-            m_weight = 0;
+            m_weight = 1;
             m_isDynamic = false;
 
             ushort numberOfNamedArguments = blobReader.ReadUInt16();

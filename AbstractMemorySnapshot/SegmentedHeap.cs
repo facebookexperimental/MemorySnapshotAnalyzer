@@ -178,7 +178,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                 else if (!inStaticPrefix && (selector.DynamicTail == null || pathIndex == selector.DynamicTail.Length))
                 {
                     yield return (valueReference, referrer);
-                    yield break;
+                    break;
                 }
 
                 int fieldNumber;
@@ -205,7 +205,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                                 topTypeIndex,
                                 selector.Stringify(m_typeSystem, pathIndex, inStaticPrefix: inStaticPrefix),
                                 topReferrer));
-                            yield break;
+                            break;
                         }
                     }
                 }
@@ -221,7 +221,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                             topTypeIndex,
                             selector.Stringify(m_typeSystem, pathIndex, inStaticPrefix: inStaticPrefix),
                             topReferrer));
-                        yield break;
+                        break;
                     }
 
                     int elementTypeIndex = m_typeSystem.BaseOrElementTypeIndex(valueReference.TypeIndex);
@@ -259,7 +259,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                             int effectiveElementTypeIndex = m_traceableHeap.TryGetTypeIndex(elementObjectAddress);
                             if (!elementView.IsValid || effectiveElementTypeIndex == -1)
                             {
-                                yield break;
+                                continue;
                             }
 
                             ValueReference elementReference = new()
@@ -277,7 +277,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                         }
                     }
 
-                    yield break;
+                    break;
                 }
 
                 int fieldTypeIndex = m_typeSystem.FieldType(valueReference.TypeIndex, fieldNumber);
@@ -291,7 +291,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                         valueReference.AddressOfContainingObject = valueReference.ValueView.ReadPointer(0, m_native);
                         if (valueReference.AddressOfContainingObject.Value == 0)
                         {
-                            yield break;
+                            break;
                         }
                         valueReference.ValueView = GetMemoryViewForAddress(valueReference.AddressOfContainingObject);
                         valueReference.TypeIndex = m_traceableHeap.TryGetTypeIndex(valueReference.AddressOfContainingObject);
@@ -311,7 +311,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                         valueReference.AddressOfContainingObject = valueReference.ValueView.ReadPointer(fieldOffset, m_native);
                         if (valueReference.AddressOfContainingObject.Value == 0)
                         {
-                            yield break;
+                            break;
                         }
                         valueReference.ValueView = GetMemoryViewForAddress(valueReference.AddressOfContainingObject);
                         valueReference.TypeIndex = m_traceableHeap.TryGetTypeIndex(valueReference.AddressOfContainingObject);
@@ -332,7 +332,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                         topTypeIndex,
                         selector.Stringify(m_typeSystem, pathIndex, inStaticPrefix: inStaticPrefix),
                         topReferrer));
-                    yield break;
+                    break;
                 }
 
                 pathIndex++;

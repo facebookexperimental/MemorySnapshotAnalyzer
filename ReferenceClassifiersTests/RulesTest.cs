@@ -17,34 +17,66 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
         [Test]
         public void TestTypeSpec()
         {
-            TypeSpec typeSpec = new("foo.dll", "bar.type");
-            Assert.That(typeSpec.Assembly, Is.EqualTo("foo"));
-            Assert.That(typeSpec.TypeName, Is.EqualTo("bar.type"));
+            TypeSpec typeSpec = new("foo.dll", "bar.type", isRegex: false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(typeSpec.Assembly, Is.EqualTo("foo"));
+                Assert.That(typeSpec.TypeName, Is.EqualTo("bar.type"));
+                Assert.That(typeSpec.IsRegex, Is.False);
+            });
 
-            typeSpec = new("Foo.Bar.DLL", "bar.type");
-            Assert.That(typeSpec.Assembly, Is.EqualTo("Foo.Bar"));
-            Assert.That(typeSpec.TypeName, Is.EqualTo("bar.type"));
+            typeSpec = new("Foo.Bar.DLL", "bar.type", isRegex: false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(typeSpec.Assembly, Is.EqualTo("Foo.Bar"));
+                Assert.That(typeSpec.TypeName, Is.EqualTo("bar.type"));
+                Assert.That(typeSpec.IsRegex, Is.False);
+            });
 
-            typeSpec = new("foo", "bar.type");
-            Assert.That(typeSpec.Assembly, Is.EqualTo("foo"));
-            Assert.That(typeSpec.TypeName, Is.EqualTo("bar.type"));
+            typeSpec = new("foo", "bar.type", isRegex: false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(typeSpec.Assembly, Is.EqualTo("foo"));
+                Assert.That(typeSpec.TypeName, Is.EqualTo("bar.type"));
+                Assert.That(typeSpec.IsRegex, Is.False);
+            });
 
             typeSpec = TypeSpec.Parse("foo.dll:bar.type");
-            Assert.That(typeSpec.Assembly, Is.EqualTo("foo"));
-            Assert.That(typeSpec.TypeName, Is.EqualTo("bar.type"));
+            Assert.Multiple(() =>
+            {
+                Assert.That(typeSpec.Assembly, Is.EqualTo("foo"));
+                Assert.That(typeSpec.TypeName, Is.EqualTo("bar.type"));
+                Assert.That(typeSpec.IsRegex, Is.False);
+
+                Assert.That(typeSpec.AssemblyMatches("foo"), Is.True);
+                Assert.That(typeSpec.AssemblyMatches("FOO"), Is.True);
+
+                Assert.That(typeSpec.ToString(), Is.EqualTo("\"foo:bar.type\""));
+            });
 
             Assert.Throws<ArgumentException>(() => TypeSpec.Parse("foo"));
 
-            Assert.That(typeSpec.AssemblyMatches("foo"), Is.True);
-            Assert.That(typeSpec.AssemblyMatches("FOO"), Is.True);
+            typeSpec = new(string.Empty, "regex1", isRegex: true);
+            Assert.Multiple(() =>
+            {
+                Assert.That(typeSpec.Assembly, Is.EqualTo(string.Empty));
+                Assert.That(typeSpec.TypeName, Is.EqualTo("regex1"));
+                Assert.That(typeSpec.IsRegex, Is.True);
+            });
 
-            Assert.That(typeSpec.ToString(), Is.EqualTo("\"foo:bar.type\""));
+            typeSpec = TypeSpec.FromRegex("regex2");
+            Assert.Multiple(() =>
+            {
+                Assert.That(typeSpec.Assembly, Is.EqualTo(string.Empty));
+                Assert.That(typeSpec.TypeName, Is.EqualTo("regex2"));
+                Assert.That(typeSpec.IsRegex, Is.True);
+            });
         }
 
         [Test]
         public void TestOwnsRule()
         {
-            TypeSpec typeSpec = new("mydll", "mytype");
+            TypeSpec typeSpec = new("mydll", "mytype", isRegex: false);
             OwnsRule rule = new("mylocation", typeSpec, selector: "foo", weight: 1, isDynamic: false);
             Assert.That(rule.Location, Is.EqualTo("mylocation"));
             Assert.That(rule.TypeSpec, Is.EqualTo(typeSpec));
@@ -83,53 +115,68 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
         [Test]
         public void TestExternalRule()
         {
-            TypeSpec typeSpec = new("mydll", "mytype");
+            TypeSpec typeSpec = new("mydll", "mytype", isRegex: false);
             ExternalRule rule = new("mylocation", typeSpec, fieldPattern: "foo*");
-            Assert.That(rule.Location, Is.EqualTo("mylocation"));
-            Assert.That(rule.TypeSpec, Is.EqualTo(typeSpec));
+            Assert.Multiple(() =>
+            {
+                Assert.That(rule.Location, Is.EqualTo("mylocation"));
+                Assert.That(rule.TypeSpec, Is.EqualTo(typeSpec));
 
-            Assert.That(rule.FieldPattern, Is.EqualTo("foo*"));
-            Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" EXTERNAL \"foo*\";"));
+                Assert.That(rule.FieldPattern, Is.EqualTo("foo*"));
+                Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" EXTERNAL \"foo*\";"));
+            });
         }
 
         [Test]
         public void TestTagSelectorRule()
         {
-            TypeSpec typeSpec = new("mydll", "mytype");
+            TypeSpec typeSpec = new("mydll", "mytype", isRegex: false);
             TagSelectorRule rule = new("mylocation", typeSpec, selector: "foo", tags: "tag", isDynamic: false);
-            Assert.That(rule.Location, Is.EqualTo("mylocation"));
-            Assert.That(rule.TypeSpec, Is.EqualTo(typeSpec));
+            Assert.Multiple(() =>
+            {
+                Assert.That(rule.Location, Is.EqualTo("mylocation"));
+                Assert.That(rule.TypeSpec, Is.EqualTo(typeSpec));
 
-            Assert.That(rule.Selector, Is.EquivalentTo(new string[] { "foo" }));
-            Assert.That(rule.Tags, Is.EquivalentTo(new string[] { "tag" }));
-            Assert.That(rule.IsDynamic, Is.False);
-            Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" TAG(tag) \"foo\";"));
+                Assert.That(rule.Selector, Is.EquivalentTo(new string[] { "foo" }));
+                Assert.That(rule.Tags, Is.EquivalentTo(new string[] { "tag" }));
+                Assert.That(rule.IsDynamic, Is.False);
+                Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" TAG(tag) \"foo\";"));
+            });
 
             rule = new("mylocation", typeSpec, selector: "foo[].bar_[]", tags: "tag1, tag2", isDynamic: true);
-            Assert.That(rule.Selector, Is.EquivalentTo(new string[] { "foo", "[]", "bar_", "[]" }));
-            Assert.That(rule.Tags, Is.EquivalentTo(new string[] { "tag1", "tag2" }));
-            Assert.That(rule.IsDynamic, Is.True);
-            Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" TAG_DYNAMIC(tag1,tag2) \"foo[].bar_[]\";"));
+            Assert.Multiple(() =>
+            {
+                Assert.That(rule.Selector, Is.EquivalentTo(new string[] { "foo", "[]", "bar_", "[]" }));
+                Assert.That(rule.Tags, Is.EquivalentTo(new string[] { "tag1", "tag2" }));
+                Assert.That(rule.IsDynamic, Is.True);
+                Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" TAG_DYNAMIC(tag1,tag2) \"foo[].bar_[]\";"));
+            });
         }
 
         [Test]
         public void TestTagConditionRule()
         {
-            TypeSpec typeSpec = new("mydll", "mytype");
+            TypeSpec typeSpec = new("mydll", "mytype", isRegex: false);
             TagConditionRule rule = new("mylocation", typeSpec, fieldPattern: "foo", tags: "tag", tagIfNonZero: false);
-            Assert.That(rule.Location, Is.EqualTo("mylocation"));
-            Assert.That(rule.TypeSpec, Is.EqualTo(typeSpec));
+            Assert.Multiple(() =>
+            {
+                Assert.That(rule.Location, Is.EqualTo("mylocation"));
+                Assert.That(rule.TypeSpec, Is.EqualTo(typeSpec));
 
-            Assert.That(rule.FieldPattern, Is.EqualTo("foo"));
-            Assert.That(rule.Tags, Is.EquivalentTo(new string[] { "tag" }));
-            Assert.That(rule.TagIfNonZero, Is.False);
-            Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" TAG_IF_ZERO(tag) \"foo\";"));
+                Assert.That(rule.FieldPattern, Is.EqualTo("foo"));
+                Assert.That(rule.Tags, Is.EquivalentTo(new string[] { "tag" }));
+                Assert.That(rule.TagIfNonZero, Is.False);
+                Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" TAG_IF_ZERO(tag) \"foo\";"));
+            });
 
             rule = new("mylocation", typeSpec, fieldPattern: "foo*", tags: "tag1,tag2", tagIfNonZero: true);
-            Assert.That(rule.FieldPattern, Is.EqualTo("foo*"));
-            Assert.That(rule.Tags, Is.EquivalentTo(new string[] { "tag1", "tag2" }));
-            Assert.That(rule.TagIfNonZero, Is.True);
-            Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" TAG_IF_NONZERO(tag1,tag2) \"foo*\";"));
+            Assert.Multiple(() =>
+            {
+                Assert.That(rule.FieldPattern, Is.EqualTo("foo*"));
+                Assert.That(rule.Tags, Is.EquivalentTo(new string[] { "tag1", "tag2" }));
+                Assert.That(rule.TagIfNonZero, Is.True);
+                Assert.That(rule.ToString(), Is.EqualTo("\"mydll:mytype\" TAG_IF_NONZERO(tag1,tag2) \"foo*\";"));
+            });
         }
     }
 }

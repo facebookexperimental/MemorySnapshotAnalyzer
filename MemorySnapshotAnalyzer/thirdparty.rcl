@@ -16,6 +16,7 @@
 [thirdparty.weakdelegates]
 
 "mscorlib.dll:System.Delegate" OWNS(-1) "m_target";
+/\.<>c__DisplayClass/ OWNS(-1) "*";
 
 [thirdparty.dotnet]
 

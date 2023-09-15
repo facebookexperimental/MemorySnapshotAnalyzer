@@ -110,7 +110,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 }
                 else
                 {
-                    domParentNodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(Context.ResolveToPostorderIndex(DirectlyDominatedBy));
+                    domParentNodeIndex = Context.ResolveToNodeIndex(DirectlyDominatedBy);
                 }
             }
             else if (NotInDominatorTree)

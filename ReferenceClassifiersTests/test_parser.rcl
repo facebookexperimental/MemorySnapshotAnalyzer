@@ -21,3 +21,5 @@ IMPORT "test_parser_import2.rcl"
 [subgroup2]
 
 "mydll:mytype" TAG_DYNAMIC(tag1,tag2) "foo[].bar_[]";
+
+/regex/ OWNS(-1) "*";

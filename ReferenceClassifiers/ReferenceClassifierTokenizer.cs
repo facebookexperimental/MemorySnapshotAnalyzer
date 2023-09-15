@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
@@ -17,6 +18,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             Group = 1,
             String,
+            Regex,
             Semicolon,
             Import,
             Owns,
@@ -50,6 +52,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         public string Location => $"{m_filename}:{m_lineNumber}";
 
+        [DoesNotReturn]
         public void ParseError(string message)
         {
             throw new ParseErrorException(message, m_filename, m_lineNumber);
@@ -103,6 +106,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     {
                         string value = wordTrimmed[1..^1];
                         yield return (Token.String, value);
+                    }
+                    else if (wordTrimmed.Length >= 2 && wordTrimmed[0] == '/' && wordTrimmed[^1] == '/')
+                    {
+                        string value = wordTrimmed[1..^1];
+                        yield return (Token.Regex, value);
                     }
                     else if (s_keywords.TryGetValue(wordTrimmed, out Token token))
                     {

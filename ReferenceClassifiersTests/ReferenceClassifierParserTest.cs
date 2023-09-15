@@ -56,6 +56,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
             CheckGroup(groupedRules["subgroup2"], new List<(string location, string rulesText)>()
             {
                 (location: "test_parser.rcl:23", rulesText: "\"mydll:mytype\" TAG_DYNAMIC(tag1,tag2) \"foo[].bar_[]\";"),
+                (location: "test_parser.rcl:25", rulesText: "/regex/ OWNS(-1) \"*\";"),
             });
         }
 

@@ -15,17 +15,21 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
     public sealed class TypeSpec
     {
-        // Can be a full assembly name (without .dll extension). Matched case-insensitively,
-        // and assemblies that include a .dll extension are considered to match.
+        // If IsRegex == false, can be a full assembly name (without .dll extension).
+        // Matched case-insensitively, and assemblies that include a .dll extension
+        // are considered to match. If IsRegex == true, this will be the empty string.
         public string Assembly { get; private set; }
 
         // Fully qualified type name.
         public string TypeName { get; private set; }
 
-        public TypeSpec(string assembly, string typeName)
+        public bool IsRegex { get; private set; }
+
+        public TypeSpec(string assembly, string typeName, bool isRegex)
         {
             Assembly = new string(WithoutExtension(assembly));
             TypeName = typeName;
+            IsRegex = isRegex;
         }
 
         public static TypeSpec Parse(string value)
@@ -36,7 +40,12 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 throw new ArgumentException("type name must be prefixed with an assembly name");
             }
 
-            return new TypeSpec(value[..indexOfColon], value[(indexOfColon + 1)..]);
+            return new TypeSpec(value[..indexOfColon], value[(indexOfColon + 1)..], isRegex: false);
+        }
+
+        public static TypeSpec FromRegex(string regex)
+        {
+            return new TypeSpec(string.Empty, regex, isRegex: true);
         }
 
         public bool AssemblyMatches(ReadOnlySpan<char> assemblyWithoutExtension)
@@ -59,7 +68,14 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 
         public override string ToString()
         {
-            return $"\"{Assembly}:{TypeName}\"";
+            if (IsRegex)
+            {
+                return $"/{TypeName}/";
+            }
+            else
+            {
+                return $"\"{Assembly}:{TypeName}\"";
+            }
         }
     }
 

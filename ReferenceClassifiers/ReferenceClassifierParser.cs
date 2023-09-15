@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -51,34 +51,47 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             {
                 while (m_enumerator.MoveNext())
                 {
-                    if (m_enumerator.Current.token == ReferenceClassifierTokenizer.Token.Import)
+                    switch (m_enumerator.Current.token)
                     {
-                        if (!m_enumerator.MoveNext() || m_enumerator.Current.token != ReferenceClassifierTokenizer.Token.String)
-                        {
-                            m_tokenizer.ParseError("IMPORT directive needs to be followed by a string");
-                        }
+                        case ReferenceClassifierTokenizer.Token.Import:
+                            {
+                                if (!m_enumerator.MoveNext() || m_enumerator.Current.token != ReferenceClassifierTokenizer.Token.String)
+                                {
+                                    m_tokenizer.ParseError("IMPORT directive needs to be followed by a string");
+                                }
 
-                        string? groupNamePrefix = m_groupName.Equals("anonymous", StringComparison.Ordinal) ? m_groupNamePrefix : m_groupName;
-                        Load(m_enumerator.Current.value, groupNamePrefix, m_groupedRules);
-                    }
-                    else if (m_enumerator.Current.token == ReferenceClassifierTokenizer.Token.Group)
-                    {
-                        string? declaredGroupName = m_enumerator.Current.value.Length > 0 ? m_enumerator.Current.value : null;
-                        m_groupName = ReferenceClassifierGroup.ResolveGroupName(m_groupNamePrefix, declaredGroupName);
-                    }
-                    else if (m_enumerator.Current.token == ReferenceClassifierTokenizer.Token.String)
-                    {
-                        TypeSpec typeSpec = TypeSpec.Parse(m_enumerator.Current.value);
-                        if (!m_enumerator.MoveNext())
-                        {
-                            m_tokenizer.ParseError("unterminated rule");
-                        }
+                                string? groupNamePrefix = m_groupName.Equals("anonymous", StringComparison.Ordinal) ? m_groupNamePrefix : m_groupName;
+                                Load(m_enumerator.Current.value, groupNamePrefix, m_groupedRules);
+                            }
+                            break;
+                        case ReferenceClassifierTokenizer.Token.Group:
+                            {
+                                string? declaredGroupName = m_enumerator.Current.value.Length > 0 ? m_enumerator.Current.value : null;
+                                m_groupName = ReferenceClassifierGroup.ResolveGroupName(m_groupNamePrefix, declaredGroupName);
+                            }
+                            break;
+                        case ReferenceClassifierTokenizer.Token.String:
+                        case ReferenceClassifierTokenizer.Token.Regex:
+                            {
+                                TypeSpec typeSpec = m_enumerator.Current.token == ReferenceClassifierTokenizer.Token.String ?
+                                    TypeSpec.Parse(m_enumerator.Current.value) :
+                                    TypeSpec.FromRegex(m_enumerator.Current.value);
 
-                        do
-                        {
-                            ParseRules(typeSpec);
-                        }
-                        while (m_enumerator.Current.token != ReferenceClassifierTokenizer.Token.Semicolon);
+                                if (!m_enumerator.MoveNext())
+                                {
+                                    m_tokenizer.ParseError("unterminated rule");
+                                }
+
+                                do
+                                {
+                                    ParseRules(typeSpec);
+                                }
+                                while (m_enumerator.Current.token != ReferenceClassifierTokenizer.Token.Semicolon);
+                            }
+                            break;
+                        default:
+                            m_tokenizer.ParseError($"unexpected token {m_enumerator.Current.token}");
+                            break;
                     }
                 }
             }
