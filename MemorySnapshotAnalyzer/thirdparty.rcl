@@ -20,6 +20,9 @@
 
 [thirdparty.dotnet]
 
+"mscorlib.dll:System.Globalization.CultureInfo" OWNS "s_DefaultThreadCurrentUICulture";
+"mscorlib.dll:System.Globalization.CultureInfo" OWNS(2) "default_current_culture";
+
 ##
 ## Web
 ##

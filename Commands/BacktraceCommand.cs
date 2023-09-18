@@ -29,6 +29,9 @@ namespace MemorySnapshotAnalyzer.Commands
         [FlagArgument("lifelines")]
         public bool Lifelines;
 
+        [FlagArgument("toroots")]
+        public bool ToRoots;
+
         [FlagArgument("owners")]
         public bool Owners;
 
@@ -58,6 +61,11 @@ namespace MemorySnapshotAnalyzer.Commands
             if (numberOfModes > 1)
             {
                 throw new CommandException("at most one of a dot filename, 'lifelines, 'owners, or 'dom may be given");
+            }
+
+            if (ToRoots && !Lifelines)
+            {
+                throw new CommandException("'toroots may only be given with 'lifelines");
             }
 
             int postorderIndex = Context.ResolveToPostorderIndex(AddressOrIndex);
@@ -170,7 +178,7 @@ namespace MemorySnapshotAnalyzer.Commands
         void DumpLifelines(int nodeIndex)
         {
             Dictionary<int, int[]> lifelines = ComputeLifelines(nodeIndex,
-                nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex) || CurrentBacktracer.Weight(nodeIndex) > 0);
+                nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex) || !ToRoots && CurrentBacktracer.Weight(nodeIndex) > 0);
 
             if (Owners)
             {
@@ -334,6 +342,6 @@ namespace MemorySnapshotAnalyzer.Commands
             while (currentNodeIndex != -1 && currentNodeIndex != CurrentHeapDom.RootNodeIndex);
         }
 
-        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] | 'lifelines | 'owners | 'dom] ['fullyqualified] ['fields]";
+        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] | 'lifelines ['toroots] | 'owners | 'dom] ['fullyqualified] ['fields]";
     }
 }
