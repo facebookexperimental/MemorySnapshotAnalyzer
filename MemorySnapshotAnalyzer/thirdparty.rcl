@@ -20,8 +20,10 @@
 
 [thirdparty.dotnet]
 
+"mscorlib.dll:System.Globalization.CompareInfo" OWNS "collators._entries[].value";
 "mscorlib.dll:System.Globalization.CultureInfo" OWNS "s_DefaultThreadCurrentUICulture";
 "mscorlib.dll:System.Globalization.CultureInfo" OWNS(2) "default_current_culture";
+"mscorlib.dll:System.Globalization.CultureInfo" OWNS(2) "default_current_culture.compareInfo.collator";
 
 ##
 ## Web
@@ -45,6 +47,9 @@
 
 [thirdparty.unity]
 
+"mscorlib.dll:System.Threading.ExecutionContext" OWNS "_syncContext";
+"mscorlib.dll:System.Threading.Thread" OWNS_DYNAMIC "m_ExecutionContext._syncContext.m_AsyncWorkQueue";
+
 ##
 ## Connection between managed and native objects
 ##
@@ -59,6 +64,7 @@
 ## Input
 ##
 
+"Unity.InputSystem.dll:UnityEngine.InputSystem.InputActionAsset" OWNS "m_SharedStateForAllMaps";
 "Unity.InputSystem.dll:UnityEngine.InputSystem.InputSystem"
   OWNS "s_Manager"
   OWNS "s_Remote"
@@ -66,5 +72,6 @@
 "Unity.InputSystem.dll:UnityEngine.InputSystem.InputManager"
   OWNS "layoutMatchers"
   OWNS "m_Devices[]";
+"Unity.InputSystem.dll:UnityEngine.InputSystem.RemoteInputPlayerConnection" OWNS "m_Connection";
 
 "Unity.Addressables.dll:UnityEngine.AddressableAssets.ResourceLocators.ResourceLocationMap" OWNS "locations._entries[].value";

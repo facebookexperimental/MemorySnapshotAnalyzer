@@ -391,7 +391,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 }
                 else
                 {
-                    m_currentRootSet = new RootSet(CurrentTraceableHeap!, gcHandleWeight: RootSet_WeakGCHandles ? -1 : 0);
+                    m_currentRootSet = new RootSet(CurrentTraceableHeap!, gcHandleWeight: RootSet_WeakGCHandles ? -2 : 0);
                 }
 
                 m_output.WriteLine(" {0} roots ({1} GCHandles, {2} statics)",

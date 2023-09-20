@@ -111,6 +111,7 @@ Specific rule keywords are:
     * A weight of 1 or greater indicates that the target object is strongly-owned. Note that if multiple strongly-owning references of the same weight, from different objects, are found, an warning is issued for ambiguous ownership.
     * A weight of -1 or less indicates that the object is "weakly" referenced (an analysis concept - not to be confused with a .NET `WeakReference`).
     * Note that the weight of a reference to which no rule applies is considered to be 0 (no explicit "owns" rule may specify weight 0).
+    * The option `weakgchandles` (see above) effectively assigns all references emanating from GC handles a weight of -2.
 * **`OWNS_DYNAMIC` or `OWNS_DYNAMIC(weight)`:** A variant of "owns" that does not output a warning if a field needs to be looked up dynamically (that is, in the run-time type of an object rather than the declared type of the referencing field).
 * **`EXTERNAL`:** An "external" rule takes a field pattern as argument. The field is considered to contain a native-word sized pointer, referencing an object on another heap. This is to be used in conjunction with the `stitched` heap option.
 * **`TAG(tag,...)`:** A "tag" rule takes a selector as argument. The object reachable via the selector is assigned the given tags. Object tags are displayed when listing objects and in backtraces.

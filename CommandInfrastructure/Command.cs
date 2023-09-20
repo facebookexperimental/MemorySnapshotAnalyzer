@@ -312,7 +312,9 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             bool first = true;
             foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetPointers(address, typeIndex))
             {
-                if (pointerInfo.FieldNumber != -1 && pointerInfo.Value == targetAddress)
+                // Just compare the .Values, not the NativeAddresses themselves - for untraced pointers, the pointerInfo's address
+                // can have a different size than the native word size (and an assertion would fire).
+                if (pointerInfo.FieldNumber != -1 && pointerInfo.Value.Value == targetAddress.Value)
                 {
                     if (!first)
                     {
