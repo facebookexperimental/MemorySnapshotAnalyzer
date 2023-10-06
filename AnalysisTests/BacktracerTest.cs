@@ -44,7 +44,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
             m_traceableHeap = traceableHeap;
             m_rootSet = new RootSet(m_traceableHeap, gcHandleWeight);
             m_tracedHeap = new TracedHeap(m_rootSet!, m_memoryLogger!);
-            m_backtracer = new Backtracer(m_tracedHeap, m_memoryLogger!, fuseRoots);
+            m_backtracer = new Backtracer(m_tracedHeap, m_memoryLogger!, new HashSet<(int childPostorderIndex, int parentPostorderIndex)>(), fuseRoots);
             return m_backtracer;
         }
 

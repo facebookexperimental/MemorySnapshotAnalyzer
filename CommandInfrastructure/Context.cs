@@ -37,6 +37,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         bool m_rootSet_weakGCHandles;
         // Options for Backtracer
         bool m_backtracer_groupStatics;
+        HashSet<(int childPostorderIndex, int parentPostorderIndex)> m_backtracer_referencesToIgnore;
         bool m_backtracer_fuseRoots;
 
         MemorySnapshot? m_currentMemorySnapshot;
@@ -54,6 +55,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             m_referenceClassifierStore = referenceClassifierStore;
 
             m_traceableHeap_referenceClassificationGroups = new();
+            m_backtracer_referencesToIgnore = new();
         }
 
         public static Context WithSameOptionsAs(Context other, ILogger logger, int newId)
@@ -68,6 +70,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 Backtracer_FuseRoots = other.Backtracer_FuseRoots
             };
             newContext.m_traceableHeap_referenceClassificationGroups.UnionWith(other.m_traceableHeap_referenceClassificationGroups);
+            newContext.Backtracer_ReferencesToIgnore_Replace(other.m_backtracer_referencesToIgnore);
             return newContext;
         }
 
@@ -163,14 +166,16 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             if (m_currentBacktracer == null)
             {
-                yield return string.Format("Backtracer[groupstatics={0}, fuseroots={1}] not computed",
+                yield return string.Format("Backtracer[groupstatics={0}, referencestoignore={1}, fuseroots={2}] not computed",
                     m_backtracer_groupStatics,
+                    Backtracer_ReferencesToIgnore_Stringify(),
                     m_backtracer_fuseRoots);
             }
             else
             {
-                yield return string.Format("Backtracer[groupstatics={0}, fuseroots={1}]",
+                yield return string.Format("Backtracer[groupstatics={0}, referencestoignore={1}, fuseroots={2}]",
                     m_backtracer_groupStatics,
+                    Backtracer_ReferencesToIgnore_Stringify(),
                     m_backtracer_fuseRoots);
             }
 
@@ -445,6 +450,84 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
         }
 
+        public void Backtracer_ReferencesToIgnore_Replace(IEnumerable<(int childPostorderIndex, int parentPostorderIndex)> referencesToIgnore)
+        {
+            if (!m_backtracer_referencesToIgnore.SetEquals(referencesToIgnore))
+            {
+                m_backtracer_referencesToIgnore = new(referencesToIgnore);
+                ClearBacktracer();
+            }
+        }
+
+        public void Backtracer_ReferencesToIgnore_Add(int childPostorderIndex, int parentPostorderIndex)
+        {
+            if (m_backtracer_referencesToIgnore.Add((childPostorderIndex, parentPostorderIndex)))
+            {
+                ClearBacktracer();
+            }
+        }
+
+        public void Backtracer_ReferencesToIgnore_Add(int childPostorderIndex)
+        {
+            if (m_backtracer_referencesToIgnore.Add((childPostorderIndex, -1)))
+            {
+                ClearBacktracer();
+            }
+        }
+
+        public void Backtracer_ReferencesToIgnore_Remove(int childPostorderIndex, int parentPostorderIndex)
+        {
+            if (m_backtracer_referencesToIgnore.Remove((childPostorderIndex, parentPostorderIndex)))
+            {
+                ClearBacktracer();
+            }
+        }
+
+        public void Backtracer_ReferencesToIgnore_Remove(int childPostorderIndex)
+        {
+            List<int> parentPostorderIndices = new();
+            foreach ((int childPostorderIndex0, int parentPostorderIndex) in m_backtracer_referencesToIgnore)
+            {
+                if (childPostorderIndex0 == childPostorderIndex)
+                {
+                    parentPostorderIndices.Add(parentPostorderIndex);
+                }
+            }
+
+            if (parentPostorderIndices.Count > 0)
+            {
+                foreach (int parentPostorderIndex in parentPostorderIndices)
+                {
+                    m_backtracer_referencesToIgnore.Remove((childPostorderIndex, parentPostorderIndex));
+                }
+
+                ClearBacktracer();
+            }
+        }
+
+        string Backtracer_ReferencesToIgnore_Stringify()
+        {
+            if (m_backtracer_referencesToIgnore == null)
+            {
+                return "{}";
+            }
+
+            StringBuilder sb = new("{ ");
+            bool first = true;
+            foreach ((int childPostorderIndex, int parentPostorderIndex) in m_backtracer_referencesToIgnore)
+            {
+                if (!first)
+                {
+                    sb.Append(", ");
+                    first = false;
+                }
+
+                sb.AppendFormat("{0} <- {1}", childPostorderIndex, parentPostorderIndex);
+            }
+            sb.Append(" }");
+            return sb.ToString();
+        }
+
         public bool Backtracer_FuseRoots
         {
             get { return m_backtracer_fuseRoots; }
@@ -468,7 +551,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             {
                 m_output.Write("[context {0}] computing backtraces ...", m_id);
 
-                IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, m_logger, fuseRoots: m_backtracer_fuseRoots);
+                IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, m_logger, m_backtracer_referencesToIgnore, fuseRoots: m_backtracer_fuseRoots);
                 if (m_backtracer_groupStatics)
                 {
                     backtracer = new GroupingBacktracer(backtracer);

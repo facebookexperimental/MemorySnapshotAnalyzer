@@ -140,6 +140,7 @@ static class Program
             repl.AddCommand(typeof(FindCommand), "find", "f");
             repl.AddCommand(typeof(DumpRootsCommand), "dumproots");
             repl.AddCommand(typeof(BacktraceCommand), "backtrace", "bt");
+            repl.AddCommand(typeof(IgnoreBackReferenceCommand), "ignorebackref", "ibr");
             repl.AddCommand(typeof(HeapDomCommand), "heapdom");
             repl.AddCommand(typeof(HeapDomStatsCommand), "heapdomstats");
 

@@ -149,6 +149,7 @@ Here are some tips that can be helpful for identifying leaked objects and fixing
 2. Use `backtrace 'lifelines` to dump a compressed view of representative, somewhat short paths to either roots or strongly-owned nodes (according to the reference classifier in use).
 3. Inspect the lifeline diagram to find references that should no longer exist (e.g., be nulled out, or removed from a collection).
 4. Modify your program accordingly, rerun your scenario, and run the same analysis on a new memory snapshot. Confirm whether the object has become eligible for garbage collection, or inspect the updated lifeline diagram to find other references to break.
+5. To identify multiple leaks with a single snapshot while removing the clutter of already-identified leaks, use the `ignorebackref` command, passing a child index and a parent index as arguments. Backtraces will be recomputed while ignoring the given parent-child reference.
 
 ## Visualizing the Heap Dominator Tree as a Treemap
 

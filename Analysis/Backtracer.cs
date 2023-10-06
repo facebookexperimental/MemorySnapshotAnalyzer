@@ -18,6 +18,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         readonly TracedHeap m_tracedHeap;
         readonly ILogger m_logger;
+        readonly HashSet<(int childPostorderIndex, int parentPostorderIndex)> m_referencesToIgnore;
         readonly IRootSet m_rootSet;
         readonly TraceableHeap m_traceableHeap;
         readonly int m_unreachableNodeIndex;
@@ -27,10 +28,11 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly Dictionary<int, int> m_nodeWeights;
         readonly Action<string, string> m_logWarning;
 
-        public Backtracer(TracedHeap tracedHeap, ILogger logger, bool fuseRoots)
+        public Backtracer(TracedHeap tracedHeap, ILogger logger, IEnumerable<(int childPostorderIndex, int parentPostorderIndex)> referencesToIgnore, bool fuseRoots)
         {
             m_tracedHeap = tracedHeap;
             m_logger = logger;
+            m_referencesToIgnore = new(referencesToIgnore);
 
             m_rootSet = m_tracedHeap.RootSet;
             m_traceableHeap = m_rootSet.TraceableHeap;
@@ -44,6 +46,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             m_rootPredecessors = new List<int>() { m_rootNodeIndex };
 
             m_predecessors = new List<int>[m_rootNodeIndex + 1];
+            for (int postorderIndex = 0; postorderIndex <= m_rootNodeIndex; postorderIndex++)
+            {
+                m_predecessors[postorderIndex] = new List<int>();
+            }
             m_nodeWeights = new Dictionary<int, int>();
 
             m_logger.Clear(LOG_SOURCE);
@@ -197,9 +203,6 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         void ComputePredecessors(bool fuseRoots)
         {
-            m_predecessors[m_rootNodeIndex] = new List<int>();
-            m_predecessors[m_unreachableNodeIndex] = new List<int>();
-
             // For each postorder node, add it as a predecessor to all objects it references.
             for (int parentPostorderIndex = 0; parentPostorderIndex < m_tracedHeap.NumberOfPostorderNodes; parentPostorderIndex++)
             {
@@ -262,21 +265,25 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        void AddPredecessor(int childNodeIndex, int parentNodeIndex, int weight)
+        void AddPredecessor(int childPostorderIndex, int parentPostorderIndex, int weight)
         {
-            List<int>? parentNodeIndices = m_predecessors[childNodeIndex];
-            if (parentNodeIndices == null)
+            if (m_referencesToIgnore.Contains((childPostorderIndex, parentPostorderIndex))
+                || m_referencesToIgnore.Contains((childPostorderIndex, -1)))
             {
-                parentNodeIndices = new List<int>();
-                m_predecessors[childNodeIndex] = parentNodeIndices;
+                return;
+            }
+
+            List<int> parentNodeIndices = m_predecessors[childPostorderIndex];
+            if (parentNodeIndices.Count == 0)
+            {
                 if (weight != 0)
                 {
-                    m_nodeWeights[childNodeIndex] = weight;
+                    m_nodeWeights[childPostorderIndex] = weight;
                 }
             }
             else
             {
-                int previousWeight = m_nodeWeights.GetValueOrDefault(childNodeIndex, 0);
+                int previousWeight = m_nodeWeights.GetValueOrDefault(childPostorderIndex, 0);
                 if (weight < previousWeight)
                 {
                     // Ignore references of a lower weight than previous references to this node.
@@ -287,13 +294,13 @@ namespace MemorySnapshotAnalyzer.Analysis
                     // If this reference has a higher weight than previous references to this child,
                     // clear previous references.
                     parentNodeIndices.Clear();
-                    m_nodeWeights[childNodeIndex] = weight;
+                    m_nodeWeights[childPostorderIndex] = weight;
                 }
             }
 
-            if (!parentNodeIndices.Contains(parentNodeIndex))
+            if (!parentNodeIndices.Contains(parentPostorderIndex))
             {
-                parentNodeIndices.Add(parentNodeIndex);
+                parentNodeIndices.Add(parentPostorderIndex);
             }
         }
 
