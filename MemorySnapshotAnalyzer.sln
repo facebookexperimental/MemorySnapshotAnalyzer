@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		TestCommon.props = TestCommon.props
 	EndProjectSection
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MemorySnapshotAnalyzer", "MemorySnapshotAnalyzer\MemorySnapshotAnalyzer.csproj", "{A63A6621-4DEF-4E60-AB0C-1AB5D360BC02}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AbstractMemorySnapshot", "AbstractMemorySnapshot\AbstractMemorySnapshot.csproj", "{12024A92-D344-4133-B61B-9F2A557A8B66}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AbstractMemorySnapshotTests", "AbstractMemorySnapshotTests\AbstractMemorySnapshotTests.csproj", "{4C1AAFD5-BA03-4040-A8BC-8DFF5CA32F56}"
@@ -24,8 +26,6 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CommandInfrastructure", "CommandInfrastructure\CommandInfrastructure.csproj", "{8B8AC564-E3ED-46D8-A278-AC2A9EC81338}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Commands", "Commands\Commands.csproj", "{161B4C96-366E-4A08-B179-E54229C198FF}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MemorySnapshotAnalyzer", "MemorySnapshotAnalyzer\MemorySnapshotAnalyzer.csproj", "{A63A6621-4DEF-4E60-AB0C-1AB5D360BC02}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReferenceClassifiers", "ReferenceClassifiers\ReferenceClassifiers.csproj", "{70B65ED6-7A51-4C41-BE82-EAE10AEB1D6A}"
 EndProject
