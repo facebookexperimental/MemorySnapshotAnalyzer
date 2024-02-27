@@ -101,7 +101,15 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 m_indents[indent] = indentString;
             }
             m_writer.Write(indentString);
-            m_writer.WriteLine(format, args);
+            if (args.Length > 0)
+            {
+                Console.WriteLine(format, args);
+            }
+            else
+            {
+                // Do not interpret format string.
+                Console.WriteLine(format);
+            }
         }
 
         public void CheckForCancellation()
