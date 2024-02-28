@@ -103,12 +103,12 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             m_writer.Write(indentString);
             if (args.Length > 0)
             {
-                Console.WriteLine(format, args);
+                m_writer.WriteLine(format, args);
             }
             else
             {
                 // Do not interpret format string.
-                Console.WriteLine(format);
+                m_writer.WriteLine(format);
             }
         }
 
