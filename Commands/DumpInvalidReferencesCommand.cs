@@ -47,20 +47,28 @@ namespace MemorySnapshotAnalyzer.Commands
                 objects.Add(objectAddress.Value);
             }
 
-            Output.WriteLine("Found {0} invalid targets referenced from {1} roots and {2} separate objects",
+            Output.AddProperty("numberOfInvalidTargets", references.Count);
+            Output.AddProperty("numberOfReferencingRoots", numberOfRoots);
+            Output.AddProperty("numberOfReferencingObjects", objects.Count);
+            Output.AddDisplayStringLine("Found {0} invalid targets referenced from {1} roots and {2} separate objects",
                 references.Count,
                 numberOfRoots,
                 objects.Count);
 
             if (Roots)
             {
+                Output.BeginArray("rootsWithInvalidReferences");
                 foreach ((int rootIndex, NativeWord reference) in roots)
                 {
-                    Output.WriteLine("Root with index {0} ({1}) contains invalid reference {2}",
+                    Output.BeginElement();
+                    Output.AddProperty("targetAddress", reference.ToString());
+                    Output.AddDisplayStringLine("Root with index {0} ({1}) contains invalid reference {2}",
                         rootIndex,
-                        CurrentRootSet.DescribeRoot(rootIndex, fullyQualified: true),
+                        CurrentRootSet.DescribeRoot(rootIndex, Output, fullyQualified: true),
                         reference);
+                    Output.EndElement();
                 }
+                Output.EndArray();
             }
 
             if (Objects || !Roots)
@@ -80,15 +88,25 @@ namespace MemorySnapshotAnalyzer.Commands
                     byType.Add((reference, objectAddress));
                 }
 
+                Output.BeginArray("objectsWithInvalidReferences");
+
                 StringBuilder sb = new();
                 foreach ((int typeIndex, List<(NativeWord reference, NativeWord objectAddress)> byType) in invalidReferencesByType)
                 {
+                    Output.BeginElement();
+                    Output.BeginArray("byType");
                     for (int i = 0; i < byType.Count; i++)
                     {
+                        Output.BeginElement();
+
                         (NativeWord reference, NativeWord objectAddress) = byType[i];
                         int postorderIndex = CurrentTracedHeap.ObjectAddressToPostorderIndex(objectAddress);
                         AppendFields(postorderIndex, reference, sb);
-                        Output.WriteLine("Object {0} (index {1}) of type {2}:{3} (type index {4}) contains invalid reference {5}{6}",
+                        CurrentTraceableHeap.TypeSystem.OutputType(Output, "objectType", typeIndex);
+                        Output.AddProperty("objectAddress", objectAddress.ToString());
+                        Output.AddProperty("objectIndex", postorderIndex);
+                        Output.AddProperty("targetAddress", reference.ToString());
+                        Output.AddDisplayStringLine("Object {0} (index {1}) of type {2}:{3} (type index {4}) contains invalid reference {5}{6}",
                             objectAddress,
                             postorderIndex,
                             CurrentTraceableHeap.TypeSystem.Assembly(typeIndex),
@@ -98,13 +116,22 @@ namespace MemorySnapshotAnalyzer.Commands
                             sb.ToString());
                         sb.Clear();
 
+                        Output.EndElement();
+
                         if (!Verbose && byType.Count > 2)
                         {
-                            Output.WriteLine("... and {0} more with this type", byType.Count - 1);
+                            Output.BeginElement();
+                            Output.AddProperty("elidedNumberOfOfjects", byType.Count - 1);
+                            Output.AddDisplayStringLine("... and {0} more with this type", byType.Count - 1);
+                            Output.EndElement();
                             break;
                         }
                     }
+                    Output.EndArray();
+                    Output.EndElement();
                 }
+
+                Output.EndArray();
             }
         }
 

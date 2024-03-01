@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -15,7 +15,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            Output.Clear();
+            Repl.Output.Clear();
         }
 
         public override string HelpText => "cls";

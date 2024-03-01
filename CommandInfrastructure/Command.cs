@@ -16,20 +16,20 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
     {
         readonly Repl m_repl;
         readonly Context m_context;
-        IOutput m_output;
+        IStructuredOutput m_output;
 
         protected Command(Repl repl)
         {
             m_repl = repl;
             m_context = m_repl.CurrentContext;
-            m_output = m_repl.Output;
+            m_output = m_repl.StructuredOutput;
         }
 
         public Repl Repl => m_repl;
 
         public Context Context => m_context;
 
-        public IOutput Output => m_output;
+        public IStructuredOutput Output => m_output;
 
         public sealed class Unredirector : IDisposable
         {
@@ -42,13 +42,13 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             public void Dispose()
             {
-                m_command.m_output = m_command.m_repl.Output;
+                m_command.m_output = m_command.m_repl.StructuredOutput;
             }
         }
 
-        public Unredirector RedirectOutput(IOutput output)
+        public Unredirector RedirectOutput(IStructuredOutput structuredOutput)
         {
-            m_output = output;
+            m_output = structuredOutput;
             return new(this);
         }
 
@@ -136,6 +136,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         public void DescribeAddress(NativeWord addressOfValue, StringBuilder sb)
         {
+            Output.AddProperty("address", addressOfValue.ToString());
 
             if (addressOfValue.Value == 0)
             {
@@ -150,11 +151,13 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 MemoryView memoryView = segmentedHeap.GetMemoryViewForAddress(addressOfValue);
                 if (!memoryView.IsValid)
                 {
+                    Output.AddProperty("addressMapped", "false");
                     sb.AppendFormat("{0}: not in mapped memory", addressOfValue);
                     return;
                 }
 
                 nativeValue = memoryView.ReadNativeWord(0, CurrentMemorySnapshot.Native);
+                Output.AddProperty("addressContents", nativeValue.ToString());
                 sb.AppendFormat("{0}: {1}  ", addressOfValue, nativeValue);
             }
 
@@ -172,6 +175,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 postorderIndex = CurrentTracedHeap.ObjectAddressToPostorderIndex(nativeValue);
                 if (postorderIndex != -1)
                 {
+                    Output.AddProperty("pointerTo", "True");
                     sb.Append("pointer to ");
                     DescribeObject(postorderIndex, nativeValue, sb);
                     return;
@@ -184,7 +188,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 return;
             }
 
-            string? typeDescription = CurrentTraceableHeap.DescribeAddress(addressOfValue);
+            string? typeDescription = CurrentTraceableHeap.DescribeAddress(addressOfValue, Output);
             if (typeDescription != null)
             {
                 sb.AppendFormat("{0}", typeDescription);
@@ -193,19 +197,11 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             if (segmentedHeap != null)
             {
-                HeapSegment? segment = segmentedHeap.GetSegmentForAddress(nativeValue);
-                if (segment == null)
-                {
-                    sb.Append("not a pointer to mapped memory");
-                }
-                else if (segment.IsRuntimeTypeInformation)
-                {
-                    sb.AppendFormat("pointer into rtti[segment @ {0:X016}]", segment.StartAddress);
-                }
-                else
-                {
-                    sb.AppendFormat("pointer into managed heap[segment @ {0:X016}]", segment.StartAddress);
-                }
+
+                // If the address is not in mapped memory, then we already returned from this method, further above.
+                HeapSegment segment = segmentedHeap.GetSegmentForAddress(nativeValue)!;
+                sb.Append("pointer into ");
+                segment.Describe(Output, sb);
             }
         }
 
@@ -218,6 +214,8 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 {
                     PointerFlags baseFlags = pointerInfo.PointerFlags.WithoutWeight();
                     int weight = pointerInfo.PointerFlags.Weight();
+                    Output.AddProperty("pointerFlags", baseFlags.ToString());
+                    Output.AddProperty("referenceWeight", weight);
                     if (weight != 0)
                     {
                         sb.AppendFormat(" ({0}, weight {1})", baseFlags, weight);
@@ -236,7 +234,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             int typeIndex = CurrentTraceableHeap.TryGetTypeIndex(objectAddress);
             if (typeIndex == -1)
             {
-                CurrentTracedHeap.DescribeRootIndices(postorderIndex, sb);
+                CurrentTracedHeap.DescribeRootIndices(postorderIndex, sb, Output);
                 return;
             }
 
@@ -246,23 +244,28 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 AppendWeight(CurrentBacktracer.Weight(nodeIndex), sb);
             }
 
+            Output.AddProperty("objectIndex", postorderIndex);
             sb.AppendFormat("live object[index {0}", postorderIndex);
 
             string? name = CurrentTraceableHeap.GetObjectName(objectAddress);
             if (name != null)
             {
+                Output.AddProperty("objectName", name);
                 sb.AppendFormat(" \"{0}\"", name);
             }
 
             int objectSize = CurrentTraceableHeap.GetObjectSize(objectAddress, typeIndex, committedOnly: false);
+            Output.AddProperty("objectSize", objectSize);
             sb.AppendFormat(", size {0}", objectSize);
 
             int committedSize = CurrentTraceableHeap.GetObjectSize(objectAddress, typeIndex, committedOnly: true);
             if (committedSize != objectSize)
             {
+                Output.AddProperty("committedSize", committedSize);
                 sb.AppendFormat(" (committed {0})", committedSize);
             }
 
+            CurrentTraceableHeap.TypeSystem.OutputType(Output, "objectType", typeIndex);
             sb.AppendFormat(", type {0}:{1} (type index {2})]",
                 CurrentTraceableHeap.TypeSystem.Assembly(typeIndex),
                 CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
@@ -277,6 +280,8 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                     if (objectView.IsValid)
                     {
                         (int stringLength, string s) = ReadString(objectView, maxLength: 80);
+                        Output.AddProperty("stringLength", stringLength);
+                        Output.AddProperty("stringValue", s);
                         sb.AppendFormat("  String of length {0} = \"{1}\"", stringLength, s);
                     }
                 }
@@ -285,8 +290,9 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             AppendTags(objectAddress, sb);
         }
 
-        protected static void AppendWeight(int weight, StringBuilder sb)
+        protected void AppendWeight(int weight, StringBuilder sb)
         {
+            Output.AddProperty("referenceWeight", weight);
             if (weight == 1)
             {
                 sb.Append("** ");
@@ -322,11 +328,22 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                     }
                     else
                     {
+                        Output.BeginArray("fields");
                         sb.Append(' ');
                         first = false;
                     }
-                    sb.Append(CurrentTraceableHeap.TypeSystem.FieldName(pointerInfo.TypeIndex, pointerInfo.FieldNumber));
+
+                    string fieldName = CurrentTraceableHeap.TypeSystem.FieldName(pointerInfo.TypeIndex, pointerInfo.FieldNumber);
+                    Output.BeginElement();
+                    Output.AddProperty("fieldName", CurrentTraceableHeap.TypeSystem.FieldName(pointerInfo.TypeIndex, pointerInfo.FieldNumber));
+                    sb.Append(fieldName);
+                    Output.EndElement();
                 }
+            }
+
+            if (!first)
+            {
+                Output.EndArray();
             }
         }
 
@@ -337,6 +354,8 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             {
                 if (first)
                 {
+                    Output.BeginArray("tags");
+
                     sb.Append(" tags(");
                     first = false;
                 }
@@ -345,12 +364,17 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                     sb.Append(',');
                 }
 
+                Output.BeginElement();
+                Output.AddProperty("tag", tag);
                 sb.Append(tag);
+                Output.EndElement();
             }
 
             if (!first)
             {
                 sb.Append(')');
+
+                Output.EndArray();
             }
         }
 
@@ -362,21 +386,30 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 throw new CommandException($"unable to determine object type");
             }
 
-            Output.WriteLine("Object of type {0}:{1} (type index {2})",
+            CurrentTraceableHeap.TypeSystem.OutputType(Output, "objectType", typeIndex);
+            Output.AddDisplayStringLine("Object of type {0}:{1} (type index {2})",
                 CurrentTraceableHeap.TypeSystem.Assembly(typeIndex),
                 CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
                 typeIndex);
 
+            Output.BeginArray("objectPointers");
             var sb = new StringBuilder();
             foreach (PointerInfo<NativeWord> pointerInfo in CurrentTraceableHeap.GetPointers(address, typeIndex))
             {
+                Output.BeginElement();
+
                 DescribePointerInfo(pointerInfo, sb);
                 if (sb.Length > 0)
                 {
-                    Output.WriteLineIndented(1, sb.ToString());
+                    string s = sb.ToString();
+                    Output.AddProperty("pointer", s);
+                    Output.AddDisplayStringLineIndented(1, s);
                     sb.Clear();
                 }
+
+                Output.EndElement();
             }
+            Output.EndArray();
         }
 
         protected void DumpObjectMemory(NativeWord address, MemoryView objectView, int indent, string? fieldNameOpt = null)
@@ -401,18 +434,25 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             if (typeIndex == typeSystem.SystemStringTypeIndex)
             {
                 (int stringLength, string s) = ReadString(objectView, maxLength: int.MaxValue);
-                Output.WriteLineIndented(indent, "String of length {0} = \"{1}\"", stringLength, s);
+                Output.AddProperty("kind", "string");
+                Output.AddProperty("stringLength", stringLength);
+                Output.AddProperty("stringValue", s);
+                Output.AddDisplayStringLineIndented(indent, "String of length {0} = \"{1}\"", stringLength, s);
             }
             else if (typeSystem.IsArray(typeIndex))
             {
                 int elementTypeIndex = typeSystem.BaseOrElementTypeIndex(typeIndex);
                 int arraySize = CurrentSegmentedHeapOpt!.ReadArraySize(objectView);
-                Output.WriteLineIndented(indent, "Array of length {0} with element type {1}:{2} (type index {3})",
+                Output.AddProperty("kind", "array");
+                Output.AddProperty("arrayLength", arraySize);
+                CurrentTraceableHeap.TypeSystem.OutputType(Output, "elementType", elementTypeIndex);
+                Output.AddDisplayStringLineIndented(indent, "Array of length {0} with element type {1}:{2} (type index {3})",
                     arraySize,
                     typeSystem.Assembly(elementTypeIndex),
                     typeSystem.QualifiedName(elementTypeIndex),
                     elementTypeIndex);
 
+                Output.BeginArray("elements");
                 int elementSize = typeSystem.GetArrayElementSize(elementTypeIndex);
                 for (int i = 0; i < arraySize; i++)
                 {
@@ -423,18 +463,25 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                         break;
                     }
 
+                    Output.BeginElement();
+                    Output.AddProperty("elementOffset", elementOffset);
                     MemoryView elementView = objectView.GetRange(elementOffset, elementSize);
-                    Output.WriteLineIndented(indent + 1, "Element {0} at offset {1}", i, elementOffset);
+                    Output.AddDisplayStringLineIndented(indent + 1, "Element {0} at offset {1}", i, elementOffset);
                     DumpFieldMemory(elementView, elementTypeIndex, indent + 2);
+                    Output.EndElement();
                 }
+                Output.EndArray();
             }
             else
             {
-                Output.WriteLineIndented(indent, "Object of type {0}:{1} (type index {2})",
+                Output.AddProperty("kind", "object");
+                CurrentTraceableHeap.TypeSystem.OutputType(Output, "objectType", typeIndex);
+                Output.AddDisplayStringLineIndented(indent, "Object of type {0}:{1} (type index {2})",
                     typeSystem.Assembly(typeIndex),
                     typeSystem.QualifiedName(typeIndex),
                     typeIndex);
 
+                Output.BeginArray("fields");
                 int numberOfFields = typeSystem.NumberOfFields(typeIndex);
                 for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
                 {
@@ -451,15 +498,24 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
                     int fieldOffset = typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: true);
                     int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
-                    Output.WriteLineIndented(indent + 1, "+{0}  {1} : {2} {3}:{4} (type index {5})",
+                    string kind = typeSystem.Kind(fieldTypeIndex);
+
+                    Output.BeginElement();
+                    Output.AddProperty("fieldOffset", fieldOffset);
+                    Output.AddProperty("fieldName", fieldName);
+                    Output.AddProperty("kind", kind);
+                    CurrentTraceableHeap.TypeSystem.OutputType(Output, "fieldType", fieldTypeIndex);
+                    Output.AddDisplayStringLineIndented(indent + 1, "+{0}  {1} : {2} {3}:{4} (type index {5})",
                         fieldOffset,
                         fieldName,
-                        typeSystem.IsValueType(fieldTypeIndex) ? "value" : typeSystem.IsArray(fieldTypeIndex) ? "array" : "object",
+                        kind,
                         typeSystem.Assembly(fieldTypeIndex),
                         typeSystem.QualifiedName(fieldTypeIndex),
                         fieldTypeIndex);
                     DumpFieldMemory(objectView.GetRange(fieldOffset, objectView.Size - fieldOffset), fieldTypeIndex, indent + 2);
+                    Output.EndElement();
                 }
+                Output.EndArray();
 
                 int baseTypeIndex = typeSystem.BaseOrElementTypeIndex(typeIndex);
                 if (baseTypeIndex >= 0)
@@ -502,7 +558,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 NativeWord reference = objectView.ReadPointer(0, CurrentMemorySnapshot.Native);
                 var sb = new StringBuilder();
                 DescribeAddress(reference, sb);
-                Output.WriteLineIndented(indent, sb.ToString());
+                Output.AddDisplayStringLineIndented(indent, sb.ToString());
             }
         }
 
@@ -512,6 +568,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             int numberOfFields = typeSystem.NumberOfFields(typeIndex);
             int numberOfFieldsDumped = 0;
+            Output.BeginArray("fields");
             for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
             {
                 if (typeSystem.FieldIsStatic(typeIndex, fieldNumber))
@@ -528,13 +585,21 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 int fieldOffset = typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: false);
                 int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
 
+                Output.BeginElement();
+
                 // Avoid infinite recursion due to the way that primitive types (such as System.Int32) are defined.
                 if (fieldTypeIndex != typeIndex)
                 {
-                    Output.WriteLineIndented(indent, "+{0}  {1} : {2} {3}:{4} (type index {5})",
+                    string kind = typeSystem.Kind(fieldTypeIndex);
+
+                    Output.AddProperty("fieldOffset", fieldOffset);
+                    Output.AddProperty("fieldName", fieldName);
+                    Output.AddProperty("kind", kind);
+                    CurrentTraceableHeap.TypeSystem.OutputType(Output, "fieldType", fieldTypeIndex);
+                    Output.AddDisplayStringLineIndented(indent, "+{0}  {1} : {2} {3}:{4} (type index {5})",
                         fieldOffset,
                         fieldName,
-                        typeSystem.IsValueType(fieldTypeIndex) ? "value" : typeSystem.IsArray(fieldTypeIndex) ? "array" : "object",
+                        kind,
                         typeSystem.Assembly(fieldTypeIndex),
                         typeSystem.QualifiedName(fieldTypeIndex),
                         fieldTypeIndex);
@@ -548,24 +613,30 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                     {
                         if (valueOpt is char c)
                         {
-                            Output.WriteLineIndented(indent, "Value {0}  0x{0:X04}  '{1}'", (int)c, char.IsControl(c) ? '.' : c);
+                            Output.AddProperty("charValue", (int)c);
+                            Output.AddDisplayStringLineIndented(indent, "Value {0}  0x{0:X04}  '{1}'", (int)c, char.IsControl(c) ? '.' : c);
                         }
                         else if (valueOpt is byte b)
                         {
-                            Output.WriteLineIndented(indent, "Value {0}  0x{0:X02}  '{1}'", b, char.IsControl((char)b) ? '.' : (char)b);
+                            Output.AddProperty("byteValue", b);
+                            Output.AddDisplayStringLineIndented(indent, "Value {0}  0x{0:X02}  '{1}'", b, char.IsControl((char)b) ? '.' : (char)b);
                         }
                         else
                         {
-                            Output.WriteLineIndented(indent, "Value {0}", valueOpt);
+                            Output.AddProperty("value", valueOpt.ToString()!);
+                            Output.AddDisplayStringLineIndented(indent, "Value {0}", valueOpt);
                         }
                         numberOfFieldsDumped++;
                     }
                 }
+
+                Output.EndElement();
             }
+            Output.EndArray();
 
             if (numberOfFieldsDumped == 0)
             {
-                Output.WriteLineIndented(indent, "No fields that could be dumped");
+                Output.AddDisplayStringLineIndented(indent, "No fields that could be dumped");
             }
         }
 

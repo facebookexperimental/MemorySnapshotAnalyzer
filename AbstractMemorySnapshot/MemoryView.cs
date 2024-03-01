@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -27,6 +27,18 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         public override string ToString()
         {
             return $"{m_memoryAccessor} offset {m_offset} size 0x{m_size:X} ({m_size})";
+        }
+
+        public void Describe(IStructuredOutput output, StringBuilder sb)
+        {
+            output.AddProperty("memoryAccessor", m_memoryAccessor.ToString()!);
+            output.AddProperty("offset", m_offset);
+            output.AddProperty("size", m_size);
+            sb.AppendFormat("{0} offset {1} size 0x{2:X} ({3})",
+                m_memoryAccessor,
+                m_offset,
+                m_size,
+                m_size);
         }
 
         public long Size => m_size;

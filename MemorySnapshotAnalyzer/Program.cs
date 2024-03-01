@@ -12,14 +12,16 @@ using MemorySnapshotAnalyzer.UnityBackend;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
+using System.IO;
 
 static class Program
 {
-    class CommandLineArguments
+    sealed class CommandLineArguments
     {
         internal bool Help;
         internal bool NonInteractive;
         internal string? LogOutputFilename;
+        internal string? JsonOutputFilename;
         internal string? StartupSnapshotFilename;
         internal List<string> BatchFilenames = new();
 
@@ -47,6 +49,19 @@ static class Program
                         }
 
                         LogOutputFilename = args[++i];
+                        break;
+                    case "--json":
+                        if (JsonOutputFilename != null)
+                        {
+                            throw new CommandException("--json may be specified at most once");
+                        }
+
+                        if (i + 1 >= args.Length)
+                        {
+                            throw new CommandException("--json must be given an argument");
+                        }
+
+                        JsonOutputFilename = args[++i];
                         break;
                     case "--load":
                         if (StartupSnapshotFilename != null)
@@ -91,6 +106,8 @@ static class Program
 
         int returnValue = 0;
         FileOutput? errorOutput = null;
+        JsonStructuredOutput? jsonOutput = null;
+        string? jsonOutputFilename = null;
         Repl.RunWithHandler(() =>
         {
             CommandLineArguments commandLineArguments = new(args);
@@ -115,7 +132,21 @@ static class Program
                 output = new ConsoleOutput();
             }
 
-            using Repl repl = new(configuration, output, new MemoryLoggerFactory(), isInteractive: !commandLineArguments.NonInteractive);
+            IStructuredOutput structuredOutput;
+            if (commandLineArguments.JsonOutputFilename != null)
+            {
+                jsonOutput = new JsonStructuredOutput(new PassthroughStructuredOutput(output), keepDisplayStrings: false);
+                structuredOutput = jsonOutput;
+                jsonOutputFilename = commandLineArguments.JsonOutputFilename;
+
+                jsonOutput.BeginArray("commands");
+            }
+            else
+            {
+                structuredOutput = new PassthroughStructuredOutput(output);
+            }
+
+            using Repl repl = new(configuration, output, structuredOutput, new MemoryLoggerFactory(), isInteractive: !commandLineArguments.NonInteractive);
 
             repl.AddMemorySnapshotLoader(new UnityMemorySnapshotLoader());
 
@@ -179,6 +210,12 @@ static class Program
         if (errorOutput != null)
         {
             errorOutput.Dispose();
+        }
+
+        if (jsonOutput != null)
+        {
+            using FileStream fileStream = new(jsonOutputFilename!, FileMode.Create, FileAccess.Write);
+            jsonOutput.WriteTo(fileStream);
         }
 
         return returnValue;

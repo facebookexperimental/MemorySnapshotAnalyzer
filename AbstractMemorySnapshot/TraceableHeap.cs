@@ -49,7 +49,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract bool ContainsAddress(NativeWord address);
 
-        public abstract string? DescribeAddress(NativeWord address);
+        public abstract string? DescribeAddress(NativeWord address, IStructuredOutput output);
 
         public abstract SegmentedHeap? SegmentedHeapOpt { get; }
     }

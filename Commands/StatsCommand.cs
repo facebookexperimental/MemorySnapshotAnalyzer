@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -8,6 +8,7 @@
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandInfrastructure;
 using System.Collections.Generic;
+using System.Text;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -30,29 +31,35 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             if (TypeSystemStatistics)
             {
+                Output.BeginChild("typeSystemStatistics");
                 DumpTypeSystemStatistics();
-                Output.WriteLine();
+                Output.AddDisplayStringLine(string.Empty);
+                Output.EndChild();
             }
 
             if (HeapStatistics)
             {
+                Output.BeginChild("heapStatistics");
                 DumpHeapStatistics();
-                Output.WriteLine();
+                Output.AddDisplayStringLine(string.Empty);
+                Output.EndChild();
             }
 
             if (Fragmentation)
             {
+                Output.BeginChild("fragmentationStatistics");
                 DumpFragmentation();
-                Output.WriteLine();
+                Output.AddDisplayStringLine(string.Empty);
+                Output.EndChild();
             }
         }
 
         void DumpTypeSystemStatistics()
         {
             TypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
-            foreach (string s in typeSystem.DumpStats())
+            foreach (string s in typeSystem.DumpStats(Output))
             {
-                Output.WriteLine(s);
+                Output.AddDisplayStringLine(s);
             }
         }
 
@@ -87,21 +94,28 @@ namespace MemorySnapshotAnalyzer.Commands
                 }
             }
 
-            Output.WriteLine("total heap size {0}", totalSize);
+            Output.AddProperty("totalSize", totalSize);
+            Output.AddDisplayStringLine("total heap size {0}", totalSize);
+
+            Output.BeginArray("histogram");
             foreach (var kvp in histogram)
             {
-                int objectCount;
-                objectSegmentHistogram.TryGetValue(kvp.Key, out objectCount);
-                int rttiCount;
-                rttiSegmentHistogram.TryGetValue(kvp.Key, out rttiCount);
-                Output.WriteLine("size {0,8}: total segments {1} (object {2}, rtti {3})", kvp.Key, kvp.Value, objectCount, rttiCount);
+                Output.BeginElement();
+                objectSegmentHistogram.TryGetValue(kvp.Key, out int objectCount);
+                rttiSegmentHistogram.TryGetValue(kvp.Key, out int rttiCount);
+                Output.AddProperty("size", kvp.Key);
+                Output.AddProperty("totalNumberOfSegments", kvp.Value);
+                Output.AddProperty("numberOfObjectSegments", objectCount);
+                Output.AddProperty("numberOfRttiSegments", rttiCount);
+                Output.AddDisplayStringLine("size {0,8}: total segments {1} (object {2}, rtti {3})", kvp.Key, kvp.Value, objectCount, rttiCount);
+                Output.EndElement();
             }
+            Output.EndArray();
         }
 
         static void Tally(SortedDictionary<long, int> histogram, long size)
         {
-            int count;
-            if (histogram.TryGetValue(size, out count))
+            if (histogram.TryGetValue(size, out int count))
             {
                 histogram[size] = count + 1;
             }
@@ -158,20 +172,33 @@ namespace MemorySnapshotAnalyzer.Commands
                 segmentStats.Add(segment.StartAddress.Value, tuple);
             }
 
-            Output.WriteLine("total heap size = {0}, used size = {1}, free size = {2}",
+            Output.AddProperty("totalHeapSize", (long)totalHeapSize);
+            Output.AddProperty("totalUsedSize", (long)totalUsedSize);
+            Output.AddProperty("totalFreeSize", (long)totalFreeSize);
+            Output.AddDisplayStringLine("total heap size = {0}, used size = {1}, free size = {2}",
                 totalHeapSize,
                 totalUsedSize,
                 totalFreeSize);
 
+            Output.BeginArray("segmentStats");
+            StringBuilder sb = new();
             foreach (KeyValuePair<ulong, (ulong largestGap, ulong totalObjectSize, ulong totalFreeSize)> kvp in segmentStats)
             {
+                Output.BeginElement();
                 HeapSegment segment = segmentedHeap.GetSegmentForAddress(CurrentMemorySnapshot.Native.From(kvp.Key))!;
-                Output.WriteLine("{0}: largest gap {1}, total object size {2}, total free size {3}",
-                    segment,
+                segment.Describe(Output, sb);
+                Output.AddProperty("largestGap", (long)kvp.Value.largestGap);
+                Output.AddProperty("totalObjectSize", (long)kvp.Value.totalObjectSize);
+                Output.AddProperty("totalFreeSize", (long)kvp.Value.totalFreeSize);
+                Output.AddDisplayStringLine("{0}: largest gap {1}, total object size {2}, total free size {3}",
+                    sb.ToString(),
                     kvp.Value.largestGap,
                     kvp.Value.totalObjectSize,
                     kvp.Value.totalFreeSize);
+                sb.Clear();
+                Output.EndElement();
             }
+            Output.EndArray();
         }
 
         (ulong largestGap, ulong totalObjectSize, ulong totalFreeSize) ComputeUsageForSegment(HeapSegment segment, SortedDictionary<ulong, int> objectMap)

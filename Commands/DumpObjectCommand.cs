@@ -80,14 +80,14 @@ namespace MemorySnapshotAnalyzer.Commands
 
             StringBuilder sb = new();
             DescribeAddress(address, sb);
-            Output.WriteLine(sb.ToString());
+            Output.AddDisplayStringLine(sb.ToString());
 
             DumpObjectPointers(address);
         }
 
         void DumpObjectMemoryAsType(SegmentedHeap segmentedHeap)
         {
-            NativeWord address = default;
+            NativeWord address;
 
             // Try to see what we're asked to operate on - an address or a postorder index.
             // Note that we don't use Context.ResolveToPostorderIndex here, as we want to support
@@ -114,9 +114,14 @@ namespace MemorySnapshotAnalyzer.Commands
                 throw new CommandException($"type pattern does not match exactly one type");
             }
 
+            Output.BeginArray("asType");
             foreach (int typeIndex in typeSet.TypeIndices)
             {
-                Output.WriteLine("dumping address {0} as type {1}:{2} (type index {3})",
+                Output.BeginElement();
+
+                Output.AddProperty("address", address.ToString());
+                CurrentTraceableHeap.TypeSystem.OutputType(Output, "type", typeIndex);
+                Output.AddDisplayStringLine("dumping address {0} as type {1}:{2} (type index {3})",
                     address,
                     CurrentTraceableHeap.TypeSystem.Assembly(typeIndex),
                     CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
@@ -130,7 +135,18 @@ namespace MemorySnapshotAnalyzer.Commands
                 {
                     DumpObjectMemory(objectView, typeIndex, 0, Field);
                 }
+
+                Output.EndElement();
             }
+            Output.EndArray();
+        }
+
+        void OutputWarning(string message)
+        {
+            Output.BeginElement();
+            Output.AddProperty("message", message);
+            Output.AddDisplayStringLine(message);
+            Output.EndElement();
         }
 
         void DumpObjectMemory(SegmentedHeap segmentedHeap)
@@ -148,14 +164,21 @@ namespace MemorySnapshotAnalyzer.Commands
 
                 StringBuilder sb = new();
                 DescribeAddress(address, sb);
-                Output.WriteLine(sb.ToString());
+                Output.AddDisplayStringLine(sb.ToString());
 
                 string[] fields = Rule.ParseSelector(Selector);
-                Selector selector = CurrentTraceableHeap.TypeSystem.BindSelector(Output.WriteLine, typeIndex, fields, expectDynamic: false, expectReferenceType: false);
+                Output.BeginArray("warnings");
+                Selector selector = CurrentTraceableHeap.TypeSystem.BindSelector(OutputWarning, typeIndex, fields, expectDynamic: false, expectReferenceType: false);
+                Output.EndArray();
+
                 if (selector.StaticPrefix != null)
                 {
-                    foreach ((SegmentedHeap.ValueReference valueReference, NativeWord _) in segmentedHeap.InterpretSelector((_, message) => Output.WriteLine(message), address, "command line", selector))
+                    Output.BeginArray("selected");
+
+                    foreach ((SegmentedHeap.ValueReference valueReference, NativeWord _) in segmentedHeap.InterpretSelector((_, message) => OutputWarning(message), address, "command line", selector))
                     {
+                        Output.BeginElement();
+
                         if (valueReference.WithHeader)
                         {
                             DumpObjectMemory(valueReference.AddressOfContainingObject, segmentedHeap, 1);
@@ -164,11 +187,15 @@ namespace MemorySnapshotAnalyzer.Commands
                         {
                             sb.Clear();
                             DescribeAddress(valueReference.AddressOfContainingObject, sb);
-                            Output.WriteLineIndented(1, sb.ToString());
+                            Output.AddDisplayStringLineIndented(1, sb.ToString());
 
                             DumpValueTypeMemory(valueReference.ValueView, valueReference.TypeIndex, 2, Field);
                         }
+
+                        Output.EndElement();
                     }
+
+                    Output.EndArray();
                 }
             }
             else
@@ -181,7 +208,7 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             StringBuilder sb = new();
             DescribeAddress(address, sb);
-            Output.WriteLineIndented(indent, sb.ToString());
+            Output.AddDisplayStringLineIndented(indent, sb.ToString());
 
             MemoryView objectView = segmentedHeap.GetMemoryViewForAddress(address);
             DumpObjectMemory(address, objectView, indent, Field);

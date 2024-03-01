@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -63,7 +63,10 @@ namespace MemorySnapshotAnalyzer.Commands
                 }
             }
 
-            Output.WriteLine("Number of nodes dominated only by root node: {0} objects out of {1} toplevel nodes, for a total of {2} bytes",
+            Output.AddProperty("totalNumberOfObjects", totalObjectCount);
+            Output.AddProperty("totalNumberOfToplevelNodes", totalToplevelCount);
+            Output.AddProperty("totalSize", totalSize);
+            Output.AddDisplayStringLine("Number of nodes dominated only by root node: {0} objects out of {1} toplevel nodes, for a total of {2} bytes",
                 totalObjectCount,
                 totalToplevelCount,
                 totalSize);
@@ -78,16 +81,23 @@ namespace MemorySnapshotAnalyzer.Commands
                 Array.Sort(statsArray, (a, b) => b.Value.Count.CompareTo(a.Value.Count));
             }
 
+            Output.BeginArray("toplevelNodes");
             foreach (var kvp in statsArray)
             {
+                Output.BeginElement();
                 int typeIndex = kvp.Key;
                 int count = kvp.Value.Count;
-                Output.WriteLine("Type {0} (index {1}): {2} instances, total {3} bytes",
+                CurrentTraceableHeap.TypeSystem.OutputType(Output, "nodeType", typeIndex);
+                Output.AddProperty("count", count);
+                Output.AddDisplayStringLine("Type {0}:{1} (index {2}): {3} instances, total {4} bytes",
+                    CurrentTraceableHeap.TypeSystem.Assembly(typeIndex),
                     CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
                     typeIndex,
                     count,
                     totalSizeByType[typeIndex]);
+                Output.EndElement();
             }
+            Output.EndArray();
         }
 
         public override string HelpText => "heapdomstats ['bysize]";

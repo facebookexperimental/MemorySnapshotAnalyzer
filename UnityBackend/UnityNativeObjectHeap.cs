@@ -130,7 +130,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return m_nativeObjectsByAddress.ContainsKey(address.Value);
         }
 
-        public override string? DescribeAddress(NativeWord address)
+        public override string? DescribeAddress(NativeWord address, IStructuredOutput output)
         {
             return null;
         }

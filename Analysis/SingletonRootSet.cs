@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -44,8 +44,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             return false;
         }
 
-        string IRootSet.DescribeRoot(int rootIndex, bool fullyQualified)
+        string IRootSet.DescribeRoot(int rootIndex, IStructuredOutput output, bool fullyQualified)
         {
+            output.AddProperty("rootTargetKind", "object");
+            output.AddProperty("rootTargetAddress", m_address.ToString());
             return $"Object@{m_address}";
         }
 

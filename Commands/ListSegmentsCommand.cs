@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -7,6 +7,7 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandInfrastructure;
+using System.Text;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -41,18 +42,28 @@ namespace MemorySnapshotAnalyzer.Commands
                     numberOfObjectSegments++;
                 }
             }
-            Output.WriteLine($"total number of segments: {segmentedHeap.NumberOfSegments} ({numberOfObjectSegments} object, {numberOfRttiSegments} RTTI)");
 
+            Output.AddProperty("totalNumberOfSegments", segmentedHeap.NumberOfSegments);
+            Output.AddProperty("numberOfObjectSegments", numberOfObjectSegments);
+            Output.AddProperty("numberOfRttiSegments", numberOfRttiSegments);
+            Output.AddDisplayStringLine($"total number of segments: {segmentedHeap.NumberOfSegments} ({numberOfObjectSegments} object, {numberOfRttiSegments} RTTI)");
+
+            Output.BeginArray("segments");
+            StringBuilder sb = new();
             for (int i = 0; i < segmentedHeap.NumberOfSegments; i++)
             {
                 HeapSegment segment = segmentedHeap.GetSegment(i);
                 if (!RttiOnly || segment.IsRuntimeTypeInformation)
                 {
-                    Output.WriteLine("segment {0,6}: {1}",
-                    i,
-                    segment);
+                    Output.BeginElement();
+                    Output.AddDisplayString("segment {0,6}: ", i);
+                    segment.Describe(Output, sb);
+                    Output.AddDisplayStringLine(sb.ToString());
+                    sb.Clear();
+                    Output.EndElement();
                 }
             }
+            Output.EndArray();
         }
 
         public override string HelpText => "listsegs ['rttionly]";

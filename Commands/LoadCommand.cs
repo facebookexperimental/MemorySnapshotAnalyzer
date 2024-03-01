@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -65,7 +65,7 @@ namespace MemorySnapshotAnalyzer.Commands
             }
 
             context.CurrentMemorySnapshot = memorySnapshot;
-            Output.WriteLine($"{memorySnapshot.Format} memory snapshot loaded successfully");
+            Output.AddDisplayStringLine($"{memorySnapshot.Format} memory snapshot loaded successfully");
 
             Repl.DumpContexts();
         }

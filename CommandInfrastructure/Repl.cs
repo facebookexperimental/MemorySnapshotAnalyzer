@@ -26,6 +26,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         readonly IConfiguration m_configuration;
         readonly IOutput m_output;
+        readonly IStructuredOutput m_structuredOutput;
         readonly ILoggerFactory m_loggerFactory;
         readonly bool m_isInteractive;
         readonly List<MemorySnapshotLoader> m_memorySnapshotLoaders;
@@ -36,10 +37,11 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         string? m_currentCommandLine;
         int m_currentContextId;
 
-        public Repl(IConfiguration configuration, IOutput output, ILoggerFactory loggerFactory, bool isInteractive)
+        public Repl(IConfiguration configuration, IOutput output, IStructuredOutput structuredOutput, ILoggerFactory loggerFactory, bool isInteractive)
         {
             m_configuration = configuration;
             m_output = output;
+            m_structuredOutput = structuredOutput;
             m_loggerFactory = loggerFactory;
             m_isInteractive = isInteractive;
             m_memorySnapshotLoaders = new();
@@ -124,6 +126,8 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         public IConfiguration Configuration => m_configuration;
 
         public IOutput Output => m_output;
+
+        public IStructuredOutput StructuredOutput => m_structuredOutput;
 
         public bool IsInteractive => m_isInteractive;
 
@@ -277,25 +281,51 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 throw new CommandException($"unknown command '{commandLine.CommandName}'");
             }
 
-            var commandConstructorSignature = new Type[] { typeof(Repl) };
-            var commandConstructorArguments = new object[] { this };
-
-            Command command = (Command)commandType.GetConstructor(commandConstructorSignature)!.Invoke(commandConstructorArguments);
-            AssignArgumentValues(command, commandLine);
-
             try
             {
-                m_currentCommandLine = line;
-                command.Run();
+                m_structuredOutput.BeginElement();
+                m_structuredOutput.AddProperty("commandName", commandType.Name);
+                m_structuredOutput.AddProperty("commandLine", line);
+
+                var commandConstructorSignature = new Type[] { typeof(Repl) };
+                var commandConstructorArguments = new object[] { this };
+
+                Command command = (Command)commandType.GetConstructor(commandConstructorSignature)!.Invoke(commandConstructorArguments);
+                try
+                {
+                    m_structuredOutput.BeginChild("commandLineArguments");
+                    AssignArgumentValues(command, commandLine);
+                }
+                finally
+                {
+                    m_structuredOutput.EndChild();
+                }
+
+                try
+                {
+                    m_currentCommandLine = line;
+                    m_structuredOutput.BeginChild("commandOutput");
+                    command.Run();
+                }
+                finally
+                {
+                    m_currentCommandLine = null;
+                    m_structuredOutput.EndChild();
+
+                    foreach (var kvp in m_contexts)
+                    {
+                        kvp.Value.SummarizeNewWarnings();
+                    }
+                }
             }
             finally
             {
-                m_currentCommandLine = null;
+                m_structuredOutput.BeginChild("context");
+                m_structuredOutput.AddProperty("currentContextId", m_currentContextId);
+                CurrentContext.DumpToStructuredOutput(m_structuredOutput);
+                m_structuredOutput.EndChild();
 
-                foreach (var kvp in m_contexts)
-                {
-                    kvp.Value.SummarizeNewWarnings();
-                }
+                m_structuredOutput.EndElement();
             }
         }
 
@@ -479,6 +509,9 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                         if (index < positionalArguments.Count)
                         {
                             SetFieldValue(commandLine.CommandName, command, field, positionalArguments[index]);
+                            m_structuredOutput.BeginChild(field.Name);
+                            positionalArguments[index].Describe(m_structuredOutput);
+                            m_structuredOutput.EndChild();
                         }
                         else if (!optional)
                         {
@@ -493,6 +526,9 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                         if (namedArguments.TryGetValue(namedArgumentName, out var value))
                         {
                             SetFieldValue(commandLine.CommandName, command, field, value);
+                            m_structuredOutput.BeginChild(field.Name);
+                            value.Describe(m_structuredOutput);
+                            m_structuredOutput.EndChild();
                         }
                     }
                     else if (attribute.AttributeType == typeof(FlagArgumentAttribute))
@@ -508,6 +544,9 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                             {
                                 field.SetValue(command, value ? 1 : 0);
                             }
+                            m_structuredOutput.BeginChild(field.Name);
+                            m_structuredOutput.AddProperty("value", value.ToString());
+                            m_structuredOutput.EndChild();
                         }
                     }
                 }

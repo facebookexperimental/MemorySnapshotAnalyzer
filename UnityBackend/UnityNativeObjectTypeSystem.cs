@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -136,9 +136,12 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         public override int SystemVoidStarTypeIndex => -1;
 
-        public override IEnumerable<string> DumpStats()
+        public override IEnumerable<string> DumpStats(IStructuredOutput output)
         {
+            output.AddProperty("pointerSize", PointerSize);
             yield return string.Format("Pointer size: {0}", PointerSize);
+
+            output.AddProperty("numberOfTypeIndices", NumberOfTypeIndices);
             yield return string.Format("Number of types: {0}", NumberOfTypeIndices);
         }
     }

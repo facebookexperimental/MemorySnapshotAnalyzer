@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -44,13 +44,19 @@ namespace MemorySnapshotAnalyzer.Commands
                 }
             }
 
+            Output.BeginArray("assemblies");
             foreach (var kvp in assemblies)
             {
-                Output.WriteLine("assembly {0}: {1} type{2}",
+                Output.BeginElement();
+                Output.AddProperty("assemblyName", kvp.Key);
+                Output.AddProperty("typeCount", kvp.Value);
+                Output.AddDisplayStringLine("assembly {0}: {1} type{2}",
                     kvp.Key,
                     kvp.Value,
                     kvp.Value != 1 ? "s" : "");
+                Output.EndElement();
             }
+            Output.EndArray();
         }
 
         public override string HelpText => "dumpassemblies [<substring>]";

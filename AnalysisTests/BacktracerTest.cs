@@ -87,6 +87,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
         public void TestBasic()
         {
             Backtracer backtracer = MakeBacktracer(new BasicTraceableHeap(), gcHandleWeight: 0, fuseRoots: false);
+            IStructuredOutput output = new MockStructuredOutput();
 
             Assert.That(backtracer.TracedHeap, Is.EqualTo(m_tracedHeap));
 
@@ -122,11 +123,11 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
                 Assert.That(backtracer.Predecessors(gcHandle0), Is.EquivalentTo(new int[] { backtracer.RootNodeIndex }));
                 Assert.That(backtracer.Predecessors(backtracer.RootNodeIndex), Is.EquivalentTo(Array.Empty<int>()));
 
-                Assert.That(backtracer.DescribeNodeIndex(backtracer.RootNodeIndex, fullyQualified: true), Is.EqualTo("Process"));
-                Assert.That(backtracer.DescribeNodeIndex(backtracer.RootNodeIndex, fullyQualified: true), Is.EqualTo("Process"));
-                Assert.That(backtracer.DescribeNodeIndex(gcHandle0, fullyQualified: true), Is.EqualTo("GCHandle#0"));
-                Assert.That(backtracer.DescribeNodeIndex(nodeIndex1, fullyQualified: true), Is.EqualTo("Test.Assembly:System.Int64#0"));
-                Assert.That(backtracer.DescribeNodeIndex(nodeIndex1, fullyQualified: false), Is.EqualTo("Int64#0"));
+                Assert.That(backtracer.DescribeNodeIndex(backtracer.RootNodeIndex, output, fullyQualified: true), Is.EqualTo("Process"));
+                Assert.That(backtracer.DescribeNodeIndex(backtracer.RootNodeIndex, output, fullyQualified: true), Is.EqualTo("Process"));
+                Assert.That(backtracer.DescribeNodeIndex(gcHandle0, output, fullyQualified: true), Is.EqualTo("GCHandle#0"));
+                Assert.That(backtracer.DescribeNodeIndex(nodeIndex1, output, fullyQualified: true), Is.EqualTo("Test.Assembly:System.Int64#0"));
+                Assert.That(backtracer.DescribeNodeIndex(nodeIndex1, output, fullyQualified: false), Is.EqualTo("Int64#0"));
 
                 Assert.That(backtracer.NodeType(backtracer.RootNodeIndex), Is.EqualTo("root"));
                 Assert.That(backtracer.NodeType(backtracer.UnreachableNodeIndex), Is.EqualTo("unreachable"));

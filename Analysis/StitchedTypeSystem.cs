@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -275,17 +275,21 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         public override int SystemVoidStarTypeIndex => m_systemVoidStarTypeIndex;
 
-        public override IEnumerable<string> DumpStats()
+        public override IEnumerable<string> DumpStats(IStructuredOutput output)
         {
-            foreach (var s in m_first.DumpStats())
+            output.BeginChild("stichedFirst");
+            foreach (var s in m_first.DumpStats(output))
             {
                 yield return s;
             }
+            output.EndChild();
 
-            foreach (var s in m_second.DumpStats())
+            output.BeginChild("stitchedSecond");
+            foreach (var s in m_second.DumpStats(output))
             {
                 yield return s;
             }
+            output.EndChild();
         }
     }
 }

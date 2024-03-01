@@ -1,9 +1,11 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
+
+using System.Text;
 
 namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 {
@@ -29,6 +31,17 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         public MemoryView MemoryView => m_memoryView;
 
         public bool IsRuntimeTypeInformation => m_isRuntimeTypeInformation;
+
+        public void Describe(IStructuredOutput output, StringBuilder sb)
+        {
+            output.AddProperty("startAddress", m_startAddress.ToString());
+            output.AddProperty("isRtti", m_isRuntimeTypeInformation.ToString());
+            sb.AppendFormat("{0} segment at {1} (",
+                m_isRuntimeTypeInformation ? "runtime type information" : "managed heap",
+                m_startAddress);
+            m_memoryView.Describe(output, sb);
+            sb.Append(')');
+        }
 
         public override string ToString()
         {

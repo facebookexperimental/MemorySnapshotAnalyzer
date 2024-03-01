@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -123,13 +123,13 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         void IOutput.WriteLineIndented(int indent, string format, params object[] args)
         {
-            string? indentString;
-            if (!m_indents.TryGetValue(indent, out indentString))
+            if (!m_indents.TryGetValue(indent, out string? indentString))
             {
                 indentString = new string(' ', indent * 2);
                 m_indents[indent] = indentString;
             }
             Console.Write(indentString);
+
             if (args.Length > 0)
             {
                 Console.WriteLine(format, args);

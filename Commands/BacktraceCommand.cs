@@ -81,12 +81,15 @@ namespace MemorySnapshotAnalyzer.Commands
             else if (OutputDotFilename != null)
             {
                 using (var fileOutput = new FileOutput(OutputDotFilename, useUnixNewlines: false))
-                using (RedirectOutput(fileOutput))
+                using (RedirectOutput(new PassthroughStructuredOutput(fileOutput)))
                 {
                     DumpBacktracesToDot(nodeIndex);
                 }
 
-                Output.WriteLine("{0} nodes and {1} edges output",
+                Output.AddProperty("dotFilename", OutputDotFilename);
+                Output.AddProperty("numberOfNodesOutput", m_numberOfNodesOutput);
+                Output.AddProperty("numberOfEdgesOutput", m_numberOfEdgesOutput);
+                Output.AddDisplayStringLine("{0} nodes and {1} edges output",
                     m_numberOfNodesOutput,
                     m_numberOfEdgesOutput);
             }
@@ -111,11 +114,25 @@ namespace MemorySnapshotAnalyzer.Commands
             }
 
             ancestors.Add(nodeIndex);
+            bool first = true;
             foreach (int predIndex in CurrentBacktracer.Predecessors(nodeIndex))
             {
+                if (first)
+                {
+                    Output.BeginArray("predecessors");
+                    first = false;
+                }
+
+                Output.BeginElement();
                 DumpBacktraces(predIndex, ancestors, seen, depth + 1, successorNodeIndex: nodeIndex);
+                Output.EndElement();
             }
             ancestors.Remove(nodeIndex);
+
+            if (!first)
+            {
+                Output.EndArray();
+            }
         }
 
         bool DumpBacktraceLine(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int indent, int successorNodeIndex, string prefix)
@@ -128,10 +145,12 @@ namespace MemorySnapshotAnalyzer.Commands
                 // Back reference to a node that was already printed.
                 if (ancestors.Contains(nodeIndex))
                 {
+                    Output.AddProperty("seen", "upstack");
                     sb.Append("^^ ");
                 }
                 else
                 {
+                    Output.AddProperty("seen", "upAndOver");
                     sb.Append("~~ ");
                 }
             }
@@ -142,7 +161,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 AppendWeight(CurrentBacktracer.Weight(nodeIndex), sb);
             }
 
-            sb.Append(CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+            sb.Append(CurrentBacktracer.DescribeNodeIndex(nodeIndex, Output, FullyQualified));
 
             if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
             {
@@ -155,7 +174,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 AppendTags(address, sb);
             }
 
-            Output.WriteLineIndented(indent, sb.ToString());
+            Output.AddDisplayStringLineIndented(indent, sb.ToString());
             return result;
         }
 
@@ -184,12 +203,16 @@ namespace MemorySnapshotAnalyzer.Commands
                 int[] reachableRoots = lifelines.Keys.ToArray();
                 Array.Sort(reachableRoots, (a, b) => lifelines[a].Length.CompareTo(lifelines[b].Length));
 
+                Output.BeginArray("reachableRoots");
                 foreach (int rootNodeIndex in reachableRoots)
                 {
-                    Output.WriteLine("{0}: {1} hop(s)",
-                        CurrentBacktracer.DescribeNodeIndex(rootNodeIndex, FullyQualified),
+                    Output.BeginElement();
+                    Output.AddDisplayStringLine("{0}: {1} hop(s)",
+                        CurrentBacktracer.DescribeNodeIndex(rootNodeIndex, Output, FullyQualified),
                         lifelines[rootNodeIndex].Length);
+                    Output.EndElement();
                 }
+                Output.EndArray();
             }
             else
             {
@@ -233,12 +256,16 @@ namespace MemorySnapshotAnalyzer.Commands
 
             if (trie.Children != null)
             {
+                Output.BeginArray("children");
                 foreach ((int predNodeIndex, TrieNode child) in trie.Children)
                 {
                     bool newCondense = singleChild && trie.Children.Count == 1;
                     int newIndent = newCondense ? indent : indent + 1;
+                    Output.BeginElement();
                     DumpTrie(predNodeIndex, child, ancestors, seen, newIndent, nodeIndex, condensed: newCondense, singleChild: trie.Children.Count == 1);
+                    Output.EndElement();
                 }
+                Output.EndArray();
             }
         }
 
@@ -288,9 +315,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpBacktracesToDot(int nodeIndex)
         {
-            Output.WriteLine("digraph BT {");
+            Output.AddDisplayStringLine("digraph BT {");
             DumpBacktracesToDot(nodeIndex, -1, new HashSet<int>(), 0);
-            Output.WriteLine("}");
+            Output.AddDisplayStringLine("}");
         }
 
         void DumpBacktracesToDot(int nodeIndex, int optSuccessorNodeIndex, HashSet<int> seen, int depth)
@@ -298,7 +325,7 @@ namespace MemorySnapshotAnalyzer.Commands
             if (optSuccessorNodeIndex != -1)
             {
                 // declare the edge
-                Output.WriteLine("  n{0} -> n{1}",
+                Output.AddDisplayStringLine("  n{0} -> n{1}",
                     nodeIndex,
                     optSuccessorNodeIndex);
                 m_numberOfEdgesOutput++;
@@ -307,9 +334,9 @@ namespace MemorySnapshotAnalyzer.Commands
             if (!seen.Contains(nodeIndex))
             {
                 // declare the node to give it a recognizable label
-                Output.WriteLine("  n{0} [label=\"{1}\"]",
+                Output.AddDisplayStringLine("  n{0} [label=\"{1}\"]",
                     nodeIndex,
-                    CurrentBacktracer.DescribeNodeIndex(nodeIndex, FullyQualified));
+                    CurrentBacktracer.DescribeNodeIndex(nodeIndex, Output, FullyQualified));
                 m_numberOfNodesOutput++;
 
                 seen.Add(nodeIndex);
@@ -326,19 +353,31 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpDominators(int nodeIndex)
         {
+            Output.BeginArray("dominators");
+
             int currentNodeIndex = nodeIndex;
             int i = 0;
             do
             {
-                Output.WriteLineIndented(i, "{0} - exclusive size {1}, inclusive size {2}",
-                    CurrentHeapDom.Backtracer.DescribeNodeIndex(currentNodeIndex, FullyQualified),
-                    CurrentHeapDom.NodeSize(currentNodeIndex),
-                    CurrentHeapDom.TreeSize(currentNodeIndex));
+                Output.BeginElement();
+
+                long nodeSize = CurrentHeapDom.NodeSize(currentNodeIndex);
+                long treeSize = CurrentHeapDom.TreeSize(currentNodeIndex);
+                Output.AddProperty("nodeSize", nodeSize);
+                Output.AddProperty("treeSize", treeSize);
+                Output.AddDisplayStringLineIndented(i, "{0} - exclusive size {1}, inclusive size {2}",
+                    CurrentHeapDom.Backtracer.DescribeNodeIndex(currentNodeIndex, Output, FullyQualified),
+                    nodeSize,
+                    treeSize);
                 currentNodeIndex = CurrentHeapDom.GetDominator(currentNodeIndex);
                 i = 1;
+
+                Output.EndElement();
             }
             // Note that with a SingletonRootSet, we may be asked to dump the dominator tree for an unreachable node.
             while (currentNodeIndex != -1 && currentNodeIndex != CurrentHeapDom.RootNodeIndex);
+
+            Output.EndArray();
         }
 
         public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] | 'lifelines ['toroots] | 'owners | 'dom] ['fullyqualified] ['fields]";

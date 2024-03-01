@@ -181,10 +181,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_secondary.ContainsAddress(address) || base.ContainsAddress(address);
         }
 
-        public override string? DescribeAddress(NativeWord address)
+        public override string? DescribeAddress(NativeWord address, IStructuredOutput output)
         {
-            string? secondaryDescription = m_secondary.DescribeAddress(address);
-            string? primaryDescription = m_primary.DescribeAddress(address);
+            string? secondaryDescription = m_secondary.DescribeAddress(address, output);
+            string? primaryDescription = m_primary.DescribeAddress(address, output);
             if (secondaryDescription != null && primaryDescription != null)
             {
                 return $"{primaryDescription}/{secondaryDescription}";

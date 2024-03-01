@@ -417,7 +417,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
 
         public override int SystemVoidStarTypeIndex => throw new NotImplementedException();
 
-        public override IEnumerable<string> DumpStats()
+        public override IEnumerable<string> DumpStats(IStructuredOutput output)
         {
             throw new NotImplementedException();
         }

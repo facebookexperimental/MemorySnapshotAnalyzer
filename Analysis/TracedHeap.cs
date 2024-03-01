@@ -222,9 +222,10 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_objectAddressToRootIndices[m_postorderEntries[postorderIndex].Address];
         }
 
-        public void DescribeRootIndices(int postorderIndex, StringBuilder sb)
+        public void DescribeRootIndices(int postorderIndex, StringBuilder sb, IStructuredOutput output)
         {
             List<(int rootIndex, PointerInfo<NativeWord> pointerFlags)> rootInfos = PostorderRootIndices(postorderIndex);
+            output.BeginArray("roots");
             sb.AppendFormat("roots#{0}{{", postorderIndex);
             for (int i = 0; i < rootInfos.Count; i++)
             {
@@ -232,9 +233,12 @@ namespace MemorySnapshotAnalyzer.Analysis
                 {
                     sb.Append(", ");
                 }
-                sb.Append(m_rootSet.DescribeRoot(rootInfos[i].rootIndex, fullyQualified: true));
+                output.BeginElement();
+                sb.Append(m_rootSet.DescribeRoot(rootInfos[i].rootIndex, output, fullyQualified: true));
+                output.EndElement();
             }
             sb.Append('}');
+            output.EndArray();
         }
 
         public IEnumerable<string> TagsForAddress(NativeWord address)

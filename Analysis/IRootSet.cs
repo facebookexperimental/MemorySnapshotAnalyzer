@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -30,7 +30,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         bool IsGCHandle(int rootIndex);
 
-        string DescribeRoot(int rootIndex, bool fullyQualified);
+        string DescribeRoot(int rootIndex, IStructuredOutput output, bool fullyQualified);
 
         StaticRootInfo GetStaticRootInfo(int rootIndex);
     }

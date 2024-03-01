@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -38,54 +38,80 @@ namespace MemorySnapshotAnalyzer.Commands
             if (TypeIndexOrPattern == null)
             {
                 // Dump all types.
-                Output.WriteLine("Number of type indices: {0}", typeSystem.NumberOfTypeIndices);
+                Output.AddProperty("numberOfTypeIndices", typeSystem.NumberOfTypeIndices);
+                Output.AddDisplayStringLine("Number of type indices: {0}", typeSystem.NumberOfTypeIndices);
+                Output.BeginArray("types");
                 for (int typeIndex = 0; typeIndex < typeSystem.NumberOfTypeIndices; typeIndex++)
                 {
-                    DumpType(typeIndex, 0);
+                    if (!Statics || HasStaticFields(typeIndex))
+                    {
+                        Output.BeginElement();
+                        DumpType(typeIndex, 0);
+                        Output.EndElement();
+                    }
                 }
+                Output.EndArray();
             }
             else
             {
+                Output.BeginArray("types");
                 TypeSet typeSet = TypeIndexOrPattern.ResolveTypeIndexOrPattern(Context, IncludeDerived);
                 foreach (int typeIndex in typeSet.TypeIndices)
                 {
-                    DumpType(typeIndex, 0);
+                    if (!Statics || HasStaticFields(typeIndex))
+                    {
+                        Output.BeginElement();
+                        DumpType(typeIndex, 0);
+                        Output.EndElement();
+                    }
                 }
+                Output.EndArray();
             }
         }
 
         void DumpType(int typeIndex, int indent)
         {
-            if (Statics && !HasStaticFields(typeIndex))
-            {
-                return;
-            }
-
             TypeSystem typeSystem = CurrentTraceableHeap.TypeSystem;
 
-            Output.WriteLineIndented(indent, "Type {0}: qualified name {1}:{2}, {3} with base size {4}, rank {5}",
+            string kind = typeSystem.Kind(typeIndex);
+            typeSystem.OutputType(Output, "type", typeIndex);
+            Output.AddProperty("kind", kind);
+            Output.AddProperty("baseSize", typeSystem.BaseSize(typeIndex));
+            Output.AddProperty("rank", typeSystem.Rank(typeIndex));
+            Output.AddDisplayStringLineIndented(indent, "Type {0}: qualified name {1}:{2}, {3} type with base size {4}, rank {5}",
                 typeIndex,
                 typeSystem.Assembly(typeIndex),
                 typeSystem.QualifiedName(typeIndex),
-                typeSystem.IsValueType(typeIndex) ? "value type" : typeSystem.IsArray(typeIndex) ? "array" : "object",
+                kind,
                 typeSystem.BaseSize(typeIndex),
                 typeSystem.Rank(typeIndex));
 
             if (Verbose || Statics)
             {
+                Output.BeginArray("fields");
+
                 int numberOfFields = typeSystem.NumberOfFields(typeIndex);
                 for (int fieldNumber = 0; fieldNumber < numberOfFields; fieldNumber++)
                 {
+                    Output.BeginElement();
+
                     bool isStatic = typeSystem.FieldIsStatic(typeIndex, fieldNumber);
                     int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
                     if (Statics && isStatic || !Statics && !isStatic)
                     {
-                        Output.WriteLineIndented(indent + 1, "{0} field {1} (number {2}) at offset {3}: {4} type {5} (index {6})",
+                        Output.AddProperty("isStatic", typeSystem.FieldIsStatic(typeIndex, fieldNumber).ToString());
+                        Output.AddProperty("fieldName", typeSystem.FieldName(typeIndex, fieldNumber));
+                        Output.AddProperty("fieldNumber", fieldNumber);
+                        Output.AddProperty("fieldOffset", typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: true));
+                        Output.AddProperty("fieldKind", typeSystem.Kind(typeIndex));
+                        typeSystem.OutputType(Output, "fieldType", fieldTypeIndex);
+                        Output.AddDisplayStringLineIndented(indent + 1, "{0} field {1} (number {2}) at offset {3}: {4} type {5}:{6} (index {7})",
                             typeSystem.FieldIsStatic(typeIndex, fieldNumber) ? "Static" : "Instance",
                             typeSystem.FieldName(typeIndex, fieldNumber),
                             fieldNumber,
                             typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: true),
-                            typeSystem.IsValueType(fieldTypeIndex) ? "value" : typeSystem.IsArray(fieldTypeIndex) ? "array" : "object",
+                            typeSystem.Kind(fieldTypeIndex),
+                            typeSystem.Assembly(fieldTypeIndex),
                             typeSystem.QualifiedName(fieldTypeIndex),
                             fieldTypeIndex);
                     }
@@ -99,10 +125,15 @@ namespace MemorySnapshotAnalyzer.Commands
                         }
                         else
                         {
-                            Output.WriteLineIndented(indent + 2, "Uninitialized");
+                            Output.AddProperty("isInitialized", "false");
+                            Output.AddDisplayStringLineIndented(indent + 2, "Uninitialized");
                         }
                     }
+
+                    Output.EndElement();
                 }
+
+                Output.EndArray();
             }
 
             int baseOrElementTypeIndex = typeSystem.BaseOrElementTypeIndex(typeIndex);
@@ -110,7 +141,8 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 if (Verbose)
                 {
-                    Output.WriteLineIndented(indent + 1, "{0} type {1} (index {2})",
+                    typeSystem.OutputType(Output, typeSystem.IsArray(typeIndex) ? "elementType" : "baseType", baseOrElementTypeIndex);
+                    Output.AddDisplayStringLineIndented(indent + 1, "{0} type {1} (index {2})",
                         typeSystem.IsArray(typeIndex) ? "Element" : "Base",
                         typeSystem.QualifiedName(baseOrElementTypeIndex),
                         baseOrElementTypeIndex);
@@ -118,7 +150,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
                 if (Recursive)
                 {
+                    Output.BeginChild("baseType");
                     DumpType(baseOrElementTypeIndex, indent + 1);
+                    Output.EndChild();
                 }
             }
         }

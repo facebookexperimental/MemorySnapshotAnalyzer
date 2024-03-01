@@ -200,14 +200,16 @@ namespace MemorySnapshotAnalyzer.Commands
                 m_postorderIndices.Add(postorderIndex);
             }
 
-            internal void DumpSummary(IOutput output)
+            internal void DumpSummary(IStructuredOutput output)
             {
-                output.WriteLine("number of live objects = {0}, total size = {1}",
+                output.AddProperty("numberOfObjects", m_numberOfObjects);
+                output.AddProperty("totalSize", m_totalSize);
+                output.AddDisplayStringLine("number of live objects = {0}, total size = {1}",
                     m_numberOfObjects,
                     m_totalSize);
             }
 
-            internal void DumpStatistics(IOutput output)
+            internal void DumpStatistics(IStructuredOutput output)
             {
                 KeyValuePair<int, (int count, long size)>[] kvps = m_perTypeCounts.ToArray();
                 switch (m_sortOrder)
@@ -224,16 +226,29 @@ namespace MemorySnapshotAnalyzer.Commands
                         break;
                 }
 
+                output.BeginArray("statistics");
+
                 TypeSystem typeSystem = m_context.CurrentTraceableHeap!.TypeSystem;
                 foreach (KeyValuePair<int, (int count, long size)> kvp in kvps)
                 {
-                    output.WriteLine("{0} object(s) of type {1}:{2} (type index {3}, total size {4})",
+                    output.BeginElement();
+
+                    output.AddProperty("numberOfObjects", kvp.Value.count);
+                    output.AddProperty("assembly", typeSystem.Assembly(kvp.Key));
+                    output.AddProperty("qualifiedName", typeSystem.QualifiedName(kvp.Key));
+                    output.AddProperty("typeIndex", kvp.Key);
+                    output.AddProperty("totalSize", kvp.Value.size);
+                    output.AddDisplayStringLine("{0} object(s) of type {1}:{2} (type index {3}, total size {4})",
                         kvp.Value.count,
                         typeSystem.Assembly(kvp.Key),
                         typeSystem.QualifiedName(kvp.Key),
                         kvp.Key,
                         kvp.Value.size);
+
+                    output.EndElement();
                 }
+
+                output.EndArray();
             }
 
             internal IEnumerable<int> ForAll()
@@ -313,26 +328,45 @@ namespace MemorySnapshotAnalyzer.Commands
             }
             else if (ExecCommandLine != null)
             {
-                foreach (int postorderIndex in selection.ForAll())
+                Output.BeginArray("commandExecutions");
+                try
                 {
-                    Repl.RunCommand($"{ExecCommandLine} {postorderIndex}");
+                    foreach (int postorderIndex in selection.ForAll())
+                    {
+                        Repl.RunCommand($"{ExecCommandLine} {postorderIndex}");
+                    }
+                }
+                finally
+                {
+                    Output.EndArray();
                 }
             }
             else
             {
+                Output.BeginArray("objects");
+
                 var sb = new StringBuilder();
                 foreach (int postorderIndex in selection.ForAll())
                 {
+                    Output.BeginElement();
+
                     NativeWord address = CurrentTracedHeap.PostorderAddress(postorderIndex);
                     DescribeAddress(address, sb);
                     if (sortOrder == SortOrder.SortByDomSize)
                     {
                         int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-                        sb.AppendFormat(" (dom size {0})", selection.GetSize(postorderIndex, typeIndex));
+                        long size = selection.GetSize(postorderIndex, typeIndex);
+                        sb.AppendFormat(" (dom size {0})", size);
+                        Output.AddProperty("domSize", size);
                     }
-                    Output.WriteLine(sb.ToString());
+
+                    Output.AddDisplayStringLine(sb.ToString());
                     sb.Clear();
+
+                    Output.EndElement();
                 }
+
+                Output.EndArray();
             }
         }
 

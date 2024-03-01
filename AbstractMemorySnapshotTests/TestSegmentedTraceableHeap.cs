@@ -66,11 +66,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
             throw new System.NotImplementedException();
         }
 
-        public override string? DescribeAddress(NativeWord address)
+        public override string? DescribeAddress(NativeWord address, IStructuredOutput output)
         {
             int typeInfoIndex = TypeInfoAddressToIndex(address);
             if (typeInfoIndex != -1)
             {
+                output.AddProperty("addressTargetKind", "vtable");
+                TypeSystem.OutputType(output, "vtableType", typeInfoIndex);
                 return string.Format("VTable[{0}, type index {1}]",
                     TypeSystem.QualifiedName(typeInfoIndex),
                     typeInfoIndex);

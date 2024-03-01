@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -44,7 +44,9 @@ namespace MemorySnapshotAnalyzer.Commands
                 throw new CommandException($"{Address} is not an address in, or an index of, a managed heap segment");
             }
 
-            Output.WriteLine("{0}", segment);
+            StringBuilder sb = new();
+            segment.Describe(Output, sb);
+            Output.AddDisplayStringLine("{0}", sb.ToString());
 
             if (Objects)
             {
@@ -55,7 +57,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 HexDumpAsAddresses(segment.MemoryView, segment.StartAddress);
             }
 
-            Output.WriteLine();
+            Output.AddDisplayStringLine(string.Empty);
         }
 
         void DumpObjects(HeapSegment segment)
@@ -77,6 +79,8 @@ namespace MemorySnapshotAnalyzer.Commands
                 }
             }
 
+            Output.BeginArray("objects");
+
             var sb = new StringBuilder();
             NativeWord previousAddress = segment.StartAddress;
             foreach (KeyValuePair<ulong, int> kvp in objectMap)
@@ -84,15 +88,23 @@ namespace MemorySnapshotAnalyzer.Commands
                 NativeWord objectAddress = CurrentMemorySnapshot.Native.From(kvp.Key);
                 if (objectAddress != previousAddress)
                 {
-                    Output.WriteLine("Gap of size {0}", objectAddress.Value - previousAddress.Value);
+                    ulong gapSize = objectAddress.Value - previousAddress.Value;
+                    Output.BeginElement();
+                    Output.AddProperty("gapOfSize", (long)gapSize);
+                    Output.AddDisplayStringLine("Gap of size {0}", gapSize);
+                    Output.EndElement();
                 }
 
+                Output.BeginElement();
                 DescribeAddress(objectAddress, sb);
-                Output.WriteLine(sb.ToString());
+                Output.AddDisplayStringLine(sb.ToString());
                 sb.Clear();
+                Output.EndElement();
 
                 previousAddress = objectAddress + kvp.Value;
             }
+
+            Output.EndArray();
         }
 
         public override string HelpText => "dumpseg <address or index> ['objects]";

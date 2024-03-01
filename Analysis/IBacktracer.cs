@@ -6,6 +6,7 @@
  */
 
 using System.Collections.Generic;
+using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 
 namespace MemorySnapshotAnalyzer.Analysis
 {
@@ -27,7 +28,7 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         int PostorderIndexToNodeIndex(int postorderIndex);
 
-        string DescribeNodeIndex(int nodeIndex, bool fullyQualified);
+        string DescribeNodeIndex(int nodeIndex, IStructuredOutput output, bool fullyQualified);
 
         string NodeType(int nodeIndex);
 

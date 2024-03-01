@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -281,6 +281,25 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
 
             return typeSet;
+        }
+
+        public void Describe(IStructuredOutput output)
+        {
+            switch (m_type)
+            {
+                case CommandLineArgumentType.Atom:
+                    output.AddProperty("kind", "atom");
+                    output.AddProperty("value", m_atomOrStringValue!);
+                    break;
+                case CommandLineArgumentType.String:
+                    output.AddProperty("kind", "string");
+                    output.AddProperty("value", m_atomOrStringValue!);
+                    break;
+                case CommandLineArgumentType.Integer:
+                    output.AddProperty("kind", "integer");
+                    output.AddProperty("value", (long)m_integerValue);
+                    break;
+            }
         }
     }
 }

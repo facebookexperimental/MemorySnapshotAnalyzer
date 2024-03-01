@@ -161,7 +161,7 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
             throw new System.NotImplementedException();
         }
 
-        public override string? DescribeAddress(NativeWord address)
+        public override string? DescribeAddress(NativeWord address, IStructuredOutput output)
         {
             throw new System.NotImplementedException();
         }

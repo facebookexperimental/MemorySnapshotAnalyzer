@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -7,6 +7,7 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandInfrastructure;
+using System.Text;
 
 namespace MemorySnapshotAnalyzer.Commands
 {
@@ -29,7 +30,10 @@ namespace MemorySnapshotAnalyzer.Commands
 
             Native native = CurrentMemorySnapshot.Native;
 
+            Output.BeginArray("instances");
+
             long instancesFound = 0;
+            StringBuilder sb = new();
             for (int i = 0; i < segmentedHeap.NumberOfSegments; i++)
             {
                 HeapSegment segment = segmentedHeap.GetSegment(i);
@@ -40,14 +44,22 @@ namespace MemorySnapshotAnalyzer.Commands
                     NativeWord value = memoryView.ReadNativeWord(offset, native);
                     if (value == NativeWord)
                     {
-                        Output.WriteLine("{0} : {1}", segment.StartAddress + offset, segment);
+                        Output.BeginElement();
+                        Output.AddProperty("address", (segment.StartAddress + offset).ToString());
+                        segment.Describe(Output, sb);
+                        Output.AddDisplayStringLine("{0} : {1}", segment.StartAddress + offset, sb.ToString());
+                        sb.Clear();
                         instancesFound++;
+                        Output.EndElement();
                     }
                 }
             }
 
-            Output.WriteLine();
-            Output.WriteLine("total instances found = {0}", instancesFound);
+            Output.EndArray();
+
+            Output.AddDisplayStringLine(string.Empty);
+            Output.AddProperty("totalNumberOfInstances", instancesFound);
+            Output.AddDisplayStringLine("total instances found = {0}", instancesFound);
         }
 
         public override string HelpText => "find <pointer-sized value>";

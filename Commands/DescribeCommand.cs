@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -24,7 +24,7 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             var sb = new StringBuilder();
             DescribeAddress(Address, sb);
-            Output.WriteLine(sb.ToString());
+            Output.AddDisplayStringLine(sb.ToString());
         }
 
         public override string HelpText => "describe <address>";

@@ -76,11 +76,13 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         public void SummarizeNewWarnings()
         {
+            // TODO: also write to IStructuredOutput
             m_logger.SummarizeNew(s => m_output.WriteLine(s));
         }
 
         public void FlushWarnings()
         {
+            // TODO: also write to IStructuredOutput
             m_logger.Flush(s => m_output.WriteLine(s));
         }
 
@@ -190,6 +192,66 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
         }
 
+        public void DumpToStructuredOutput(IStructuredOutput output)
+        {
+            output.BeginChild("heapSnapshot");
+            if (m_currentMemorySnapshot != null)
+            {
+                output.AddProperty("filename", m_currentMemorySnapshot.Filename);
+                output.AddProperty("format", m_currentMemorySnapshot.Format);
+            }
+            output.EndChild();
+
+            output.BeginChild("traceableHeap");
+            output.AddProperty("kind", m_traceableHeap_kind.ToString());
+            output.AddProperty("fuseObjectPairs", m_traceableHeap_fuseObjectPairs.ToString());
+            DumpReferenceClassifiersToStructuredOutput(output);
+            if (m_currentTraceableHeap != null)
+            {
+                output.AddProperty("description", m_currentTraceableHeap.Description);
+                output.AddProperty("numberOfTypeIndices", m_currentTraceableHeap.TypeSystem.NumberOfTypeIndices);
+                output.AddProperty("numberOfObjectPairs", m_currentTraceableHeap.NumberOfObjectPairs);
+                output.AddProperty("withMemory", (m_currentTraceableHeap.SegmentedHeapOpt != null).ToString());
+            }
+            output.EndChild();
+
+            output.BeginChild("rootSet");
+            output.AddProperty("singleRootAddress", m_rootSet_singletonRootAddress.ToString());
+            output.AddProperty("weakGChandles", m_rootSet_weakGCHandles.ToString());
+            if (m_currentRootSet != null)
+            {
+                output.AddProperty("numberOfRoots", m_currentRootSet.NumberOfRoots);
+                output.AddProperty("numberOfGCHandles", m_currentRootSet.NumberOfGCHandles);
+                output.AddProperty("numberOfStaticRoots", m_currentRootSet.NumberOfStaticRoots);
+            }
+            output.EndChild();
+
+            output.BeginChild("tracedHeap");
+            if (m_currentTracedHeap != null)
+            {
+                output.AddProperty("numberOfDistinctRoots", m_currentTracedHeap.NumberOfDistinctRoots);
+                output.AddProperty("numberOfInvalidRoots", m_currentTracedHeap.NumberOfInvalidRoots);
+                output.AddProperty("numberOfInvalidPointers", m_currentTracedHeap.NumberOfInvalidPointers);
+                output.AddProperty("numberOfLiveBytes", m_currentTracedHeap.NumberOfLiveBytes);
+                output.AddProperty("numberOfLiveObjects", m_currentTracedHeap.NumberOfLiveObjects);
+            }
+            output.EndChild();
+
+            output.BeginChild("backtracer");
+            output.AddProperty("groupStatics", m_backtracer_groupStatics.ToString());
+            Backtracer_ReferencesToIgnore_DumpToStructuredOutput(output);
+            output.AddProperty("fuseRoots", m_backtracer_fuseRoots.ToString());
+            output.AddProperty("computed", (m_currentBacktracer != null).ToString());
+            output.EndChild();
+
+            output.BeginChild("heapDom");
+            if (m_currentHeapDom != null)
+            {
+                output.AddProperty("numberOfNonLeafNodes", m_currentHeapDom.NumberOfNonLeafNodes);
+            }
+            output.EndChild();
+        }
+
         public void ClearContext()
         {
             if (m_currentMemorySnapshot != null)
@@ -291,11 +353,28 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
                 if (m_referenceClassifierStore.TryGetGroup(groupName, out ReferenceClassifierGroup? group))
                 {
-                    sb.AppendFormat("({0})", group!.NumberOfRules);
+                    sb.AppendFormat("({0})", group.NumberOfRules);
                 }
             }
 
             return sb.Length == 0 ? "none" : sb.ToString();
+        }
+
+        void DumpReferenceClassifiersToStructuredOutput(IStructuredOutput output)
+        {
+            output.BeginArray("referenceClassifiers");
+            foreach (string groupName in m_traceableHeap_referenceClassificationGroups)
+            {
+                output.BeginElement();
+                output.AddProperty("groupName", groupName);
+
+                if (m_referenceClassifierStore.TryGetGroup(groupName, out ReferenceClassifierGroup? group))
+                {
+                    output.AddProperty("numberOfRules", group.NumberOfRules);
+                }
+                output.EndElement();
+            }
+            output.EndArray();
         }
 
         public TraceableHeap? CurrentTraceableHeap => m_currentTraceableHeap;
@@ -526,6 +605,24 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
             sb.Append(" }");
             return sb.ToString();
+        }
+
+        void Backtracer_ReferencesToIgnore_DumpToStructuredOutput(IStructuredOutput output)
+        {
+            output.BeginArray("referencesToIgnore");
+
+            if (m_backtracer_referencesToIgnore != null)
+            {
+                foreach ((int childPostorderIndex, int parentPostorderIndex) in m_backtracer_referencesToIgnore)
+                {
+                    output.BeginElement();
+                    output.AddProperty("childPostorderIndex", childPostorderIndex);
+                    output.AddProperty("parentPostorderIndex", parentPostorderIndex);
+                    output.EndElement();
+                }
+            }
+
+            output.EndArray();
         }
 
         public bool Backtracer_FuseRoots

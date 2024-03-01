@@ -43,7 +43,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 Is.EqualTo("GenericTypeWithNesting`2"));
 
             Assert.That(m_typeSystem!.QualifiedGenericNameWithArity((int)TestTypeIndex.EmptyTypeNameCornerCase),
-                Is.EqualTo(""));
+                Is.EqualTo(string.Empty));
         }
 
         [Test]
@@ -317,7 +317,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
                 Assert.That(selector.StaticPrefix, Has.Exactly(0).Items);
                 Assert.That(selector.DynamicTail, Is.Null);
 
-                Assert.That(selector.Stringify(m_typeSystem!, pathIndex: 0, inStaticPrefix: true), Is.EqualTo(""));
+                Assert.That(selector.Stringify(m_typeSystem!, pathIndex: 0, inStaticPrefix: true), Is.EqualTo(string.Empty));
             });
 
             // Base case: single field

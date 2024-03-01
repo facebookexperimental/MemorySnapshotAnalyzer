@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -317,19 +317,40 @@ namespace MemorySnapshotAnalyzer.UnityBackend
 
         public override int SystemVoidStarTypeIndex => m_systemVoidStarTypeIndex;
 
-        public override IEnumerable<string> DumpStats()
+        public override IEnumerable<string> DumpStats(IStructuredOutput output)
         {
+            output.AddProperty("pointerSize", PointerSize);
             yield return string.Format("Pointer size: {0}", PointerSize);
+
+            output.AddProperty("objectHeaderSize", m_virtualMachineInformation.ObjectHeaderSize);
             yield return string.Format("Object header size: {0}", m_virtualMachineInformation.ObjectHeaderSize);
+
+            output.AddProperty("arrayHeaderSize", m_virtualMachineInformation.ArrayHeaderSize);
             yield return string.Format("Array header size: {0}", m_virtualMachineInformation.ArrayHeaderSize);
+
+            output.AddProperty("arrayBoundsOffsetInHeader", m_virtualMachineInformation.ArrayBoundsOffsetInHeader);
             yield return string.Format("Array bounds offset in header: {0}", m_virtualMachineInformation.ArrayBoundsOffsetInHeader);
+
+            output.AddProperty("arraySizeOffsetInHeader", m_virtualMachineInformation.ArraySizeOffsetInHeader);
             yield return string.Format("Array size offset in header: {0}", m_virtualMachineInformation.ArraySizeOffsetInHeader);
+
+            output.AddProperty("allocationGranularity", m_virtualMachineInformation.AllocationGranularity);
             yield return string.Format("Allocation granularity: {0}", m_virtualMachineInformation.AllocationGranularity);
+
             yield return string.Empty;
+
+            output.AddProperty("numberOfTypeIndices", NumberOfTypeIndices);
             yield return string.Format("Number of types: {0}", NumberOfTypeIndices);
+
             yield return string.Empty;
+
+            output.AddProperty("systemStringTypeIndex", SystemStringTypeIndex);
             yield return string.Format("System.String type index: {0}", SystemStringTypeIndex);
+
+            output.AddProperty("systemStringLengthOffset", SystemStringLengthOffset);
             yield return string.Format("System.String length offset: {0}", SystemStringLengthOffset);
+
+            output.AddProperty("systemStringFirstCharOffset", SystemStringFirstCharOffset);
             yield return string.Format("System.String first char offset: {0}", SystemStringFirstCharOffset);
         }
     }

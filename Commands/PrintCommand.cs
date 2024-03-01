@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -21,19 +21,21 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
+            Value!.Describe(Output);
+
             switch (Value!.ArgumentType)
             {
                 case CommandLineArgumentType.Atom:
-                    Output.WriteLine("(Atom) {0}", Value.AtomValue);
+                    Output.AddDisplayStringLine("(Atom) {0}", Value.AtomValue);
                     break;
                 case CommandLineArgumentType.String:
-                    Output.WriteLine("(String) \"{0}\"", Value.StringValue);
+                    Output.AddDisplayStringLine("(String) \"{0}\"", Value.StringValue);
                     break;
                 case CommandLineArgumentType.Integer:
-                    Output.WriteLine("(Integer) {0}", Value.IntegerValue);
+                    Output.AddDisplayStringLine("(Integer) {0}", Value.IntegerValue);
                     if (Context.CurrentMemorySnapshot != null)
                     {
-                        Output.WriteLine("(NativeWord) {0}", Value.AsNativeWord(CurrentMemorySnapshot.Native));
+                        Output.AddDisplayStringLine("(NativeWord) {0}", Value.AsNativeWord(CurrentMemorySnapshot.Native));
                     }
                     break;
                 default:

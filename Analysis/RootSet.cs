@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -109,22 +109,29 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_roots[rootIndex].PointerInfo.TypeIndex == -1;
         }
 
-        string IRootSet.DescribeRoot(int rootIndex, bool fullyQualified)
+        string IRootSet.DescribeRoot(int rootIndex, IStructuredOutput output, bool fullyQualified)
         {
             RootEntry entry = m_roots[rootIndex];
             int typeIndex = entry.PointerInfo.TypeIndex;
             if (typeIndex == -1)
             {
+                output.AddProperty("rootKind", "gcHandle");
+                output.AddProperty("rootNumber", entry.PointerInfo.FieldNumber);
                 return $"GCHandle#{entry.PointerInfo.FieldNumber}";
             }
             else
             {
+                output.AddProperty("rootKind", "staticVariable");
+                m_traceableHeap.TypeSystem.OutputType(output, "containingType", typeIndex);
                 string typeName = fullyQualified ?
                     $"{m_traceableHeap.TypeSystem.Assembly(typeIndex)}:{m_traceableHeap.TypeSystem.QualifiedName(typeIndex)}" :
                     m_traceableHeap.TypeSystem.UnqualifiedName(typeIndex);
+                string fieldName = m_traceableHeap.TypeSystem.FieldName(typeIndex, entry.PointerInfo.FieldNumber);
+                output.AddProperty("fieldName", fieldName);
+                output.AddProperty("offset", entry.Offset);
                 return string.Format("{0}.{1}+0x{2:X}",
                     typeName,
-                    m_traceableHeap.TypeSystem.FieldName(typeIndex, entry.PointerInfo.FieldNumber),
+                    fieldName,
                     entry.Offset);
             }
         }

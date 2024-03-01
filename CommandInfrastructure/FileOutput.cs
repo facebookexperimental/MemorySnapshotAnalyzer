@@ -94,13 +94,13 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         public void WriteLineIndented(int indent, string format, params object[] args)
         {
-            string? indentString;
-            if (!m_indents.TryGetValue(indent, out indentString))
+            if (!m_indents.TryGetValue(indent, out string? indentString))
             {
                 indentString = new string(' ', indent * 2);
                 m_indents[indent] = indentString;
             }
             m_writer.Write(indentString);
+
             if (args.Length > 0)
             {
                 m_writer.WriteLine(format, args);

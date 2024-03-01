@@ -8,6 +8,7 @@
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace MemorySnapshotAnalyzer.Analysis
 {
@@ -148,33 +149,45 @@ namespace MemorySnapshotAnalyzer.Analysis
             return m_parentBacktracer.PostorderIndexToNodeIndex(postorderIndex);
         }
 
-        string IBacktracer.DescribeNodeIndex(int nodeIndex, bool fullyQualified)
+        string IBacktracer.DescribeNodeIndex(int nodeIndex, IStructuredOutput output, bool fullyQualified)
         {
             if (nodeIndex == m_rootNodeIndex)
             {
-                return m_parentBacktracer.DescribeNodeIndex(m_parentBacktracer.RootNodeIndex, fullyQualified);
+                return m_parentBacktracer.DescribeNodeIndex(m_parentBacktracer.RootNodeIndex, output, fullyQualified);
             }
             else if (nodeIndex == m_unreachableNodeIndex)
             {
-                return m_parentBacktracer.DescribeNodeIndex(m_parentBacktracer.UnreachableNodeIndex, fullyQualified);
+                return m_parentBacktracer.DescribeNodeIndex(m_parentBacktracer.UnreachableNodeIndex, output, fullyQualified);
             }
             else if (nodeIndex >= m_firstAssemblyIndex)
             {
-                return $"{m_assemblyNames[nodeIndex - m_firstAssemblyIndex]}#{nodeIndex}";
+                string assemblyName = m_assemblyNames[nodeIndex - m_firstAssemblyIndex];
+                output.AddProperty("nodeKind", "assembly");
+                output.AddProperty("nodeIndex", nodeIndex);
+                output.AddProperty("assemblyName", assemblyName);
+                return $"{assemblyName}#{nodeIndex}";
             }
             else if (nodeIndex >= m_firstNamespaceIndex)
             {
                 int namespaceIndex = nodeIndex - m_firstNamespaceIndex;
-                return $"{m_namespaceNames[namespaceIndex]}#{nodeIndex}";
+                string namespaceName = m_namespaceNames[namespaceIndex];
+                output.AddProperty("nodeKind", "namespace");
+                output.AddProperty("nodeIndex", nodeIndex);
+                output.AddProperty("namespaceName", namespaceName);
+                return $"{namespaceName}#{nodeIndex}";
             }
             else if (nodeIndex >= m_firstClassIndex)
             {
                 int classIndex = nodeIndex - m_firstClassIndex;
-                return $"{m_classNames[classIndex]}#{nodeIndex}";
+                string className = m_classNames[classIndex];
+                output.AddProperty("nodeKind", "class");
+                output.AddProperty("nodeIndex", nodeIndex);
+                output.AddProperty("className", className);
+                return $"{className}#{nodeIndex}";
             }
             else
             {
-                return m_parentBacktracer.DescribeNodeIndex(nodeIndex, fullyQualified);
+                return m_parentBacktracer.DescribeNodeIndex(nodeIndex, output, fullyQualified);
             }
         }
 

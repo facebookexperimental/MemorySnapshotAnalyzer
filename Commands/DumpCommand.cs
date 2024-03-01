@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -36,45 +36,29 @@ namespace MemorySnapshotAnalyzer.Commands
                 throw new CommandException($"address {Address} not in mapped memory");
             }
             HexDumpAsAddresses(memoryView, Address);
-            Output.WriteLine();
-        }
-
-        protected void HexDump(MemoryView memoryView, NativeWord baseAddress, int width)
-        {
-            long currentLineOffset = 0;
-            while (currentLineOffset < memoryView.Size)
-            {
-                var sb = new StringBuilder();
-                sb.AppendFormat("{0}:", baseAddress + currentLineOffset);
-                for (int i = 0; i < width; i++)
-                {
-                    if (currentLineOffset + (i + 1) * CurrentMemorySnapshot.Native.Size > memoryView.Size)
-                    {
-                        return;
-                    }
-
-                    NativeWord value = memoryView.ReadNativeWord(currentLineOffset + i * CurrentMemorySnapshot.Native.Size, CurrentMemorySnapshot.Native);
-                    sb.AppendFormat(" {0}", value);
-                }
-
-                Output.WriteLine(sb.ToString());
-
-                currentLineOffset += width * CurrentMemorySnapshot.Native.Size;
-            }
+            Output.AddDisplayStringLine(string.Empty);
         }
 
         protected void HexDumpAsAddresses(MemoryView memoryView, NativeWord baseAddress)
         {
+            Output.BeginArray("memoryContentsAsAddresses");
+
             var sb = new StringBuilder();
             long currentLineOffset = 0;
             while (currentLineOffset + CurrentMemorySnapshot.Native.Size <= memoryView.Size)
             {
+                Output.BeginElement();
+
                 DescribeAddress(baseAddress + currentLineOffset, sb);
-                Output.WriteLine(sb.ToString());
+                Output.AddDisplayStringLine(sb.ToString());
                 sb.Clear();
 
                 currentLineOffset += CurrentMemorySnapshot.Native.Size;
+
+                Output.EndElement();
             }
+
+            Output.EndArray();
         }
 
         public override string HelpText => "dump <address>";

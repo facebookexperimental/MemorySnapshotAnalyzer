@@ -97,14 +97,18 @@ namespace MemorySnapshotAnalyzer.Analysis
             return postorderIndex;
         }
 
-        public string DescribeNodeIndex(int nodeIndex, bool fullyQualified)
+        public string DescribeNodeIndex(int nodeIndex, IStructuredOutput output, bool fullyQualified)
         {
+            output.AddProperty("nodeIndex", nodeIndex);
+
             if (nodeIndex == m_rootNodeIndex)
             {
+                output.AddProperty("nodeKind", "process");
                 return "Process";
             }
             else if (nodeIndex == m_unreachableNodeIndex)
             {
+                output.AddProperty("nodeKind", "unreachable");
                 return "Unreachable";
             }
 
@@ -112,19 +116,23 @@ namespace MemorySnapshotAnalyzer.Analysis
             int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
             if (typeIndex == -1)
             {
+                output.AddProperty("nodeKind", "root");
                 List<(int rootIndex, PointerInfo<NativeWord> pointerFlags)> rootInfos = m_tracedHeap.PostorderRootIndices(nodeIndex);
                 if (rootInfos.Count == 1)
                 {
-                    return m_rootSet.DescribeRoot(rootInfos[0].rootIndex, fullyQualified);
+                    return m_rootSet.DescribeRoot(rootInfos[0].rootIndex, output, fullyQualified);
                 }
                 else
                 {
                     var sb = new StringBuilder();
-                    m_tracedHeap.DescribeRootIndices(nodeIndex, sb);
+                    m_tracedHeap.DescribeRootIndices(nodeIndex, sb, output);
                     return sb.ToString();
                 }
             }
 
+            output.AddProperty("nodeKind", "object");
+            output.AddProperty("objectIndex", postorderIndex);
+            m_traceableHeap.TypeSystem.OutputType(output, "objectType", typeIndex);
             string typeName = fullyQualified ?
                 $"{m_traceableHeap.TypeSystem.Assembly(typeIndex)}:{m_traceableHeap.TypeSystem.QualifiedName(typeIndex)}" :
                 m_traceableHeap.TypeSystem.UnqualifiedName(typeIndex);
@@ -132,6 +140,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             string? objectName = m_traceableHeap.GetObjectName(m_tracedHeap.PostorderAddress(postorderIndex));
             if (objectName != null)
             {
+                output.AddProperty("objectName", objectName);
                 return string.Format("{0}('{1}')#{2}",
                     typeName,
                     objectName,

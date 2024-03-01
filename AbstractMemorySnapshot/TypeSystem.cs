@@ -97,6 +97,11 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract bool IsArray(int typeIndex);
 
+        public string Kind(int typeIndex)
+        {
+            return IsValueType(typeIndex) ? "value" : IsArray(typeIndex) ? "array" : "object";
+        }
+
         public abstract int Rank(int typeIndex);
 
         public abstract int NumberOfFields(int typeIndex);
@@ -123,7 +128,18 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         public abstract int SystemVoidStarTypeIndex { get; }
 
-        public abstract IEnumerable<string> DumpStats();
+        public abstract IEnumerable<string> DumpStats(IStructuredOutput output);
+
+        public void OutputType(IStructuredOutput output, string key, int typeIndex)
+        {
+            output.BeginChild(key);
+
+            output.AddProperty("assembly", Assembly(typeIndex));
+            output.AddProperty("qualifiedName", QualifiedName(typeIndex));
+            output.AddProperty("typeIndex", typeIndex);
+
+            output.EndChild();
+        }
 
         ValueTuple<int, int> EnsurePointerOffsets(int typeIndex)
         {

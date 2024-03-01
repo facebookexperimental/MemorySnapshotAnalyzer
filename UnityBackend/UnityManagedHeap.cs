@@ -87,11 +87,13 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             return m_segmentedHeap.UnityManagedTypeSystem.GetObjectSize(objectView, typeIndex, committedOnly);
         }
 
-        public override string? DescribeAddress(NativeWord address)
+        public override string? DescribeAddress(NativeWord address, IStructuredOutput output)
         {
             int typeInfoIndex = m_unityManagedTypeSystem.TypeInfoAddressToIndex(address);
             if (typeInfoIndex != -1)
             {
+                output.AddProperty("addressTargetKind", "vtable");
+                TypeSystem.OutputType(output, "vtableType", typeInfoIndex);
                 return string.Format("VTable[{0}:{1}, type index {2}]",
                     m_unityManagedTypeSystem.Assembly(typeInfoIndex),
                     m_unityManagedTypeSystem.QualifiedName(typeInfoIndex),

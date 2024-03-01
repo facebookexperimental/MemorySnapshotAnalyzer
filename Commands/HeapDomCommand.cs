@@ -81,9 +81,9 @@ namespace MemorySnapshotAnalyzer.Commands
             try
             {
                 using (var fileOutput = new FileOutput(OutputFilename!, useUnixNewlines: true))
-                using (RedirectOutput(fileOutput))
+                using (RedirectOutput(new PassthroughStructuredOutput(fileOutput)))
                 {
-                    Output.Write("data=");
+                    Output.AddDisplayString("data=");
                     DumpTree();
                 }
 
@@ -94,7 +94,8 @@ namespace MemorySnapshotAnalyzer.Commands
                 throw new CommandException(ex.Message);
             }
 
-            Output.WriteLine("wrote {0} nodes", m_numberOfNodesWritten);
+            Output.AddProperty("numberOfNodesWritten", m_numberOfNodesWritten);
+            Output.AddDisplayStringLine("wrote {0} nodes", m_numberOfNodesWritten);
         }
 
         void StartHtmlFile()
@@ -207,23 +208,23 @@ namespace MemorySnapshotAnalyzer.Commands
             m_numberOfNodesWritten++;
             if (needComma)
             {
-                Output.Write(",");
+                Output.AddDisplayString(",");
             }
-            Output.Write("{{\"name\":\"{0}\",", CurrentHeapDom.Backtracer.DescribeNodeIndex(nodeIndex, fullyQualified: true));
+            Output.AddDisplayString("{{\"name\":\"{0}\",", CurrentHeapDom.Backtracer.DescribeNodeIndex(nodeIndex, Output, fullyQualified: true));
 
             if (nodeIndex == CurrentHeapDom.RootNodeIndex)
             {
-                Output.Write("\"filename\":{0},",
+                Output.AddDisplayString("\"filename\":{0},",
                     JsonConvert.ToString(CurrentMemorySnapshot.Filename));
-                Output.Write("\"heapDomCommandLine\":{0},",
+                Output.AddDisplayString("\"heapDomCommandLine\":{0},",
                     JsonConvert.ToString(Repl.CurrentCommandLine));
-                Output.Write("\"context\":{0},",
+                Output.AddDisplayString("\"context\":{0},",
                     JsonConvert.ToString(string.Join('\n', Context.Serialize())));
             }
 
             if (NodeTypes)
             {
-                Output.Write("\"nodetype\":\"{0}\",", CurrentHeapDom.Backtracer.NodeType(nodeIndex));
+                Output.AddDisplayString("\"nodetype\":\"{0}\",", CurrentHeapDom.Backtracer.NodeType(nodeIndex));
             }
 
             bool elideChildren = false;
@@ -248,7 +249,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
                 if (diffString != null)
                 {
-                    Output.Write("\"diff\":\"{0}\",", diffString);
+                    Output.AddDisplayString("\"diff\":\"{0}\",", diffString);
                 }
             }
 
@@ -270,17 +271,17 @@ namespace MemorySnapshotAnalyzer.Commands
             }
             else if (numberOfChildren == 0)
             {
-                Output.Write("\"value\":{0}", CurrentHeapDom.NodeSize(nodeIndex));
+                Output.AddDisplayString("\"value\":{0}", CurrentHeapDom.NodeSize(nodeIndex));
             }
             else if (elideChildren)
             {
-                Output.Write("\"value\":{0}", CurrentHeapDom.TreeSize(nodeIndex));
+                Output.AddDisplayString("\"value\":{0}", CurrentHeapDom.TreeSize(nodeIndex));
             }
             else
             {
                 DumpChildren(children!, CurrentHeapDom.TreeSize(nodeIndex), comparer, depth);
             }
-            Output.Write("}");
+            Output.AddDisplayString("}");
 
             numberOfElidedNodes = 0;
             return CurrentHeapDom.TreeSize(nodeIndex);
@@ -288,7 +289,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpChildren(List<int> children, long treeSize, IComparer<int> comparer, int depth)
         {
-            Output.Write("\"children\":[");
+            Output.AddDisplayString("\"children\":[");
 
             var sortedChildren = new int[children.Count];
             for (int i = 0; i < children.Count; i++)
@@ -321,29 +322,29 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 if (needComma)
                 {
-                    Output.Write(",");
+                    Output.AddDisplayString(",");
                 }
 
                 if (numberOfElidedNodes > 0)
                 {
-                    Output.Write("{{\"name\":\"elided+{0}\",", numberOfElidedNodes);
+                    Output.AddDisplayString("{{\"name\":\"elided+{0}\",", numberOfElidedNodes);
                     if (NodeTypes)
                     {
-                        Output.Write("\"nodetype\":\"elided\",");
+                        Output.AddDisplayString("\"nodetype\":\"elided\",");
                     }
                 }
                 else
                 {
-                    Output.Write("{\"name\":\"intrinsic\",");
+                    Output.AddDisplayString("{\"name\":\"intrinsic\",");
                     if (NodeTypes)
                     {
-                        Output.Write("\"nodetype\":\"intrinsic\",");
+                        Output.AddDisplayString("\"nodetype\":\"intrinsic\",");
                     }
                 }
-                Output.Write("\"value\":{0}}}", intrinsicSize);
+                Output.AddDisplayString("\"value\":{0}}}", intrinsicSize);
             }
 
-            Output.Write("]");
+            Output.AddDisplayString("]");
         }
 
         int NumberOfNodesInTree(int nodeIndex)

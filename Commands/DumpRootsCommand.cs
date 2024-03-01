@@ -35,6 +35,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
             var sb = new StringBuilder();
             IRootSet rootSet = CurrentRootSet;
+
+            Output.BeginArray("roots");
+
             for (int rootIndex = 0; rootIndex < rootSet.NumberOfRoots; rootIndex++)
             {
                 PointerInfo<NativeWord> pointerInfo = rootSet.GetRoot(rootIndex);
@@ -43,16 +46,22 @@ namespace MemorySnapshotAnalyzer.Commands
                     continue;
                 }
 
+                Output.BeginElement();
+
                 DescribePointerInfo(pointerInfo, sb);
                 if (sb.Length > 0)
                 {
-                    Output.WriteLine("{0}: {1} -> {2}",
+                    Output.AddDisplayStringLine("{0}: {1} -> {2}",
                         rootIndex,
-                        rootSet.DescribeRoot(rootIndex, fullyQualified: true),
+                        rootSet.DescribeRoot(rootIndex, Output, fullyQualified: true),
                         sb);
                     sb.Clear();
                 }
+
+                Output.EndElement();
             }
+
+            Output.EndArray();
         }
 
         public override string HelpText => "dumproots";

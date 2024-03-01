@@ -7,6 +7,7 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
@@ -33,7 +34,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             m_referenceClassifierGroups.Remove(groupName);
         }
 
-        public bool TryGetGroup(string groupName, out ReferenceClassifierGroup? group)
+        public bool TryGetGroup(string groupName, [NotNullWhen(true)] out ReferenceClassifierGroup? group)
         {
             return m_referenceClassifierGroups.TryGetValue(groupName, out group);
         }
