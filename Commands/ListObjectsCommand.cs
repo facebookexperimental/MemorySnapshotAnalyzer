@@ -57,6 +57,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [NamedArgument("exec")]
         public string? ExecCommandLine;
+
+        [NamedArgument("count")]
+        public int MaxCount;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
@@ -331,9 +334,15 @@ namespace MemorySnapshotAnalyzer.Commands
                 Output.BeginArray("commandExecutions");
                 try
                 {
+                    int i = 0;
                     foreach (int postorderIndex in selection.ForAll())
                     {
                         Repl.RunCommand($"{ExecCommandLine} {postorderIndex}");
+                        i++;
+                        if (MaxCount > 0 && i >= MaxCount)
+                        {
+                            break;
+                        }
                     }
                 }
                 finally
@@ -346,6 +355,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 Output.BeginArray("objects");
 
                 var sb = new StringBuilder();
+                int i = 0;
                 foreach (int postorderIndex in selection.ForAll())
                 {
                     Output.BeginElement();
@@ -364,6 +374,12 @@ namespace MemorySnapshotAnalyzer.Commands
                     sb.Clear();
 
                     Output.EndElement();
+
+                    i++;
+                    if (MaxCount > 0 && i >= MaxCount)
+                    {
+                        break;
+                    }
                 }
 
                 Output.EndArray();
