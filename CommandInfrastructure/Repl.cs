@@ -545,7 +545,8 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                                 field.SetValue(command, value ? 1 : 0);
                             }
                             m_structuredOutput.BeginChild(field.Name);
-                            m_structuredOutput.AddProperty("value", value.ToString());
+                            m_structuredOutput.AddProperty("kind", "boolean");
+                            m_structuredOutput.AddProperty("value", value);
                             m_structuredOutput.EndChild();
                         }
                     }

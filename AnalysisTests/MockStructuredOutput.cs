@@ -23,6 +23,10 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
         {
         }
 
+        public void AddProperty(string key, bool value)
+        {
+        }
+
         public void AddDisplayString(string message)
         {
         }

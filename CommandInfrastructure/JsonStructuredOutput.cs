@@ -65,6 +65,12 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             m_chainedStructuredOutput?.AddProperty(key, value);
         }
 
+        public void AddProperty(string key, bool value)
+        {
+            m_cursor.AsObject().Add(key, value);
+            m_chainedStructuredOutput?.AddProperty(key, value);
+        }
+
         public void AddDisplayString(string message)
         {
             CurrentDisplayString?.Append(message);

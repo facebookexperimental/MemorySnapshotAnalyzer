@@ -13,6 +13,8 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
 
         void AddProperty(string key, long value);
 
+        void AddProperty(string key, bool value);
+
         void AddDisplayString(string message);
 
         void AddDisplayString(string format, params object[] args);

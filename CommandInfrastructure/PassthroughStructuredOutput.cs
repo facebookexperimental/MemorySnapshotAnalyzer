@@ -26,6 +26,10 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         {
         }
 
+        public void AddProperty(string key, bool value)
+        {
+        }
+
         public void AddDisplayString(string message)
         {
             m_output.Write(message);

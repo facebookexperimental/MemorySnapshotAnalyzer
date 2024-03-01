@@ -99,7 +99,7 @@ namespace MemorySnapshotAnalyzer.Commands
                     int fieldTypeIndex = typeSystem.FieldType(typeIndex, fieldNumber);
                     if (Statics && isStatic || !Statics && !isStatic)
                     {
-                        Output.AddProperty("isStatic", typeSystem.FieldIsStatic(typeIndex, fieldNumber).ToString());
+                        Output.AddProperty("isStatic", typeSystem.FieldIsStatic(typeIndex, fieldNumber));
                         Output.AddProperty("fieldName", typeSystem.FieldName(typeIndex, fieldNumber));
                         Output.AddProperty("fieldNumber", fieldNumber);
                         Output.AddProperty("fieldOffset", typeSystem.FieldOffset(typeIndex, fieldNumber, withHeader: true));
@@ -125,7 +125,7 @@ namespace MemorySnapshotAnalyzer.Commands
                         }
                         else
                         {
-                            Output.AddProperty("isInitialized", "false");
+                            Output.AddProperty("isInitialized", false);
                             Output.AddDisplayStringLineIndented(indent + 2, "Uninitialized");
                         }
                     }

@@ -204,20 +204,20 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             output.BeginChild("traceableHeap");
             output.AddProperty("kind", m_traceableHeap_kind.ToString());
-            output.AddProperty("fuseObjectPairs", m_traceableHeap_fuseObjectPairs.ToString());
+            output.AddProperty("fuseObjectPairs", m_traceableHeap_fuseObjectPairs);
             DumpReferenceClassifiersToStructuredOutput(output);
             if (m_currentTraceableHeap != null)
             {
                 output.AddProperty("description", m_currentTraceableHeap.Description);
                 output.AddProperty("numberOfTypeIndices", m_currentTraceableHeap.TypeSystem.NumberOfTypeIndices);
                 output.AddProperty("numberOfObjectPairs", m_currentTraceableHeap.NumberOfObjectPairs);
-                output.AddProperty("withMemory", (m_currentTraceableHeap.SegmentedHeapOpt != null).ToString());
+                output.AddProperty("withMemory", m_currentTraceableHeap.SegmentedHeapOpt != null);
             }
             output.EndChild();
 
             output.BeginChild("rootSet");
             output.AddProperty("singleRootAddress", m_rootSet_singletonRootAddress.ToString());
-            output.AddProperty("weakGChandles", m_rootSet_weakGCHandles.ToString());
+            output.AddProperty("weakGChandles", m_rootSet_weakGCHandles);
             if (m_currentRootSet != null)
             {
                 output.AddProperty("numberOfRoots", m_currentRootSet.NumberOfRoots);
@@ -238,10 +238,10 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             output.EndChild();
 
             output.BeginChild("backtracer");
-            output.AddProperty("groupStatics", m_backtracer_groupStatics.ToString());
+            output.AddProperty("groupStatics", m_backtracer_groupStatics);
             Backtracer_ReferencesToIgnore_DumpToStructuredOutput(output);
-            output.AddProperty("fuseRoots", m_backtracer_fuseRoots.ToString());
-            output.AddProperty("computed", (m_currentBacktracer != null).ToString());
+            output.AddProperty("fuseRoots", m_backtracer_fuseRoots);
+            output.AddProperty("computed", m_currentBacktracer != null);
             output.EndChild();
 
             output.BeginChild("heapDom");

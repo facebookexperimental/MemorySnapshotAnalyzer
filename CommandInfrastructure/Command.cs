@@ -151,7 +151,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 MemoryView memoryView = segmentedHeap.GetMemoryViewForAddress(addressOfValue);
                 if (!memoryView.IsValid)
                 {
-                    Output.AddProperty("addressMapped", "false");
+                    Output.AddProperty("addressMapped", false);
                     sb.AppendFormat("{0}: not in mapped memory", addressOfValue);
                     return;
                 }
@@ -175,7 +175,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 postorderIndex = CurrentTracedHeap.ObjectAddressToPostorderIndex(nativeValue);
                 if (postorderIndex != -1)
                 {
-                    Output.AddProperty("pointerTo", "True");
+                    Output.AddProperty("pointerTo", true);
                     sb.Append("pointer to ");
                     DescribeObject(postorderIndex, nativeValue, sb);
                     return;
