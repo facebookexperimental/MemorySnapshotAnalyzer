@@ -438,6 +438,6 @@ namespace MemorySnapshotAnalyzer.Commands
             return false;
         }
 
-        public override string HelpText => "listobj ['stats] ['type <type index> ['includederived]] ['owned | 'unowned] ['dominatedby <object address or index or -1 for process>] ['notindom] ['tagged <tag> | 'nottagged <tag>] ['sortbycount | 'sortbysize | 'sortbydomsize]";
+        public override string HelpText => "listobj ['stats] ['type <type index> ['includederived]] ['owned | 'unowned] ['dominatedby <object address or index or -1 for process>] ['notindom] ['tagged <tag> | 'nottagged <tag>] ['sortbycount | 'sortbysize | 'sortbydomsize] ['count <max>]";
     }
 }

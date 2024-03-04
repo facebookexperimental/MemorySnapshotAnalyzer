@@ -48,6 +48,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("nodetype")]
         public bool NodeTypes;
+
+        [FlagArgument("start")]
+        public bool StartBrowser = true;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         enum Diff
@@ -87,7 +90,26 @@ namespace MemorySnapshotAnalyzer.Commands
                     DumpTree();
                 }
 
-                StartHtmlFile();
+                string installDirName = AppDomain.CurrentDomain.BaseDirectory;
+                string htmlSource = Path.Combine(installDirName, "treemap.html");
+                string htmlDestination = Path.ChangeExtension(OutputFilename!, "html");
+                string[] lines = File.ReadAllLines(htmlSource);
+                Regex re = new(Regex.Escape("src=\"data.js\""), RegexOptions.Compiled);
+                string replacement = $"src=\"{Path.GetFileName(OutputFilename)}\"";
+                using (var fileOutput = new FileOutput(htmlDestination, useUnixNewlines: true))
+                {
+                    IOutput output = fileOutput;
+                    foreach (string line in lines)
+                    {
+                        string resultingLine = re.Replace(line, replacement);
+                        output.WriteLine(resultingLine);
+                    }
+                }
+
+                if (StartBrowser)
+                {
+                    StartHtmlFile(htmlDestination);
+                }
             }
             catch (IOException ex)
             {
@@ -98,24 +120,8 @@ namespace MemorySnapshotAnalyzer.Commands
             Output.AddDisplayStringLine("wrote {0} nodes", m_numberOfNodesWritten);
         }
 
-        void StartHtmlFile()
+        void StartHtmlFile(string htmlDestination)
         {
-            string installDirName = AppDomain.CurrentDomain.BaseDirectory;
-            string htmlSource = Path.Combine(installDirName, "treemap.html");
-            string htmlDestination = Path.ChangeExtension(OutputFilename!, "html");
-            string[] lines = File.ReadAllLines(htmlSource);
-            Regex re = new(Regex.Escape("src=\"data.js\""), RegexOptions.Compiled);
-            string replacement = $"src=\"{Path.GetFileName(OutputFilename)}\"";
-            using (var fileOutput = new FileOutput(htmlDestination, useUnixNewlines: true))
-            {
-                IOutput output = fileOutput;
-                foreach (string line in lines)
-                {
-                    string resultingLine = re.Replace(line, replacement);
-                    output.WriteLine(resultingLine);
-                }
-            }
-
             Process process = new()
             {
                 StartInfo = {
@@ -359,6 +365,6 @@ namespace MemorySnapshotAnalyzer.Commands
             return numberOfNodes;
         }
 
-        public override string HelpText => "heapdom <output filename> ['relativeto <context id> ['elideunchanged]] ['depth <depth>] ['width <width>] ['minsize <node size in bytes>] ['objectsonly] ['nonleaves] ['nodetype]";
+        public override string HelpText => "heapdom <output filename> ['relativeto <context id> ['elideunchanged]] ['depth <depth>] ['width <width>] ['minsize <node size in bytes>] ['objectsonly] ['nonleaves] ['nodetype] ['start|'nostart]";
     }
 }
