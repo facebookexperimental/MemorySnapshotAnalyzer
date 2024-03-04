@@ -89,6 +89,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 int count = kvp.Value.Count;
                 CurrentTraceableHeap.TypeSystem.OutputType(Output, "nodeType", typeIndex);
                 Output.AddProperty("count", count);
+                Output.AddProperty("totalSize", totalSizeByType[typeIndex]);
                 Output.AddDisplayStringLine("Type {0}:{1} (index {2}): {3} instances, total {4} bytes",
                     CurrentTraceableHeap.TypeSystem.Assembly(typeIndex),
                     CurrentTraceableHeap.TypeSystem.QualifiedName(typeIndex),
