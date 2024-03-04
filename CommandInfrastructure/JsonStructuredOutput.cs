@@ -115,6 +115,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 // Do not interpret format string.
                 CurrentDisplayString?.AppendLine(format);
             }
+            m_chainedStructuredOutput?.AddDisplayStringLineIndented(indent, format, args);
         }
 
         public void BeginArray(string key)
