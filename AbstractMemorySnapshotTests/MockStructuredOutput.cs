@@ -6,13 +6,24 @@
  */
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using System.Collections.Generic;
 
-namespace MemorySnapshotAnalyzer.AnalysisTests
+namespace MemorySnapshotAnalyzer.AbstractMemorySnapshotTests
 {
-    internal sealed class MockStructuredOutput : IStructuredOutput
+    public sealed class MockStructuredOutput : IStructuredOutput
     {
-        internal MockStructuredOutput()
+        List<string> m_displayStringLines;
+
+        public MockStructuredOutput()
         {
+            m_displayStringLines = new();
+        }
+
+        public List<string> ExtractDisplayStringLines()
+        {
+            List<string> displayStringLines = m_displayStringLines;
+            m_displayStringLines = new();
+            return displayStringLines;
         }
 
         public void AddProperty(string key, string value)
@@ -37,10 +48,12 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
 
         public void AddDisplayStringLine(string message)
         {
+            m_displayStringLines.Add(message);
         }
 
         public void AddDisplayStringLine(string format, params object[] args)
         {
+            m_displayStringLines.Add(string.Format(format, args));
         }
 
         public void AddDisplayStringLineIndented(int indent, string format, params object[] args)

@@ -40,13 +40,13 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
         /// Provides a summary of new warnings logged since the last time a summary was produced
         /// (or that warnings were cleared or flushed).
         /// </summary>
-        /// <param name="writeLine">Called for each text line in the summary.</param>
-        public void SummarizeNew(Action<string> writeLine);
+        /// <param name="output">The destination for the summary.</param>
+        public void SummarizeNew(IStructuredOutput output);
 
         /// <summary>
         /// Outputs all warnings encountered, and clears them from this logger object.
         /// </summary>
-        /// <param name="writeLine">Called for each text line.</param>
-        public void Flush(Action<string> writeLine);
+        /// <param name="output">The destination for the summary.</param>
+        public void Flush(IStructuredOutput output);
     }
 }

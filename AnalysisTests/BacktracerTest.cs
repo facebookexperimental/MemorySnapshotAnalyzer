@@ -57,9 +57,9 @@ namespace MemorySnapshotAnalyzer.AnalysisTests
 
         List<string> GetLog()
         {
-            List<string> log = new();
-            m_memoryLogger!.Flush(s => log.Add(s));
-            return log;
+            MockStructuredOutput output = new();
+            m_memoryLogger!.Flush(output);
+            return output.ExtractDisplayStringLines();
         }
 
         sealed class BasicTraceableHeap : MockTraceableHeap

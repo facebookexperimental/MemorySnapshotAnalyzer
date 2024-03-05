@@ -17,7 +17,8 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
     public sealed class Context : IDisposable
     {
         readonly int m_id;
-        readonly IOutput m_output;
+        readonly IOutput m_interactiveOutput;
+        readonly IStructuredOutput m_structuredOutput;
         readonly ILogger m_logger;
         readonly ReferenceClassifierStore m_referenceClassifierStore;
 
@@ -47,10 +48,11 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         IBacktracer? m_currentBacktracer;
         HeapDom? m_currentHeapDom;
 
-        public Context(int id, IOutput output, ILogger logger, ReferenceClassifierStore referenceClassifierStore)
+        public Context(int id, IOutput interactiveOutput, IStructuredOutput structuredOutput, ILogger logger, ReferenceClassifierStore referenceClassifierStore)
         {
             m_id = id;
-            m_output = output;
+            m_interactiveOutput = interactiveOutput;
+            m_structuredOutput = structuredOutput;
             m_logger = logger;
             m_referenceClassifierStore = referenceClassifierStore;
 
@@ -60,7 +62,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         public static Context WithSameOptionsAs(Context other, ILogger logger, int newId)
         {
-            var newContext = new Context(newId, other.m_output, logger, other.m_referenceClassifierStore)
+            var newContext = new Context(newId, other.m_interactiveOutput, other.m_structuredOutput, logger, other.m_referenceClassifierStore)
             {
                 TraceableHeap_Kind = other.TraceableHeap_Kind,
                 TraceableHeap_FuseObjectPairs = other.TraceableHeap_FuseObjectPairs,
@@ -76,20 +78,17 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         public void SummarizeNewWarnings()
         {
-            // TODO: also write to IStructuredOutput
-            m_logger.SummarizeNew(s => m_output.WriteLine(s));
+            m_logger.SummarizeNew(m_structuredOutput);
         }
 
         public void FlushWarnings()
         {
-            // TODO: also write to IStructuredOutput
-            m_logger.Flush(s => m_output.WriteLine(s));
+            m_logger.Flush(m_structuredOutput);
         }
 
         public void Dispose()
         {
             ClearContext();
-            FlushWarnings();
         }
 
         public int Id => m_id;
@@ -100,7 +99,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         {
             foreach (string s in Serialize())
             {
-                m_output.WriteLineIndented(indent, s);
+                m_interactiveOutput.WriteLineIndented(indent, s);
             }
         }
 
@@ -388,7 +387,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             if (m_currentTraceableHeap == null)
             {
-                m_output.Write("[context {0}] selecting traceable heap {1} ...", m_id, m_traceableHeap_kind);
+                m_interactiveOutput.Write("[context {0}] selecting traceable heap {1} ...", m_id, m_traceableHeap_kind);
 
                 ReferenceClassifierFactory referenceClassifierFactory;
                 if (m_traceableHeap_referenceClassificationGroups.Count > 0)
@@ -420,7 +419,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                         throw new IndexOutOfRangeException();
                 }
 
-                m_output.WriteLine(" {0} ({1} type indices, {2} object pairs, {3})",
+                m_interactiveOutput.WriteLine(" {0} ({1} type indices, {2} object pairs, {3})",
                     m_currentTraceableHeap.Description,
                     m_currentTraceableHeap.TypeSystem.NumberOfTypeIndices,
                     m_currentTraceableHeap.NumberOfObjectPairs,
@@ -468,7 +467,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             if (m_currentRootSet == null)
             {
-                m_output.Write("[context {0}] enumerating root set ...", m_id);
+                m_interactiveOutput.Write("[context {0}] enumerating root set ...", m_id);
                 if (m_rootSet_singletonRootAddress.Value != 0)
                 {
                     m_currentRootSet = new SingletonRootSet(CurrentTraceableHeap!, m_rootSet_singletonRootAddress);
@@ -478,7 +477,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                     m_currentRootSet = new RootSet(CurrentTraceableHeap!, gcHandleWeight: RootSet_WeakGCHandles ? -2 : 0);
                 }
 
-                m_output.WriteLine(" {0} roots ({1} GCHandles, {2} statics)",
+                m_interactiveOutput.WriteLine(" {0} roots ({1} GCHandles, {2} statics)",
                     m_currentRootSet.NumberOfRoots,
                     m_currentRootSet.NumberOfGCHandles,
                     m_currentRootSet.NumberOfStaticRoots);
@@ -499,9 +498,9 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             if (m_currentTracedHeap == null)
             {
-                m_output.Write("[context {0}] tracing heap ...", m_id);
+                m_interactiveOutput.Write("[context {0}] tracing heap ...", m_id);
                 m_currentTracedHeap = new TracedHeap(CurrentRootSet!, m_logger);
-                m_output.WriteLine(" {0} distinct roots ({1} invalid roots, {2} invalid pointers) holding {3} bytes live in {4} objects",
+                m_interactiveOutput.WriteLine(" {0} distinct roots ({1} invalid roots, {2} invalid pointers) holding {3} bytes live in {4} objects",
                     m_currentTracedHeap.NumberOfDistinctRoots,
                     m_currentTracedHeap.NumberOfInvalidRoots,
                     m_currentTracedHeap.NumberOfInvalidPointers,
@@ -646,7 +645,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             if (m_currentBacktracer == null)
             {
-                m_output.Write("[context {0}] computing backtraces ...", m_id);
+                m_interactiveOutput.Write("[context {0}] computing backtraces ...", m_id);
 
                 IBacktracer backtracer = new Backtracer(CurrentTracedHeap!, m_logger, m_backtracer_referencesToIgnore, fuseRoots: m_backtracer_fuseRoots);
                 if (m_backtracer_groupStatics)
@@ -654,7 +653,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                     backtracer = new GroupingBacktracer(backtracer);
                 }
                 m_currentBacktracer = backtracer;
-                m_output.WriteLine(" done");
+                m_interactiveOutput.WriteLine(" done");
             }
         }
 
@@ -672,9 +671,9 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             if (m_currentHeapDom == null)
             {
-                m_output.Write("[context {0}] computing dominator tree ...", m_id);
+                m_interactiveOutput.Write("[context {0}] computing dominator tree ...", m_id);
                 m_currentHeapDom = new HeapDom(CurrentBacktracer!);
-                m_output.WriteLine(" {0} non-leaf nodes found", m_currentHeapDom.NumberOfNonLeafNodes);
+                m_interactiveOutput.WriteLine(" {0} non-leaf nodes found", m_currentHeapDom.NumberOfNonLeafNodes);
             }
         }
 

@@ -50,7 +50,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             m_commandNamedArgumentNames = new();
 
             m_contexts = new();
-            m_contexts.Add(0, new Context(0, m_output, m_loggerFactory.MakeLogger(), m_referenceClassifierStore)
+            m_contexts.Add(0, new Context(0, m_output, m_structuredOutput, m_loggerFactory.MakeLogger(), m_referenceClassifierStore)
             {
                 // TODO: read TraceableHeap_Kind value
                 TraceableHeap_FuseObjectPairs = configuration.GetValue<bool>("FuseObjectPairs"),
@@ -309,8 +309,8 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                 }
                 finally
                 {
-                    m_currentCommandLine = null;
                     m_structuredOutput.EndChild();
+                    m_currentCommandLine = null;
 
                     foreach (var kvp in m_contexts)
                     {

@@ -31,6 +31,13 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
             });
         }
 
+        static List<string> GetLog(MemoryLogger memoryLogger)
+        {
+            MockStructuredOutput output = new();
+            memoryLogger!.Flush(output);
+            return output.ExtractDisplayStringLines();
+        }
+
         [Test]
         public void TestBasic()
         {
@@ -58,12 +65,9 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
             };
             BoundRuleset boundRuleset = new(typeSystem, rules, logger);
 
-            List<string> messages = new();
-            logger.Flush(messages.Add);
-
             Assert.Multiple(() =>
             {
-                Assert.That(messages, Has.Count.EqualTo(0));
+                Assert.That(GetLog(logger), Has.Count.EqualTo(0));
 
                 Assert.That(boundRuleset.GetPointerFlags((int)TestTypeIndex.ObjectTwoPointers, 1), Is.EqualTo(PointerFlags.Weighted.WithWeight(2)));
 
@@ -128,15 +132,12 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
             };
             BoundRuleset boundRuleset = new(typeSystem, rules, logger);
 
-            List<string> messages = new();
-            logger.Flush(messages.Add);
-
             Assert.Multiple(() =>
             {
                 // TODO: silently ignoring this rule is not ideal; there are two potentially better choices:
                 // (1) get a warning that the rule matched a type but never matched a field
                 // (2) find the field in the parent type and set the weight for (TestTypeIndex.ReferenceClassifiers, 5)
-                Assert.That(messages, Has.Count.EqualTo(0));
+                Assert.That(GetLog(logger), Has.Count.EqualTo(0));
                 Assert.That(boundRuleset.GetPointerFlags((int)TestTypeIndex.ReferenceClassifiers, 5), Is.EqualTo(default(PointerFlags)));
             });
         }
@@ -154,8 +155,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
             };
             BoundRuleset boundRuleset = new(typeSystem, rules, logger);
 
-            List<string> messages = new();
-            logger.Flush(messages.Add);
+            List<string> messages = GetLog(logger);
 
             Assert.Multiple(() =>
             {
