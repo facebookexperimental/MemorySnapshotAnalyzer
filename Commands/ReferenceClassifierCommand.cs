@@ -275,6 +275,6 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        public override string HelpText => "referenceclassifier ('clear | 'load <filename> | 'save <filename> 'fromdll <directory> | 'list ['verbose] | 'enable | 'disable) (<prefix*>|<name>),...";
+        public override string HelpText => "referenceclassifier ('clear | 'load <filename> | 'save <filename> | 'fromdll <directory> | 'list ['verbose] | 'enable | 'disable) (<prefix*>|<name>),...";
     }
 }
