@@ -6,6 +6,7 @@
  */
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandInfrastructure;
 using System;
 using System.Collections.Generic;
@@ -37,6 +38,12 @@ namespace MemorySnapshotAnalyzer.Commands
         [FlagArgument("dom")]
         public bool Dominators;
 
+        [NamedArgument("type")]
+        public CommandLineArgument? TypeIndexOrPattern;
+
+        [FlagArgument("includederived")]
+        public bool IncludeDerived;
+
         [NamedArgument("depth")]
         public int MaxDepth;
 
@@ -65,6 +72,11 @@ namespace MemorySnapshotAnalyzer.Commands
             if (ToRoots && !Lifelines)
             {
                 throw new CommandException("'toroots may only be given with 'lifelines");
+            }
+
+            if (!Dominators && (TypeIndexOrPattern != null || IncludeDerived))
+            {
+                throw new CommandException("'type and/or 'includederived may only be given with 'dom");
             }
 
             int postorderIndex = Context.ResolveToPostorderIndex(AddressOrIndex);
@@ -353,6 +365,8 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpDominators(int nodeIndex)
         {
+            HeapDomSizes heapDomSizes = MakeHeapDomSizes(TypeIndexOrPattern, IncludeDerived);
+
             Output.BeginArray("dominators");
 
             int currentNodeIndex = nodeIndex;
@@ -361,8 +375,8 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 Output.BeginElement();
 
-                long nodeSize = CurrentHeapDom.NodeSize(currentNodeIndex);
-                long treeSize = CurrentHeapDom.TreeSize(currentNodeIndex);
+                long nodeSize = heapDomSizes.NodeSize(currentNodeIndex);
+                long treeSize = heapDomSizes.TreeSize(currentNodeIndex);
                 Output.AddProperty("nodeSize", nodeSize);
                 Output.AddProperty("treeSize", treeSize);
                 Output.AddDisplayStringLineIndented(i, "{0} - exclusive size {1}, inclusive size {2}",
@@ -380,6 +394,6 @@ namespace MemorySnapshotAnalyzer.Commands
             Output.EndArray();
         }
 
-        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] | 'lifelines ['toroots] | 'owners | 'dom] ['fullyqualified] ['fields]";
+        public override string HelpText => "backtrace <object address or index> [[<output dot filename>] ['depth <max depth>] | 'lifelines ['toroots] | 'owners | 'dom ['type [<type index or pattern>] ['includederived]] ['fullyqualified] ['fields]";
     }
 }

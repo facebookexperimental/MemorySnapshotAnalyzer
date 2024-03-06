@@ -5,74 +5,30 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System.Collections.Generic;
 
 namespace MemorySnapshotAnalyzer.Analysis
 {
     public sealed class HeapDom
     {
-        sealed class TreeSizeComparer : IComparer<int>
-        {
-            readonly HeapDom m_heapDom;
-
-            public TreeSizeComparer(HeapDom heapDom)
-            {
-                m_heapDom = heapDom;
-            }
-
-            int IComparer<int>.Compare(int x, int y)
-            {
-                return m_heapDom.TreeSize(y).CompareTo(m_heapDom.TreeSize(x));
-            }
-        }
-
-        struct SizeEntry
-        {
-            public long NodeSizeExcludingDescendants;
-            public long NodeSizeIncludingDescendants;
-        }
-
         readonly IBacktracer m_backtracer;
-        readonly TracedHeap m_tracedHeap;
-        readonly IRootSet m_rootSet;
-        readonly TraceableHeap m_traceableHeap;
         readonly int m_rootNodeIndex;
         readonly int[] m_doms;
         readonly Dictionary<int, List<int>> m_domTree;
         readonly int m_numberOfNonLeafNodes;
-        readonly SizeEntry[] m_sizes;
 
         public HeapDom(IBacktracer backtracer)
         {
             m_backtracer = backtracer;
-            m_tracedHeap = backtracer.TracedHeap;
-            m_rootSet = m_tracedHeap.RootSet;
-            m_traceableHeap = m_rootSet.TraceableHeap;
             m_rootNodeIndex = m_backtracer.RootNodeIndex;
 
             m_doms = ComputeDominators();
             m_domTree = BuildDomTree(out m_numberOfNonLeafNodes);
-
-            m_sizes = new SizeEntry[m_rootNodeIndex + 1];
-            ComputeSizes(m_rootNodeIndex);
         }
 
         public IBacktracer Backtracer => m_backtracer;
 
         public int RootNodeIndex => m_rootNodeIndex;
-
-        public IComparer<int> Comparer => new TreeSizeComparer(this);
-
-        public long NodeSize(int nodeIndex)
-        {
-            return m_sizes[nodeIndex].NodeSizeExcludingDescendants;
-        }
-
-        public long TreeSize(int nodeIndex)
-        {
-            return m_sizes[nodeIndex].NodeSizeIncludingDescendants;
-        }
 
         public int NumberOfNonLeafNodes => m_numberOfNonLeafNodes;
 
@@ -172,43 +128,6 @@ namespace MemorySnapshotAnalyzer.Analysis
                 }
             }
             return finger1;
-        }
-
-        long ComputeSizes(int nodeIndex)
-        {
-            long nodeSize = ComputeNodeSize(nodeIndex);
-            long totalSize = nodeSize;
-            List<int>? children = GetChildren(nodeIndex);
-            if (children != null)
-            {
-                foreach (var childNodeIndex in children)
-                {
-                    totalSize += ComputeSizes(childNodeIndex);
-                }
-            }
-
-            SizeEntry entry;
-            entry.NodeSizeExcludingDescendants = nodeSize;
-            entry.NodeSizeIncludingDescendants = totalSize;
-            m_sizes[nodeIndex] = entry;
-
-            return totalSize;
-        }
-
-        long ComputeNodeSize(int nodeIndex)
-        {
-            if (m_backtracer.IsLiveObjectNode(nodeIndex))
-            {
-                int postorderIndex = m_backtracer.NodeIndexToPostorderIndex(nodeIndex);
-                int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-                return m_traceableHeap.GetObjectSize(m_tracedHeap.PostorderAddress(postorderIndex), typeIndex, committedOnly: true);
-            }
-            else
-            {
-                // We do not care about the size of roots.
-                // TODO: It might be worth considering using committed size at the root node level, however.
-                return 0;
-            }
         }
     }
 }

@@ -6,6 +6,7 @@
  */
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandInfrastructure;
 using System;
 using System.Collections.Generic;
@@ -92,6 +93,7 @@ namespace MemorySnapshotAnalyzer.Commands
             }
             else if (!SortByCount && SortByDomSize && !SortBySize)
             {
+                Context.EnsureHeapDom();
                 sortOrder = SortOrder.SortByDomSize;
             }
             else
@@ -140,6 +142,7 @@ namespace MemorySnapshotAnalyzer.Commands
         {
             readonly Context m_context;
             readonly SortOrder m_sortOrder;
+            readonly HeapDomSizes? m_heapDomSizes;
 
             long m_totalSize;
             int m_numberOfObjects;
@@ -150,6 +153,13 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 m_context = context;
                 m_sortOrder = sortOrder;
+                if (m_sortOrder == SortOrder.SortByDomSize)
+                {
+                    // We use a null typeSet here because the existing 'type argument is not what we want.
+                    // If we want to support sorting by dominator size for a type-filtered dominator tree,
+                    // we can decide to add 'domtype and 'domincludederived arguments.
+                    m_heapDomSizes = new HeapDomSizes(m_context.CurrentHeapDom!, typeSet: null);
+                }
 
                 if (sortOrder == SortOrder.SortByDomSize)
                 {
@@ -170,7 +180,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 if (m_sortOrder == SortOrder.SortByDomSize)
                 {
-                    return m_context.CurrentHeapDom!.TreeSize(postorderIndex);
+                    return m_heapDomSizes!.TreeSize(postorderIndex);
                 }
                 else
                 {

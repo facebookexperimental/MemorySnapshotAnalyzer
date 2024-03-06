@@ -6,6 +6,7 @@
  */
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandInfrastructure;
 using System;
 using System.Collections.Generic;
@@ -35,15 +36,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpStats()
         {
-            TypeSet? typeSet;
-            if (TypeIndexOrPattern != null)
-            {
-                typeSet = TypeIndexOrPattern.ResolveTypeIndexOrPattern(Context, IncludeDerived);
-            }
-            else
-            {
-                typeSet = null;
-            }
+            HeapDomSizes heapDomSizes = MakeHeapDomSizes(TypeIndexOrPattern, IncludeDerived);
 
             List<int>? children = CurrentHeapDom.GetChildren(CurrentHeapDom.RootNodeIndex);
 
@@ -60,25 +53,25 @@ namespace MemorySnapshotAnalyzer.Commands
                     int nodeIndex = children[i];
                     if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
                     {
-                        int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
-                        int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-                        if (typeSet != null && !typeSet.Contains(typeIndex))
+                        long treeSize = heapDomSizes.TreeSize(nodeIndex);
+                        if (treeSize == 0)
                         {
                             continue;
                         }
 
-                        long treeSize = CurrentHeapDom.TreeSize(nodeIndex);
                         totalSize += treeSize;
                         totalObjectCount++;
 
+                        int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
+                        int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
                         if (stats.TryGetValue(typeIndex, out (int Count, long Size) data))
                         {
-                            stats[typeIndex] = (data.Count + 1, data.Size + CurrentHeapDom.TreeSize(nodeIndex));
+                            stats[typeIndex] = (data.Count + 1, data.Size + heapDomSizes.TreeSize(nodeIndex));
                             totalSizeByType[typeIndex] += treeSize;
                         }
                         else
                         {
-                            stats[typeIndex] = (1, CurrentHeapDom.TreeSize(nodeIndex));
+                            stats[typeIndex] = (1, heapDomSizes.TreeSize(nodeIndex));
                             totalSizeByType[typeIndex] = treeSize;
                         }
                     }

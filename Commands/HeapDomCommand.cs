@@ -6,6 +6,7 @@
  */
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
+using MemorySnapshotAnalyzer.Analysis;
 using MemorySnapshotAnalyzer.CommandInfrastructure;
 using Newtonsoft.Json;
 using System;
@@ -51,6 +52,12 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("start")]
         public bool StartBrowser = true;
+
+        [NamedArgument("type")]
+        public CommandLineArgument? TypeIndexOrPattern;
+
+        [FlagArgument("includederived")]
+        public bool IncludeDerived;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         enum Diff
@@ -66,7 +73,8 @@ namespace MemorySnapshotAnalyzer.Commands
 
         public override void Run()
         {
-            Context.EnsureHeapDom();
+            HeapDomSizes heapDomSizes = MakeHeapDomSizes(TypeIndexOrPattern, IncludeDerived);
+
             if (OtherContextId != -1)
             {
                 Context? otherContext = Repl.GetContext(OtherContextId);
@@ -87,7 +95,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 using (RedirectOutput(new PassthroughStructuredOutput(fileOutput)))
                 {
                     Output.AddDisplayString("data=");
-                    DumpTree();
+                    DumpTree(heapDomSizes);
                 }
 
                 string installDirName = AppDomain.CurrentDomain.BaseDirectory;
@@ -178,13 +186,13 @@ namespace MemorySnapshotAnalyzer.Commands
             return diff;
         }
 
-        void DumpTree()
+        void DumpTree(HeapDomSizes heapDomSizes)
         {
-            var sizeComparer = CurrentHeapDom.Comparer;
-            _ = DumpTree(CurrentHeapDom.RootNodeIndex, sizeComparer, false, 0, out _);
+            IComparer<int> sizeComparer = heapDomSizes.MakeComparer();
+            _ = DumpTree(CurrentHeapDom.RootNodeIndex, heapDomSizes, sizeComparer, false, 0, out _);
         }
 
-        long DumpTree(int nodeIndex, IComparer<int> comparer, bool needComma, int depth, out int numberOfElidedNodes)
+        long DumpTree(int nodeIndex, HeapDomSizes heapDomSizes, IComparer<int> comparer, bool needComma, int depth, out int numberOfElidedNodes)
         {
             // TODO: better limiting functions:
             // - specifically omit a long tail of leaf nodes in high-width nodes
@@ -205,7 +213,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 return -1;
             }
 
-            if (CurrentHeapDom.TreeSize(nodeIndex) < MinSize)
+            if (heapDomSizes.TreeSize(nodeIndex) < MinSize)
             {
                 numberOfElidedNodes = NumberOfNodesInTree(nodeIndex);
                 return -1;
@@ -216,7 +224,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 Output.AddDisplayString(",");
             }
-            Output.AddDisplayString("{{\"name\":\"{0}\",", CurrentHeapDom.Backtracer.DescribeNodeIndex(nodeIndex, Output, fullyQualified: true));
+            Output.AddDisplayString("{{\"name\":\"{0}\",", CurrentBacktracer.DescribeNodeIndex(nodeIndex, Output, fullyQualified: true));
 
             if (nodeIndex == CurrentHeapDom.RootNodeIndex)
             {
@@ -230,7 +238,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
             if (NodeTypes)
             {
-                Output.AddDisplayString("\"nodetype\":\"{0}\",", CurrentHeapDom.Backtracer.NodeType(nodeIndex));
+                Output.AddDisplayString("\"nodetype\":\"{0}\",", CurrentBacktracer.NodeType(nodeIndex));
             }
 
             bool elideChildren = false;
@@ -266,34 +274,34 @@ namespace MemorySnapshotAnalyzer.Commands
                 for (int i = 0; i < children!.Count; i++)
                 {
                     int childNodeIndex = children[i];
-                    if (CurrentHeapDom.Backtracer.IsLiveObjectNode(childNodeIndex))
+                    if (CurrentBacktracer.IsLiveObjectNode(childNodeIndex))
                     {
                         toplevelObjects.Add(childNodeIndex);
-                        newSize += CurrentHeapDom.TreeSize(childNodeIndex);
+                        newSize += heapDomSizes.TreeSize(childNodeIndex);
                     }
                 }
 
-                DumpChildren(toplevelObjects, newSize, comparer, depth);
+                DumpChildren(toplevelObjects, newSize, heapDomSizes, comparer, depth);
             }
             else if (numberOfChildren == 0)
             {
-                Output.AddDisplayString("\"value\":{0}", CurrentHeapDom.NodeSize(nodeIndex));
+                Output.AddDisplayString("\"value\":{0}", heapDomSizes.NodeSize(nodeIndex));
             }
             else if (elideChildren)
             {
-                Output.AddDisplayString("\"value\":{0}", CurrentHeapDom.TreeSize(nodeIndex));
+                Output.AddDisplayString("\"value\":{0}", heapDomSizes.TreeSize(nodeIndex));
             }
             else
             {
-                DumpChildren(children!, CurrentHeapDom.TreeSize(nodeIndex), comparer, depth);
+                DumpChildren(children!, heapDomSizes.TreeSize(nodeIndex), heapDomSizes, comparer, depth);
             }
             Output.AddDisplayString("}");
 
             numberOfElidedNodes = 0;
-            return CurrentHeapDom.TreeSize(nodeIndex);
+            return heapDomSizes.TreeSize(nodeIndex);
         }
 
-        void DumpChildren(List<int> children, long treeSize, IComparer<int> comparer, int depth)
+        void DumpChildren(List<int> children, long treeSize, HeapDomSizes heapDomSizes, IComparer<int> comparer, int depth)
         {
             Output.AddDisplayString("\"children\":[");
 
@@ -314,7 +322,7 @@ namespace MemorySnapshotAnalyzer.Commands
                     numberOfElidedNodes += children.Count - i;
                     break;
                 }
-                long childSize = DumpTree(sortedChildren[i], comparer, needComma, depth + 1, out int numberOfElidedNodesInChild);
+                long childSize = DumpTree(sortedChildren[i], heapDomSizes, comparer, needComma, depth + 1, out int numberOfElidedNodesInChild);
                 numberOfElidedNodes += numberOfElidedNodesInChild;
                 sizeDumped += childSize;
                 if (childSize >= 0)
@@ -365,6 +373,6 @@ namespace MemorySnapshotAnalyzer.Commands
             return numberOfNodes;
         }
 
-        public override string HelpText => "heapdom <output filename> ['relativeto <context id> ['elideunchanged]] ['depth <depth>] ['width <width>] ['minsize <node size in bytes>] ['objectsonly] ['nonleaves] ['nodetype] ['start|'nostart]";
+        public override string HelpText => "heapdom <output filename> ['relativeto <context id> ['elideunchanged]] ['depth <depth>] ['width <width>] ['minsize <node size in bytes>] ['objectsonly] ['nonleaves] ['nodetype] ['start|'nostart] ['type [<type index or pattern>] ['includederived]]";
     }
 }
