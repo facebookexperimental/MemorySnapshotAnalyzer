@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandInfrastructure;
 using System;
 using System.Collections.Generic;
@@ -19,6 +20,12 @@ namespace MemorySnapshotAnalyzer.Commands
 #pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value
         [FlagArgument("bysize")]
         public bool OrderBySize;
+
+        [NamedArgument("type")]
+        public CommandLineArgument? TypeIndexOrPattern;
+
+        [FlagArgument("includederived")]
+        public bool IncludeDerived;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
@@ -28,6 +35,16 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void DumpStats()
         {
+            TypeSet? typeSet;
+            if (TypeIndexOrPattern != null)
+            {
+                typeSet = TypeIndexOrPattern.ResolveTypeIndexOrPattern(Context, IncludeDerived);
+            }
+            else
+            {
+                typeSet = null;
+            }
+
             List<int>? children = CurrentHeapDom.GetChildren(CurrentHeapDom.RootNodeIndex);
 
             var stats = new Dictionary<int, (int Count, long Size)>();
@@ -43,12 +60,17 @@ namespace MemorySnapshotAnalyzer.Commands
                     int nodeIndex = children[i];
                     if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
                     {
+                        int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
+                        int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+                        if (typeSet != null && !typeSet.Contains(typeIndex))
+                        {
+                            continue;
+                        }
+
                         long treeSize = CurrentHeapDom.TreeSize(nodeIndex);
                         totalSize += treeSize;
                         totalObjectCount++;
 
-                        int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
-                        int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
                         if (stats.TryGetValue(typeIndex, out (int Count, long Size) data))
                         {
                             stats[typeIndex] = (data.Count + 1, data.Size + CurrentHeapDom.TreeSize(nodeIndex));
@@ -101,6 +123,6 @@ namespace MemorySnapshotAnalyzer.Commands
             Output.EndArray();
         }
 
-        public override string HelpText => "heapdomstats ['bysize]";
+        public override string HelpText => "heapdomstats ['bysize] ['type [<type index or pattern>] ['includederived]]";
     }
 }
