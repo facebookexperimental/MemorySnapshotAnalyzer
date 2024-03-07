@@ -91,32 +91,33 @@ namespace MemorySnapshotAnalyzer.Commands
             m_numberOfNodesWritten = 0;
             try
             {
+                string installDirName = AppDomain.CurrentDomain.BaseDirectory;
+                string htmlSource = Path.Combine(installDirName, "treemap.html");
+                string[] lines = File.ReadAllLines(htmlSource);
+
+                Regex re = new(Regex.Escape("<script src=\"data.js\"></script>"), RegexOptions.Compiled);
+
                 using (var fileOutput = new FileOutput(OutputFilename!, useUnixNewlines: true))
                 using (RedirectOutput(new PassthroughStructuredOutput(fileOutput)))
                 {
-                    Output.AddDisplayString("data=");
-                    DumpTree(heapDomSizes);
-                }
-
-                string installDirName = AppDomain.CurrentDomain.BaseDirectory;
-                string htmlSource = Path.Combine(installDirName, "treemap.html");
-                string htmlDestination = Path.ChangeExtension(OutputFilename!, "html");
-                string[] lines = File.ReadAllLines(htmlSource);
-                Regex re = new(Regex.Escape("src=\"data.js\""), RegexOptions.Compiled);
-                string replacement = $"src=\"{Path.GetFileName(OutputFilename)}\"";
-                using (var fileOutput = new FileOutput(htmlDestination, useUnixNewlines: true))
-                {
-                    IOutput output = fileOutput;
                     foreach (string line in lines)
                     {
-                        string resultingLine = re.Replace(line, replacement);
-                        output.WriteLine(resultingLine);
+                        if (re.IsMatch(line))
+                        {
+                            Output.AddDisplayString("<script>data=");
+                            DumpTree(heapDomSizes);
+                            Output.AddDisplayStringLine("</script>");
+                        }
+                        else
+                        {
+                            Output.AddDisplayStringLine(line);
+                        }
                     }
                 }
 
                 if (StartBrowser)
                 {
-                    StartHtmlFile(htmlDestination);
+                    StartHtmlFile(OutputFilename!);
                 }
             }
             catch (IOException ex)
