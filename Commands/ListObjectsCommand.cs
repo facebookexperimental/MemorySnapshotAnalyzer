@@ -155,10 +155,10 @@ namespace MemorySnapshotAnalyzer.Commands
                 m_sortOrder = sortOrder;
                 if (m_sortOrder == SortOrder.SortByDomSize)
                 {
-                    // We use a null typeSet here because the existing 'type argument is not what we want.
+                    // We use the default HeapDomSizes here because the existing 'type argument is not what we want.
                     // If we want to support sorting by dominator size for a type-filtered dominator tree,
                     // we can decide to add 'domtype and 'domincludederived arguments.
-                    m_heapDomSizes = new HeapDomSizes(m_context.CurrentHeapDom!, typeSet: null);
+                    m_heapDomSizes = m_context.CurrentHeapDom!.DefaultHeapDomSizes;
                 }
 
                 if (sortOrder == SortOrder.SortByDomSize)

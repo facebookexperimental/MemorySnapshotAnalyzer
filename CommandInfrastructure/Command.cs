@@ -136,17 +136,15 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
         public HeapDomSizes MakeHeapDomSizes(CommandLineArgument? typeIndexOrPattern, bool includeDerived)
         {
-            TypeSet? typeSet;
             if (typeIndexOrPattern != null)
             {
-                typeSet = typeIndexOrPattern.ResolveTypeIndexOrPattern(Context, includeDerived);
+                TypeSet typeSet = typeIndexOrPattern.ResolveTypeIndexOrPattern(Context, includeDerived);
+                return new HeapDomSizes(CurrentHeapDom, typeSet);
             }
             else
             {
-                typeSet = null;
+                return CurrentHeapDom.DefaultHeapDomSizes;
             }
-
-            return new HeapDomSizes(CurrentHeapDom, typeSet);
         }
 
         public void DescribeAddress(NativeWord addressOfValue, StringBuilder sb)

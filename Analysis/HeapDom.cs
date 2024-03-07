@@ -16,6 +16,7 @@ namespace MemorySnapshotAnalyzer.Analysis
         readonly int[] m_doms;
         readonly Dictionary<int, List<int>> m_domTree;
         readonly int m_numberOfNonLeafNodes;
+        HeapDomSizes? m_defaultHeapDomSizes;
 
         public HeapDom(IBacktracer backtracer)
         {
@@ -41,6 +42,19 @@ namespace MemorySnapshotAnalyzer.Analysis
         {
             m_domTree.TryGetValue(nodeIndex, out List<int>? children);
             return children;
+        }
+
+        public HeapDomSizes DefaultHeapDomSizes
+        {
+            get
+            {
+                if (m_defaultHeapDomSizes == null)
+                {
+                    m_defaultHeapDomSizes = new HeapDomSizes(this, typeSet: null);
+                }
+
+                return m_defaultHeapDomSizes;
+            }
         }
 
         int[] ComputeDominators()
