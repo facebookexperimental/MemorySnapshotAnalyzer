@@ -294,7 +294,10 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     fieldNumber = Selector.FieldNumberArraySentinel;
                     if (!IsArray(currentTypeIndex))
                     {
-                        logWarning($"field was expected to be an array type; found {QualifiedName(currentTypeIndex)} - selector will never succeed");
+                        logWarning(string.Format("field was expected to be an array type; found {0}:{1} (type index {2}) - selector will never succeed",
+                            Assembly(currentTypeIndex),
+                            QualifiedName(currentTypeIndex),
+                            currentTypeIndex));
                         return default;
                     }
 
@@ -307,12 +310,20 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     {
                         if (IsValueType(currentTypeIndex))
                         {
-                            logWarning($"field {fieldNames[i]} not found in type {QualifiedName(currentTypeIndex)}, which is a value type - selector will never succeed");
+                            logWarning(string.Format("field {0} not found in type {1}:{2} (type index {3}), which is a value type - selector will never succeed",
+                                fieldNames[i],
+                                Assembly(currentTypeIndex),
+                                QualifiedName(currentTypeIndex),
+                                currentTypeIndex));
                             return default;
                         }
                         else if (!expectDynamic)
                         {
-                            logWarning($"field {fieldNames[i]} not found in type {QualifiedName(currentTypeIndex)}; switching to dynamic lookup");
+                            logWarning(string.Format("field {0} not found in type {1}:{2} (type index {3}); switching to dynamic lookup",
+                                fieldNames[i],
+                                Assembly(currentTypeIndex),
+                                QualifiedName(currentTypeIndex),
+                                currentTypeIndex));
                         }
 
                         var dynamicFieldNames = new string[fieldNames.Length - i];
