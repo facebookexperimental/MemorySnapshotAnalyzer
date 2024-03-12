@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MemorySnapshotAnalyzer.ReferenceClassifiers
 {
@@ -20,16 +21,26 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         // are considered to match. If IsRegex == true, this will be the empty string.
         public string Assembly { get; private set; }
 
-        // Fully qualified type name.
-        public string TypeName { get; private set; }
+        // Fully qualified type name, is IsRegex == false; else, the string representation of the regex.
+        public string TypeNameOrRegex { get; private set; }
+
+        public Regex? Regex { get; private set; }
 
         public bool IsRegex { get; private set; }
 
-        public TypeSpec(string assembly, string typeName, bool isRegex)
+        public TypeSpec(string assembly, string typeName)
         {
             Assembly = new string(WithoutExtension(assembly));
-            TypeName = typeName;
-            IsRegex = isRegex;
+            TypeNameOrRegex = typeName;
+            IsRegex = false;
+        }
+
+        public TypeSpec(Regex regex, string regexString)
+        {
+            Assembly = string.Empty;
+            Regex = regex;
+            TypeNameOrRegex = regexString;
+            IsRegex = true;
         }
 
         public static TypeSpec Parse(string value)
@@ -40,12 +51,13 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 throw new ArgumentException("type name must be prefixed with an assembly name");
             }
 
-            return new TypeSpec(value[..indexOfColon], value[(indexOfColon + 1)..], isRegex: false);
+            return new TypeSpec(value[..indexOfColon], value[(indexOfColon + 1)..]);
         }
 
-        public static TypeSpec FromRegex(string regex)
+        public static TypeSpec FromRegex(string regexString)
         {
-            return new TypeSpec(string.Empty, regex, isRegex: true);
+            Regex regex = new(regexString, RegexOptions.Compiled | RegexOptions.CultureInvariant);
+            return new TypeSpec(regex, regexString);
         }
 
         public bool AssemblyMatches(ReadOnlySpan<char> assemblyWithoutExtension)
@@ -70,11 +82,11 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
         {
             if (IsRegex)
             {
-                return $"/{TypeName}/";
+                return $"/{TypeNameOrRegex}/";
             }
             else
             {
-                return $"\"{Assembly}:{TypeName}\"";
+                return $"\"{Assembly}:{TypeNameOrRegex}\"";
             }
         }
     }

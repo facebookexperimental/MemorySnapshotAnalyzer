@@ -9,6 +9,7 @@ using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using System;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MemorySnapshotAnalyzer.CommandInfrastructure
 {
@@ -269,7 +270,15 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
             else if (ArgumentType == CommandLineArgumentType.String)
             {
-                typeSet.AddTypesByName(StringValue);
+                try
+                {
+                    typeSet.AddTypesByName(StringValue);
+                }
+                catch (RegexParseException ex)
+                {
+                    throw new CommandException($"invalid regular expression: {ex.Message}");
+                }
+
                 if (includeDerived)
                 {
                     typeSet.AddDerivedTypes();

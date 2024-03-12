@@ -17,27 +17,27 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
         [Test]
         public void TestTypeSpec()
         {
-            TypeSpec typeSpec = new("foo.dll", "bar.type", isRegex: false);
+            TypeSpec typeSpec = new("foo.dll", "bar.type");
             Assert.Multiple(() =>
             {
                 Assert.That(typeSpec.Assembly, Is.EqualTo("foo"));
-                Assert.That(typeSpec.TypeName, Is.EqualTo("bar.type"));
+                Assert.That(typeSpec.TypeNameOrRegex, Is.EqualTo("bar.type"));
                 Assert.That(typeSpec.IsRegex, Is.False);
             });
 
-            typeSpec = new("Foo.Bar.DLL", "bar.type", isRegex: false);
+            typeSpec = new("Foo.Bar.DLL", "bar.type");
             Assert.Multiple(() =>
             {
                 Assert.That(typeSpec.Assembly, Is.EqualTo("Foo.Bar"));
-                Assert.That(typeSpec.TypeName, Is.EqualTo("bar.type"));
+                Assert.That(typeSpec.TypeNameOrRegex, Is.EqualTo("bar.type"));
                 Assert.That(typeSpec.IsRegex, Is.False);
             });
 
-            typeSpec = new("foo", "bar.type", isRegex: false);
+            typeSpec = new("foo", "bar.type");
             Assert.Multiple(() =>
             {
                 Assert.That(typeSpec.Assembly, Is.EqualTo("foo"));
-                Assert.That(typeSpec.TypeName, Is.EqualTo("bar.type"));
+                Assert.That(typeSpec.TypeNameOrRegex, Is.EqualTo("bar.type"));
                 Assert.That(typeSpec.IsRegex, Is.False);
             });
 
@@ -45,7 +45,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
             Assert.Multiple(() =>
             {
                 Assert.That(typeSpec.Assembly, Is.EqualTo("foo"));
-                Assert.That(typeSpec.TypeName, Is.EqualTo("bar.type"));
+                Assert.That(typeSpec.TypeNameOrRegex, Is.EqualTo("bar.type"));
                 Assert.That(typeSpec.IsRegex, Is.False);
 
                 Assert.That(typeSpec.AssemblyMatches("foo"), Is.True);
@@ -56,27 +56,22 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
 
             Assert.Throws<ArgumentException>(() => TypeSpec.Parse("foo"));
 
-            typeSpec = new(string.Empty, "regex1", isRegex: true);
+            typeSpec = TypeSpec.FromRegex("regex1");
             Assert.Multiple(() =>
             {
                 Assert.That(typeSpec.Assembly, Is.EqualTo(string.Empty));
-                Assert.That(typeSpec.TypeName, Is.EqualTo("regex1"));
+                Assert.That(typeSpec.TypeNameOrRegex, Is.EqualTo("regex1"));
                 Assert.That(typeSpec.IsRegex, Is.True);
             });
 
-            typeSpec = TypeSpec.FromRegex("regex2");
-            Assert.Multiple(() =>
-            {
-                Assert.That(typeSpec.Assembly, Is.EqualTo(string.Empty));
-                Assert.That(typeSpec.TypeName, Is.EqualTo("regex2"));
-                Assert.That(typeSpec.IsRegex, Is.True);
-            });
+            Assert.Throws(Is.InstanceOf<ArgumentException>(),
+                () => TypeSpec.FromRegex("reg[]ex2"));
         }
 
         [Test]
         public void TestOwnsRule()
         {
-            TypeSpec typeSpec = new("mydll", "mytype", isRegex: false);
+            TypeSpec typeSpec = new("mydll", "mytype");
             OwnsRule rule = new("mylocation", typeSpec, selector: "foo", weight: 1, isDynamic: false);
             Assert.That(rule.Location, Is.EqualTo("mylocation"));
             Assert.That(rule.TypeSpec, Is.EqualTo(typeSpec));
@@ -115,7 +110,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
         [Test]
         public void TestExternalRule()
         {
-            TypeSpec typeSpec = new("mydll", "mytype", isRegex: false);
+            TypeSpec typeSpec = new("mydll", "mytype");
             ExternalRule rule = new("mylocation", typeSpec, fieldPattern: "foo*");
             Assert.Multiple(() =>
             {
@@ -130,7 +125,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
         [Test]
         public void TestTagSelectorRule()
         {
-            TypeSpec typeSpec = new("mydll", "mytype", isRegex: false);
+            TypeSpec typeSpec = new("mydll", "mytype");
             TagSelectorRule rule = new("mylocation", typeSpec, selector: "foo", tags: "tag", isDynamic: false);
             Assert.Multiple(() =>
             {
@@ -156,7 +151,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
         [Test]
         public void TestTagConditionRule()
         {
-            TypeSpec typeSpec = new("mydll", "mytype", isRegex: false);
+            TypeSpec typeSpec = new("mydll", "mytype");
             TagConditionRule rule = new("mylocation", typeSpec, fieldPattern: "foo", tags: "tag", tagIfNonZero: false);
             Assert.Multiple(() =>
             {

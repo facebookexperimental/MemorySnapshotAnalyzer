@@ -29,8 +29,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
             {
                 if (spec.typeSpec.IsRegex)
                 {
-                    Regex regex = new(spec.typeSpec.TypeName, RegexOptions.Compiled | RegexOptions.CultureInvariant);
-                    m_regexSpecs.Add((regex, new() { (spec.fieldPattern, spec.data) }));
+                    m_regexSpecs.Add((spec.typeSpec.Regex!, new() { (spec.fieldPattern, spec.data) }));
                 }
                 else
                 {
@@ -101,15 +100,15 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                 assemblyConfiguration = new Dictionary<string, List<(string fieldPattern, T data)>>();
                 foreach ((TypeSpec typeSpec, string fieldPattern, T data) in m_specs)
                 {
-                    if (typeSpec.AssemblyMatches(typeAssembly))
+                    if (!typeSpec.IsRegex && typeSpec.AssemblyMatches(typeAssembly))
                     {
-                        if (assemblyConfiguration.TryGetValue(typeSpec.TypeName, out List<(string fieldPattern, T data)>? configurationFieldPatterns))
+                        if (assemblyConfiguration.TryGetValue(typeSpec.TypeNameOrRegex, out List<(string fieldPattern, T data)>? configurationFieldPatterns))
                         {
                             configurationFieldPatterns.Add((fieldPattern, data));
                         }
                         else
                         {
-                            assemblyConfiguration.Add(typeSpec.TypeName, new List<(string fieldPattern, T data)>() { (fieldPattern, data) });
+                            assemblyConfiguration.Add(typeSpec.TypeNameOrRegex, new List<(string fieldPattern, T data)>() { (fieldPattern, data) });
                         }
                     }
                 }

@@ -104,7 +104,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiers
                     typeName = m_metadataReader.GetString(m_currentTypeDefinition.Name);
                 }
                 string qualifiedName = namespaceName.Length > 0 ? $"{namespaceName}.{typeName}" : typeName;
-                m_typeSpec = new TypeSpec(GetAssemblyName(), qualifiedName, isRegex: false);
+                m_typeSpec = new TypeSpec(GetAssemblyName(), qualifiedName);
             }
             return m_typeSpec;
         }

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
@@ -53,6 +53,7 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             return assemblyWithoutExtension.Equals(AssemblyWithoutExtension(assemblyName.AsSpan()), StringComparison.OrdinalIgnoreCase);
         }
 
+        // Note: can throw RegexParseException
         public void AddTypesByName(string input)
         {
             string namePattern;

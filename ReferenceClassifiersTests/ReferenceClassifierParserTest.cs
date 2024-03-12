@@ -71,6 +71,16 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
             }));
         }
 
+        [Test]
+        public void TestRegexError()
+        {
+            Dictionary<string, List<Rule>> groupedRules = new();
+            Assert.Throws<ParseErrorException>(() =>
+            {
+                ReferenceClassifierParser.Load("test_regex_error.rcl", groupNamePrefix: "prefix", groupedRules);
+            });
+        }
+
         static void CheckGroup(List<Rule> rules, List<(string location, string rulesText)> expected)
         {
             Assert.That(rules, Has.Exactly(expected.Count).Items);

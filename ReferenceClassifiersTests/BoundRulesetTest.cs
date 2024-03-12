@@ -45,21 +45,21 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
             MemoryLogger logger = new();
             List<Rule> rules = new()
             {
-                new OwnsRule("regularOwnsRule", new TypeSpec("Test.Assembly", "ObjectTwoPointers", isRegex: false), selector: "object2", weight: 2, isDynamic: false),
+                new OwnsRule("regularOwnsRule", new TypeSpec("Test.Assembly", "ObjectTwoPointers"), selector: "object2", weight: 2, isDynamic: false),
 
-                new OwnsRule("weakOwnsRule", new TypeSpec("test2.assembly2", "DerivedFromReferenceClassifier", isRegex: false), selector: "derivedField", weight: -1, isDynamic: false),
+                new OwnsRule("weakOwnsRule", new TypeSpec("test2.assembly2", "DerivedFromReferenceClassifier"), selector: "derivedField", weight: -1, isDynamic: false),
 
-                new TagConditionRule("taggedUntraced", new TypeSpec("Test.Assembly.dll", "ObjectNoPointers", isRegex: false), fieldPattern: "primitive", tags: "fooTag", tagIfNonZero: true),
+                new TagConditionRule("taggedUntraced", new TypeSpec("Test.Assembly.dll", "ObjectNoPointers"), fieldPattern: "primitive", tags: "fooTag", tagIfNonZero: true),
 
-                new TagConditionRule("external", new TypeSpec("Test.Assembly", "FieldWithPointerFlagsExternal", isRegex: false), fieldPattern: "object1", tags: "barTag,zotTag", tagIfNonZero: false),
-                new TagConditionRule("external", new TypeSpec("Test.Assembly", "FieldWithPointerFlagsExternal", isRegex: false), fieldPattern: "object1", tags: "foo2Tag", tagIfNonZero: true),
-                new ExternalRule("externalResetsUntraced", new TypeSpec("Test.Assembly", "FieldWithPointerFlagsExternal", isRegex: false), fieldPattern: "object1"),
+                new TagConditionRule("external", new TypeSpec("Test.Assembly", "FieldWithPointerFlagsExternal"), fieldPattern: "object1", tags: "barTag,zotTag", tagIfNonZero: false),
+                new TagConditionRule("external", new TypeSpec("Test.Assembly", "FieldWithPointerFlagsExternal"), fieldPattern: "object1", tags: "foo2Tag", tagIfNonZero: true),
+                new ExternalRule("externalResetsUntraced", new TypeSpec("Test.Assembly", "FieldWithPointerFlagsExternal"), fieldPattern: "object1"),
 
-                new OwnsRule("combiningWeights", new TypeSpec("assembly3", "WeightedReferences", isRegex: false), selector: "regular", weight: 4, isDynamic: false),
-                new OwnsRule("combiningWeights", new TypeSpec("Assembly3.DLL", "WeightedReferences", isRegex: false), selector: "regular", weight: 8, isDynamic: false),
+                new OwnsRule("combiningWeights", new TypeSpec("assembly3", "WeightedReferences"), selector: "regular", weight: 4, isDynamic: false),
+                new OwnsRule("combiningWeights", new TypeSpec("Assembly3.DLL", "WeightedReferences"), selector: "regular", weight: 8, isDynamic: false),
 
-                new OwnsRule("selectorOwnsRule1", new TypeSpec("Test2.Assembly2.DLL", "ReferenceClassifiers", isRegex: false), selector: "weightAnchorStatic.object2", weight: 1, isDynamic: false),
-                new OwnsRule("selectorOwnsRule2", new TypeSpec("Test2.Assembly2.DLL", "ReferenceClassifiers", isRegex: false), selector: "weightAnchorStatic.object2.notFound", weight: 1, isDynamic: true),
+                new OwnsRule("selectorOwnsRule1", new TypeSpec("Test2.Assembly2.DLL", "ReferenceClassifiers"), selector: "weightAnchorStatic.object2", weight: 1, isDynamic: false),
+                new OwnsRule("selectorOwnsRule2", new TypeSpec("Test2.Assembly2.DLL", "ReferenceClassifiers"), selector: "weightAnchorStatic.object2.notFound", weight: 1, isDynamic: true),
 
                 new TagSelectorRule("regexTagSelector", TypeSpec.FromRegex("ei..ted"), selector: "strong.notFound", tags: "a,b", isDynamic: true),
             };
@@ -128,7 +128,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
             MemoryLogger logger = new();
             List<Rule> rules = new()
             {
-                new OwnsRule("parentFieldWillNotBeFound", new TypeSpec("Test.Assembly", "DerivedFromReferenceClassifier", isRegex: false), selector: "array", weight: 5, isDynamic: false),
+                new OwnsRule("parentFieldWillNotBeFound", new TypeSpec("Test.Assembly", "DerivedFromReferenceClassifier"), selector: "array", weight: 5, isDynamic: false),
             };
             BoundRuleset boundRuleset = new(typeSystem, rules, logger);
 
@@ -149,7 +149,7 @@ namespace MemorySnapshotAnalyzer.ReferenceClassifiersTests
             MemoryLogger logger = new();
             List<Rule> rules = new()
             {
-                new OwnsRule("selectorOwnsRule2", new TypeSpec("Test2.Assembly2.DLL", "ReferenceClassifiers", isRegex: false), selector: "weightAnchorStatic.object2[]", weight: 1, isDynamic: false),
+                new OwnsRule("selectorOwnsRule2", new TypeSpec("Test2.Assembly2.DLL", "ReferenceClassifiers"), selector: "weightAnchorStatic.object2[]", weight: 1, isDynamic: false),
 
                 new TagSelectorRule("regexTagSelector", TypeSpec.FromRegex("ei..ted"), selector: "strong[]", tags: "a,b", isDynamic: false),
             };
