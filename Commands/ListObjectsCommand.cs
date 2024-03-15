@@ -59,6 +59,9 @@ namespace MemorySnapshotAnalyzer.Commands
         [NamedArgument("exec")]
         public string? ExecCommandLine;
 
+        [NamedArgument("execall")]
+        public string? ExecAllCommandLine;
+
         [NamedArgument("count")]
         public int MaxCount;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
@@ -73,9 +76,14 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 throw new CommandException("can provide at most one of 'owned or 'unowned");
             }
-            else if (StatisticsOnly && ExecCommandLine != null)
+
+            int numberOfModes = 0;
+            numberOfModes += StatisticsOnly ? 1 : 0;
+            numberOfModes += ExecCommandLine != null ? 1 : 0;
+            numberOfModes += ExecAllCommandLine != null ? 1 : 0;
+            if (numberOfModes > 1)
             {
-                throw new CommandException("can provide at most one of 'stats or 'exec");
+                throw new CommandException("can provide at most one of 'stats or 'exec or 'execall");
             }
 
             SortOrder sortOrder;
@@ -360,6 +368,30 @@ namespace MemorySnapshotAnalyzer.Commands
                     Output.EndArray();
                 }
             }
+            else if (ExecAllCommandLine != null)
+            {
+                Output.BeginArray("commandExecution");
+                try
+                {
+                    StringBuilder sb = new(ExecAllCommandLine);
+                    int i = 0;
+                    foreach (int postorderIndex in selection.ForAll())
+                    {
+                        sb.Append(' ');
+                        sb.Append(postorderIndex.ToString());
+                        i++;
+                        if (MaxCount > 0 && i >= MaxCount)
+                        {
+                            break;
+                        }
+                    }
+                    Repl.RunCommand(sb.ToString());
+                }
+                finally
+                {
+                    Output.EndArray();
+                }
+            }
             else
             {
                 Output.BeginArray("objects");
@@ -448,6 +480,6 @@ namespace MemorySnapshotAnalyzer.Commands
             return false;
         }
 
-        public override string HelpText => "listobj ['stats] ['type <type index> ['includederived]] ['owned | 'unowned] ['dominatedby <object address or index or -1 for process>] ['notindom] ['tagged <tag> | 'nottagged <tag>] ['sortbycount | 'sortbysize | 'sortbydomsize] ['count <max>]";
+        public override string HelpText => "listobj ['stats] ['type <type index> ['includederived]] ['owned | 'unowned] ['dominatedby <object address or index or -1 for process>] ['notindom] ['tagged <tag> | 'nottagged <tag>] ['sortbycount | 'sortbysize | 'sortbydomsize] ['count <max>] ['exec <command> | 'execall <command>]";
     }
 }

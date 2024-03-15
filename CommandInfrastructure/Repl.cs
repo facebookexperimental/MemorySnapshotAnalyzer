@@ -32,6 +32,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
         readonly List<MemorySnapshotLoader> m_memorySnapshotLoaders;
         readonly SortedDictionary<string, Type> m_commands;
         readonly Dictionary<Type, Dictionary<string, NamedArgumentKind>> m_commandNamedArgumentNames;
+        readonly Dictionary<Type, int> m_commandRemainderStartIndex;
         readonly ReferenceClassifierStore m_referenceClassifierStore;
         readonly SortedDictionary<int, Context> m_contexts;
         string? m_currentCommandLine;
@@ -48,6 +49,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             m_commands = new();
             m_referenceClassifierStore = new();
             m_commandNamedArgumentNames = new();
+            m_commandRemainderStartIndex = new();
 
             m_contexts = new();
             m_contexts.Add(0, new Context(0, m_output, m_structuredOutput, m_loggerFactory.MakeLogger(), m_referenceClassifierStore)
@@ -365,6 +367,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             var positionalArguments = new Dictionary<int, bool>();
             int lowestOptionalFound = int.MaxValue;
             int highestRequiredFound = -1;
+            bool remainderFound = false;
             var namedArgumentNames = new Dictionary<string, NamedArgumentKind>();
             foreach (FieldInfo field in typeInfo.GetRuntimeFields())
             {
@@ -436,16 +439,34 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                             throw new ArgumentException($"command {commandType.Name} field {field.Name}: flag fields must be of bool or int type");
                         }
                     }
+                    else if (attribute.AttributeType == typeof(RemainingArgumentsAttribute))
+                    {
+                        numberOfAttributesFound++;
+                        remainderFound = true;
+
+                        if (field.FieldType != typeof(List<string>)
+                            && field.FieldType != typeof(List<int>)
+                            && field.FieldType != typeof(List<NativeWord>)
+                            && field.FieldType != typeof(List<CommandLineArgument>))
+                        {
+                            throw new ArgumentException($"command {commandType.Name} field {field.Name}: unsupported type");
+                        }
+                    }
                 }
 
                 if (numberOfAttributesFound > 1)
                 {
-                    throw new ArgumentException($"command {commandType.Name}: conflicting attributes");
+                    throw new ArgumentException($"command {commandType.Name} field {field.Name}: conflicting attributes");
                 }
 
                 if (lowestOptionalFound < highestRequiredFound)
                 {
-                    throw new ArgumentException($"command {commandType.Name} field {field.Name}: positional argument {lowestOptionalFound} is marked optional, but later argument {highestRequiredFound} is not");
+                    throw new ArgumentException($"command {commandType.Name} field {field.Name}: positional argument {lowestOptionalFound} is optional, but later argument {highestRequiredFound} is not");
+                }
+
+                if (remainderFound && lowestOptionalFound < int.MaxValue)
+                {
+                    throw new ArgumentException($"command {commandType.Name} field {field.Name}: cannot have both a remainder field and an optional positional field");
                 }
             }
 
@@ -458,6 +479,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
 
             m_commandNamedArgumentNames[commandType] = namedArgumentNames;
+            m_commandRemainderStartIndex[commandType] = remainderFound ? highestRequiredFound + 1 : -1;
         }
 
         void AssignArgumentValues(Command command, CommandLine commandLine)
@@ -497,6 +519,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             TypeInfo typeInfo = command.GetType().GetTypeInfo();
             int argumentsConsumed = 0;
+            int remainderStartIndex = m_commandRemainderStartIndex[command.GetType()];
             foreach (FieldInfo field in typeInfo.GetRuntimeFields())
             {
                 foreach (CustomAttributeData attribute in field.CustomAttributes)
@@ -508,10 +531,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
                         if (index < positionalArguments.Count)
                         {
-                            SetFieldValue(commandLine.CommandName, command, field, positionalArguments[index]);
-                            m_structuredOutput.BeginChild(field.Name);
-                            positionalArguments[index].Describe(m_structuredOutput);
-                            m_structuredOutput.EndChild();
+                            SetFieldValueScalar(commandLine.CommandName, command, field, positionalArguments[index]);
                         }
                         else if (!optional)
                         {
@@ -525,10 +545,7 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                         string namedArgumentName = (string)attribute.ConstructorArguments[0].Value!;
                         if (namedArguments.TryGetValue(namedArgumentName, out var value))
                         {
-                            SetFieldValue(commandLine.CommandName, command, field, value);
-                            m_structuredOutput.BeginChild(field.Name);
-                            value.Describe(m_structuredOutput);
-                            m_structuredOutput.EndChild();
+                            SetFieldValueScalar(commandLine.CommandName, command, field, value);
                         }
                     }
                     else if (attribute.AttributeType == typeof(FlagArgumentAttribute))
@@ -536,51 +553,137 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
                         string flagName = (string)attribute.ConstructorArguments[0].Value!;
                         if (flags.TryGetValue(flagName, out var value))
                         {
-                            if (field.FieldType == typeof(bool))
-                            {
-                                field.SetValue(command, value);
-                            }
-                            else
-                            {
-                                field.SetValue(command, value ? 1 : 0);
-                            }
-                            m_structuredOutput.BeginChild(field.Name);
-                            m_structuredOutput.AddProperty("kind", "boolean");
-                            m_structuredOutput.AddProperty("value", value);
-                            m_structuredOutput.EndChild();
+                            SetFieldValueFlag(command, field, value);
                         }
+                    }
+                    else if (attribute.AttributeType == typeof(RemainingArgumentsAttribute))
+                    {
+                        SetFieldValueRepeated(commandLine.CommandName, command, field, positionalArguments, remainderStartIndex);
                     }
                 }
             }
 
-            if (argumentsConsumed < positionalArguments.Count)
+            if (remainderStartIndex == -1 && argumentsConsumed < positionalArguments.Count)
             {
                 throw new CommandException($"extraneous arguments given: {argumentsConsumed} expected, {positionalArguments.Count} found");
             }
         }
 
-        void SetFieldValue(string commandName, Command command, FieldInfo field, CommandLineArgument value)
+        void SetFieldValueFlag(Command command, FieldInfo field, bool value)
         {
+            m_structuredOutput.BeginChild(field.Name);
+
+            if (field.FieldType == typeof(bool))
+            {
+                field.SetValue(command, value);
+                m_structuredOutput.AddProperty("kind", "boolean");
+                m_structuredOutput.AddProperty("value", value);
+            }
+            else // field.FieldType == typeof(int)
+            {
+                field.SetValue(command, value ? 1 : 0);
+                m_structuredOutput.AddProperty("kind", "int");
+                m_structuredOutput.AddProperty("value", value ? 1 : 0);
+            }
+
+            m_structuredOutput.EndChild();
+        }
+
+        void SetFieldValueScalar(string commandName, Command command, FieldInfo field, CommandLineArgument value)
+        {
+            m_structuredOutput.BeginChild(field.Name);
+
             if (field.FieldType == typeof(string))
             {
-                field.SetValue(command, value.StringValue);
+                field.SetValue(command, AsString(value));
             }
             else if (field.FieldType == typeof(int))
             {
-                field.SetValue(command, (int)value.IntegerValue);
+                field.SetValue(command, AsInteger(value));
             }
             else if (field.FieldType == typeof(NativeWord))
             {
-                if (CurrentContext.CurrentMemorySnapshot == null)
-                {
-                    throw new CommandException($"command {commandName} can only be run with an active memory snapshot");
-                }
-                field.SetValue(command, value.AsNativeWord(CurrentContext.CurrentMemorySnapshot.Native));
+                field.SetValue(command, AsNativeWord(commandName, field, value));
             }
             else if (field.FieldType == typeof(CommandLineArgument))
             {
-                field.SetValue(command, value);
+                field.SetValue(command, AsCommandLineArgument(value));
             }
+
+            m_structuredOutput.EndChild();
+        }
+
+        void SetFieldValueRepeated(string commandName, Command command, FieldInfo field, List<CommandLineArgument> positionalArguments, int startIndex)
+        {
+            m_structuredOutput.BeginArray(field.Name);
+
+            if (field.FieldType == typeof(List<string>))
+            {
+                SetFieldValueList(command, field, positionalArguments, startIndex, AsString);
+            }
+            else if (field.FieldType == typeof(List<int>))
+            {
+                SetFieldValueList(command, field, positionalArguments, startIndex, AsInteger);
+            }
+            else if (field.FieldType == typeof(List<NativeWord>))
+            {
+                SetFieldValueList(command, field, positionalArguments, startIndex, value => AsNativeWord(commandName, field, value));
+            }
+            else if (field.FieldType == typeof(List<CommandLineArgument>))
+            {
+                SetFieldValueList(command, field, positionalArguments, startIndex, AsCommandLineArgument);
+            }
+
+            m_structuredOutput.EndArray();
+        }
+
+        void SetFieldValueList<T>(Command command, FieldInfo field, List<CommandLineArgument> positionalArguments, int startIndex, Func<CommandLineArgument, T> convert)
+        {
+            List<T>? values = (List<T>?)field.GetValue(command);
+            if (values == null)
+            {
+                values = new();
+                field.SetValue(command, values);
+            }
+
+            for (int index = startIndex; index < positionalArguments.Count; index++)
+            {
+                m_structuredOutput.BeginElement();
+                values.Add(convert(positionalArguments[index]));
+                m_structuredOutput.EndElement();
+            }
+        }
+
+        string AsString(CommandLineArgument value)
+        {
+            m_structuredOutput.AddProperty("kind", "string");
+            m_structuredOutput.AddProperty("value", value.StringValue);
+            return value.StringValue;
+        }
+
+        int AsInteger(CommandLineArgument value)
+        {
+            m_structuredOutput.AddProperty("kind", "integer");
+            m_structuredOutput.AddProperty("value", (int)value.IntegerValue);
+            return (int)value.IntegerValue;
+        }
+
+        NativeWord AsNativeWord(string commandName, FieldInfo field, CommandLineArgument value)
+        {
+            if (CurrentContext.CurrentMemorySnapshot == null)
+            {
+                throw new CommandException($"command {commandName} argument {field.Name} can only be given when there is an active memory snapshot");
+            }
+
+            m_structuredOutput.AddProperty("kind", "integer");
+            m_structuredOutput.AddProperty("value", (long)value.IntegerValue);
+            return value.AsNativeWord(CurrentContext.CurrentMemorySnapshot.Native);
+        }
+
+        CommandLineArgument AsCommandLineArgument(CommandLineArgument value)
+        {
+            value.Describe(m_structuredOutput);
+            return value;
         }
     }
 }
