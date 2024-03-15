@@ -368,7 +368,7 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
-        void RecordTags(NativeWord address, List<string> tags)
+        public void RecordTags(NativeWord address, List<string> tags)
         {
             if (!m_tags.TryGetValue(address.Value, out SortedSet<string>? objectTags))
             {
