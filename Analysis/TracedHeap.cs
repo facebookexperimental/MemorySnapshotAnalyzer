@@ -252,6 +252,12 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
         }
 
+        public bool HasTag(int postorderIndex, string tag)
+        {
+            NativeWord address = PostorderAddress(postorderIndex);
+            return m_tags.TryGetValue(address.Value, out SortedSet<string>? tags) && tags.Contains(tag);
+        }
+
         void Mark(PointerInfo<NativeWord> pointerInfo, NativeWord referrer)
         {
             NativeWord reference = pointerInfo.Value;

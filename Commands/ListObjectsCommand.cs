@@ -452,12 +452,12 @@ namespace MemorySnapshotAnalyzer.Commands
 
                     if (selected && WithTag != null)
                     {
-                        selected = HasTag(CurrentTracedHeap.PostorderAddress(postorderIndex), WithTag);
+                        selected = CurrentTracedHeap.HasTag(postorderIndex, WithTag);
                     }
 
                     if (selected && WithoutTag != null)
                     {
-                        selected = !HasTag(CurrentTracedHeap.PostorderAddress(postorderIndex), WithoutTag);
+                        selected = !CurrentTracedHeap.HasTag(postorderIndex, WithoutTag);
                     }
 
                     if (selected)
@@ -466,18 +466,6 @@ namespace MemorySnapshotAnalyzer.Commands
                     }
                 }
             }
-        }
-
-        bool HasTag(NativeWord address, string selectTag)
-        {
-            foreach (string tag in CurrentTracedHeap.TagsForAddress(address))
-            {
-                if (tag == selectTag)
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         public override string HelpText => "listobj ['stats] ['type <type index> ['includederived]] ['owned | 'unowned] ['dominatedby <object address or index or -1 for process>] ['notindom] ['tagged <tag> | 'nottagged <tag>] ['sortbycount | 'sortbysize | 'sortbydomsize] ['count <max>] ['exec <command> | 'execall <command>]";

@@ -7,7 +7,6 @@
 
 using MemorySnapshotAnalyzer.AbstractMemorySnapshot;
 using MemorySnapshotAnalyzer.CommandInfrastructure;
-using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -18,11 +17,14 @@ namespace MemorySnapshotAnalyzer.Commands
         public BacktraceCommand(Repl repl) : base(repl) {}
 
 #pragma warning disable CS0649 // Field '...' is never assigned to, and will always have its default value
-        [PositionalArgument(index: 0, optional: false)]
-        public NativeWord AddressOrIndex;
+        [RemainingArguments]
+        public List<NativeWord>? AddressOrIndexList;
 
         [FlagArgument("lifelines")]
         public bool Lifelines;
+
+        [NamedArgument("ignoretagged")]
+        public string? IgnoreIfAncestorHasTag;
 
         [NamedArgument("depth")]
         public int MaxDepth;
@@ -32,23 +34,62 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [FlagArgument("fields")]
         public bool Fields = true;
+
+        [NamedArgument("count")]
+        public int MaxCount;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
         {
-            int postorderIndex = Context.ResolveToPostorderIndex(AddressOrIndex);
-            int nodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex);
+            if (!Lifelines && IgnoreIfAncestorHasTag != null)
+            {
+                throw new CommandException("'ignoretagged may only be given with 'lifelines");
+            }
 
-            if (Lifelines)
+            int numberOutput = 0;
+
+            // Use a single "seen" set, so that backtraces for objects past the first argument
+            // can be abbreviated if the first argument's backtrace already contained any
+            // subsequent objects.
+            var ancestors = new HashSet<int>();
+            var seen = new HashSet<int>();
+
+            Output.BeginArray(Lifelines ? "lifelines" : "backtraces");
+
+            foreach (NativeWord addressOrIndex in AddressOrIndexList!)
             {
-                DumpLifelines(nodeIndex);
+                int postorderIndex = Context.ResolveToPostorderIndex(addressOrIndex);
+                int nodeIndex = CurrentBacktracer.PostorderIndexToNodeIndex(postorderIndex);
+
+                if (Lifelines)
+                {
+                    // DumpLifelines calls BeginElement/EndElement itself if necessary.
+                    if (DumpLifelines(nodeIndex))
+                    {
+                        // Only count if we actually did output something.
+                        numberOutput++;
+                    }
+                }
+                else
+                {
+                    Output.BeginElement();
+                    DumpBacktraces(nodeIndex, ancestors, seen, depth: 0, successorNodeIndex: -1);
+                    Output.EndElement();
+
+                    numberOutput++;
+                }
+
+                if (MaxCount > 0 && numberOutput >= MaxCount)
+                {
+                    break;
+                }
             }
-            else
-            {
-                var ancestors = new HashSet<int>();
-                var seen = new HashSet<int>();
-                DumpBacktraces(nodeIndex, ancestors, seen, depth: 0, successorNodeIndex: -1);
-            }
+
+            Output.EndArray();
+
+            Output.AddDisplayStringLine("found {0} {1}",
+                numberOutput,
+                Lifelines ? "lifeline(s)" : "backtrace(s)");
         }
 
         void DumpBacktraces(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int depth, int successorNodeIndex)
@@ -143,12 +184,42 @@ namespace MemorySnapshotAnalyzer.Commands
             internal Dictionary<int, TrieNode>? Children;
         }
 
-        void DumpLifelines(int nodeIndex)
+        bool DumpLifelines(int nodeIndex)
         {
-            Dictionary<int, int[]> lifelines = ComputeLifelines(nodeIndex,
-                nodeIndex => CurrentBacktracer.IsRootSentinel(nodeIndex) || CurrentBacktracer.Weight(nodeIndex) > 0);
-            TrieNode trie = CreateTrie(lifelines);
-            DumpTrie(nodeIndex, trie);
+            Dictionary<int, int[]> lifelines = ComputeLifelines(nodeIndex);
+            if (lifelines.Count > 0)
+            {
+                TrieNode trie = CreateTrie(lifelines);
+
+                Output.BeginElement();
+                DumpTrie(nodeIndex, trie);
+                Output.EndElement();
+
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        bool IsDestination(int nodeIndex)
+        {
+            return CurrentBacktracer.IsRootSentinel(nodeIndex) || CurrentBacktracer.Weight(nodeIndex) > 0;
+        }
+
+        bool ShouldIgnoreNode(int nodeIndex)
+        {
+            if (IgnoreIfAncestorHasTag != null)
+            {
+                // If a tag was given on the command line, stop if the object has that tag.
+                int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
+                return postorderIndex != -1 && CurrentTracedHeap.HasTag(postorderIndex, IgnoreIfAncestorHasTag);
+            }
+            else
+            {
+                return false;
+            }
         }
 
         static TrieNode CreateTrie(Dictionary<int, int[]> lifelines)
@@ -200,7 +271,7 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        Dictionary<int, int[]> ComputeLifelines(int nodeIndex, Predicate<int> isDestination)
+        Dictionary<int, int[]> ComputeLifelines(int nodeIndex)
         {
             // This algorithm produces a cheap-to-compute approximation of "relative short" paths
             // from the target node to all of its transitive owners (strongly-owned nodes according
@@ -211,11 +282,11 @@ namespace MemorySnapshotAnalyzer.Commands
             List<int> currentPath = new();
             HashSet<int> seen = new();
             Dictionary<int, int[]> lifelines = new();
-            ComputeLifelines(nodeIndex, currentPath, seen, lifelines, isDestination);
+            ComputeLifelines(nodeIndex, currentPath, seen, lifelines);
             return lifelines;
         }
 
-        void ComputeLifelines(int nodeIndex, List<int> currentPath, HashSet<int> seen, Dictionary<int, int[]> lifelines, Predicate<int> isDestination)
+        void ComputeLifelines(int nodeIndex, List<int> currentPath, HashSet<int> seen, Dictionary<int, int[]> lifelines)
         {
             currentPath.Add(nodeIndex);
 
@@ -223,7 +294,7 @@ namespace MemorySnapshotAnalyzer.Commands
             {
                 seen.Add(nodeIndex);
 
-                if (currentPath.Count > 1 && isDestination(nodeIndex))
+                if (currentPath.Count > 1 && IsDestination(nodeIndex))
                 {
                     // If we found a shorter lifeline to the same destination, only keep the shorter one.
                     if (!lifelines.TryGetValue(nodeIndex, out int[]? lifeline)
@@ -236,7 +307,10 @@ namespace MemorySnapshotAnalyzer.Commands
                 {
                     foreach (int predNodeIndex in CurrentBacktracer.Predecessors(nodeIndex))
                     {
-                        ComputeLifelines(predNodeIndex, currentPath, seen, lifelines, isDestination);
+                        if (!ShouldIgnoreNode(predNodeIndex))
+                        {
+                            ComputeLifelines(predNodeIndex, currentPath, seen, lifelines);
+                        }
                     }
                 }
             }
@@ -244,6 +318,6 @@ namespace MemorySnapshotAnalyzer.Commands
             currentPath.RemoveAt(currentPath.Count - 1);
         }
 
-        public override string HelpText => "backtrace <object address or index> [['depth <max depth>] | 'lifelines] ['fullyqualified] ['fields]";
+        public override string HelpText => "backtrace <object address or index> [['depth <max depth>] | 'lifelines ['ignoretagged <tag>] ['count <max>]] ['fullyqualified] ['fields]";
     }
 }
