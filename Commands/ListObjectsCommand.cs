@@ -430,6 +430,8 @@ namespace MemorySnapshotAnalyzer.Commands
 
         void SelectObjects(TypeSet? typeSet, int domParentPostorderIndex, Selection selection)
         {
+            string[] withTags = (WithTag ?? string.Empty).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            string[] withoutTags = (WithoutTag ?? string.Empty).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
             for (int postorderIndex = 0; postorderIndex < CurrentTracedHeap.NumberOfPostorderNodes; postorderIndex++)
             {
                 int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
@@ -450,14 +452,28 @@ namespace MemorySnapshotAnalyzer.Commands
                         selected = domParentPostorderIndex == domNodeIndex;
                     }
 
-                    if (selected && WithTag != null)
+                    if (selected && withTags.Length > 0)
                     {
-                        selected = CurrentTracedHeap.HasTag(postorderIndex, WithTag);
+                        // To be selected, the object must have all of the specified tags.
+                        foreach (string withTag in withTags)
+                        {
+                            if (!CurrentTracedHeap.HasTag(postorderIndex, withTag))
+                            {
+                                selected = false;
+                            }
+                        }
                     }
 
-                    if (selected && WithoutTag != null)
+                    if (selected && withoutTags.Length > 0)
                     {
-                        selected = !CurrentTracedHeap.HasTag(postorderIndex, WithoutTag);
+                        // To be selected, the object must not have any of the specified tags.
+                        foreach (string withoutTag in withoutTags)
+                        {
+                            if (CurrentTracedHeap.HasTag(postorderIndex, withoutTag))
+                            {
+                                selected = false;
+                            }
+                        }
                     }
 
                     if (selected)
@@ -468,6 +484,6 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        public override string HelpText => "listobj ['stats] ['type <type index> ['includederived]] ['owned | 'unowned] ['dominatedby <object address or index or -1 for process>] ['notindom] ['tagged <tag> | 'nottagged <tag>] ['sortbycount | 'sortbysize | 'sortbydomsize] ['count <max>] ['exec <command> | 'execall <command>]";
+        public override string HelpText => "listobj ['stats] ['type <type index> ['includederived]] ['owned | 'unowned] ['dominatedby <object address or index or -1 for process>] ['notindom] ['tagged <tag,...> | 'nottagged <tag,...>] ['sortbycount | 'sortbysize | 'sortbydomsize] ['count <max>] ['exec <command> | 'execall <command>]";
     }
 }
