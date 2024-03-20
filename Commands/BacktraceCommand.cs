@@ -37,6 +37,9 @@ namespace MemorySnapshotAnalyzer.Commands
 
         [NamedArgument("count")]
         public int MaxCount;
+
+        [FlagArgument("counts")]
+        public bool IncludeCounts;
 #pragma warning restore CS0649 // Field '...' is never assigned to, and will always have its default value
 
         public override void Run()
@@ -44,6 +47,25 @@ namespace MemorySnapshotAnalyzer.Commands
             if (!Lifelines && IgnoreIfAncestorHasTag != null)
             {
                 throw new CommandException("'ignoretagged may only be given with 'lifelines");
+            }
+
+            Dictionary<int, int>? perTypeCounts;
+            if (IncludeCounts)
+            {
+                perTypeCounts = new();
+                for (int postorderIndex = 0; postorderIndex < CurrentTracedHeap.NumberOfPostorderNodes; postorderIndex++)
+                {
+                    int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+                    if (typeIndex != -1)
+                    {
+                        perTypeCounts.TryGetValue(typeIndex, out int count);
+                        perTypeCounts[typeIndex] = count + 1;
+                    }
+                }
+            }
+            else
+            {
+                perTypeCounts = null;
             }
 
             int numberOutput = 0;
@@ -64,7 +86,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 if (Lifelines)
                 {
                     // DumpLifelines calls BeginElement/EndElement itself if necessary.
-                    if (DumpLifelines(nodeIndex))
+                    if (DumpLifelines(nodeIndex, perTypeCounts))
                     {
                         // Only count if we actually did output something.
                         numberOutput++;
@@ -73,7 +95,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 else
                 {
                     Output.BeginElement();
-                    DumpBacktraces(nodeIndex, ancestors, seen, depth: 0, successorNodeIndex: -1);
+                    DumpBacktraces(nodeIndex, perTypeCounts, ancestors, seen, depth: 0, successorNodeIndex: -1);
                     Output.EndElement();
 
                     numberOutput++;
@@ -92,14 +114,14 @@ namespace MemorySnapshotAnalyzer.Commands
                 Lifelines ? "lifeline(s)" : "backtrace(s)");
         }
 
-        void DumpBacktraces(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int depth, int successorNodeIndex)
+        void DumpBacktraces(int nodeIndex, Dictionary<int, int>? perTypeCounts, HashSet<int> ancestors, HashSet<int> seen, int depth, int successorNodeIndex)
         {
             if (MaxDepth > 0 && depth > MaxDepth)
             {
                 return;
             }
 
-            if (DumpBacktraceLine(nodeIndex, ancestors, seen, depth, successorNodeIndex, prefix: string.Empty))
+            if (DumpBacktraceLine(nodeIndex, perTypeCounts, ancestors, seen, depth, successorNodeIndex, prefix: string.Empty))
             {
                 return;
             }
@@ -115,7 +137,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 }
 
                 Output.BeginElement();
-                DumpBacktraces(predIndex, ancestors, seen, depth + 1, successorNodeIndex: nodeIndex);
+                DumpBacktraces(predIndex, perTypeCounts, ancestors, seen, depth + 1, successorNodeIndex: nodeIndex);
                 Output.EndElement();
             }
             ancestors.Remove(nodeIndex);
@@ -126,7 +148,7 @@ namespace MemorySnapshotAnalyzer.Commands
             }
         }
 
-        protected bool DumpBacktraceLine(int nodeIndex, HashSet<int> ancestors, HashSet<int> seen, int indent, int successorNodeIndex, string prefix)
+        bool DumpBacktraceLine(int nodeIndex, Dictionary<int, int>? perTypeCounts, HashSet<int> ancestors, HashSet<int> seen, int indent, int successorNodeIndex, string prefix)
         {
             StringBuilder sb = new(prefix);
 
@@ -154,8 +176,15 @@ namespace MemorySnapshotAnalyzer.Commands
 
             sb.Append(CurrentBacktracer.DescribeNodeIndex(nodeIndex, Output, FullyQualified));
 
-            if (CurrentBacktracer.IsLiveObjectNode(nodeIndex))
+            int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
+            int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+            if (typeIndex != -1)
             {
+                if (perTypeCounts != null)
+                {
+                    sb.AppendFormat(" x{0}", perTypeCounts[typeIndex]);
+                }
+
                 if (Fields)
                 {
                     AppendFields(nodeIndex, successorNodeIndex, sb);
@@ -184,7 +213,7 @@ namespace MemorySnapshotAnalyzer.Commands
             internal Dictionary<int, TrieNode>? Children;
         }
 
-        bool DumpLifelines(int nodeIndex)
+        bool DumpLifelines(int nodeIndex, Dictionary<int, int>? perTypeCounts)
         {
             Dictionary<int, int[]> lifelines = ComputeLifelines(nodeIndex);
             if (lifelines.Count > 0)
@@ -192,7 +221,7 @@ namespace MemorySnapshotAnalyzer.Commands
                 TrieNode trie = CreateTrie(lifelines);
 
                 Output.BeginElement();
-                DumpTrie(nodeIndex, trie);
+                DumpTrie(nodeIndex, trie, perTypeCounts);
                 Output.EndElement();
 
                 return true;
@@ -245,16 +274,16 @@ namespace MemorySnapshotAnalyzer.Commands
             return trie;
         }
 
-        void DumpTrie(int nodeIndex, TrieNode trie)
+        void DumpTrie(int nodeIndex, TrieNode trie, Dictionary<int, int>? perTypeCounts)
         {
             HashSet<int> ancestors = new();
             HashSet<int> seen = new();
-            DumpTrie(nodeIndex, trie, ancestors, seen, indent: 0, successorNodeIndex: -1, condensed: false, singleChild: true);
+            DumpTrie(nodeIndex, trie, perTypeCounts, ancestors, seen, indent: 0, successorNodeIndex: -1, condensed: false, singleChild: true);
         }
 
-        void DumpTrie(int nodeIndex, TrieNode trie, HashSet<int> ancestors, HashSet<int> seen, int indent, int successorNodeIndex, bool condensed, bool singleChild)
+        void DumpTrie(int nodeIndex, TrieNode trie, Dictionary<int, int>? perTypeCounts, HashSet<int> ancestors, HashSet<int> seen, int indent, int successorNodeIndex, bool condensed, bool singleChild)
         {
-            _ = DumpBacktraceLine(nodeIndex, ancestors, seen, indent, successorNodeIndex, prefix: condensed ? @"\ " : string.Empty);
+            _ = DumpBacktraceLine(nodeIndex, perTypeCounts, ancestors, seen, indent, successorNodeIndex, prefix: condensed ? @"\ " : string.Empty);
 
             if (trie.Children != null)
             {
@@ -264,7 +293,7 @@ namespace MemorySnapshotAnalyzer.Commands
                     bool newCondense = singleChild && trie.Children.Count == 1;
                     int newIndent = newCondense ? indent : indent + 1;
                     Output.BeginElement();
-                    DumpTrie(predNodeIndex, child, ancestors, seen, newIndent, nodeIndex, condensed: newCondense, singleChild: trie.Children.Count == 1);
+                    DumpTrie(predNodeIndex, child, perTypeCounts, ancestors, seen, newIndent, nodeIndex, condensed: newCondense, singleChild: trie.Children.Count == 1);
                     Output.EndElement();
                 }
                 Output.EndArray();
@@ -318,6 +347,6 @@ namespace MemorySnapshotAnalyzer.Commands
             currentPath.RemoveAt(currentPath.Count - 1);
         }
 
-        public override string HelpText => "backtrace <object address or index> [['depth <max depth>] | 'lifelines ['ignoretagged <tag>] ['count <max>]] ['fullyqualified] ['fields]";
+        public override string HelpText => "backtrace <object address or index> [['depth <max depth>] | 'lifelines ['ignoretagged <tag>] ['count <max>]] ['fullyqualified] ['fields] ['counts]";
     }
 }
