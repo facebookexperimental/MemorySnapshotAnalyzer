@@ -177,21 +177,24 @@ namespace MemorySnapshotAnalyzer.Commands
             sb.Append(CurrentBacktracer.DescribeNodeIndex(nodeIndex, Output, FullyQualified));
 
             int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
-            int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-            if (typeIndex != -1)
+            if (postorderIndex != -1)
             {
-                if (perTypeCounts != null)
+                int typeIndex = CurrentTracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
+                if (typeIndex != -1)
                 {
-                    sb.AppendFormat(" x{0}", perTypeCounts[typeIndex]);
-                }
+                    if (perTypeCounts != null)
+                    {
+                        sb.AppendFormat(" x{0}", perTypeCounts[typeIndex]);
+                    }
 
-                if (Fields)
-                {
-                    AppendFields(nodeIndex, successorNodeIndex, sb);
-                }
+                    if (Fields)
+                    {
+                        AppendFields(nodeIndex, successorNodeIndex, sb);
+                    }
 
-                NativeWord address = CurrentTracedHeap.PostorderAddress(nodeIndex);
-                AppendTags(address, sb);
+                    NativeWord address = CurrentTracedHeap.PostorderAddress(nodeIndex);
+                    AppendTags(address, sb);
+                }
             }
 
             Output.AddDisplayStringLineIndented(indent, sb.ToString());
@@ -239,7 +242,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
         bool ShouldIgnoreNode(int nodeIndex)
         {
-            if (IgnoreIfAncestorHasTag != null)
+            if (IgnoreIfAncestorHasTag != null && CurrentBacktracer.IsLiveObjectNode(nodeIndex))
             {
                 // If a tag was given on the command line, stop if the object has that tag.
                 int postorderIndex = CurrentBacktracer.NodeIndexToPostorderIndex(nodeIndex);
