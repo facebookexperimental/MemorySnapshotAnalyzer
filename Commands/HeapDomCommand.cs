@@ -125,8 +125,12 @@ namespace MemorySnapshotAnalyzer.Commands
                 throw new CommandException(ex.Message);
             }
 
+            long rootNodeInclusiveSize = heapDomSizes.TreeSize(CurrentHeapDom.RootNodeIndex);
             Output.AddProperty("numberOfNodesWritten", m_numberOfNodesWritten);
-            Output.AddDisplayStringLine("wrote {0} nodes", m_numberOfNodesWritten);
+            Output.AddProperty("numberOfBytesInNodesWritten", rootNodeInclusiveSize);
+            Output.AddDisplayStringLine("wrote {0} nodes with a total of {1} bytes",
+                m_numberOfNodesWritten,
+                rootNodeInclusiveSize);
         }
 
         void StartHtmlFile(string htmlDestination)
