@@ -101,26 +101,18 @@ namespace MemorySnapshotAnalyzer.Analysis
 
         (long nodeSize, bool selected) ComputeNodeSize(int nodeIndex, TypeSet? typeSet)
         {
-            if (m_backtracer.IsLiveObjectNode(nodeIndex))
+            int postorderIndex = m_backtracer.NodeIndexToPostorderIndex(nodeIndex);
+            if (postorderIndex != -1)
             {
-                int postorderIndex = m_backtracer.NodeIndexToPostorderIndex(nodeIndex);
                 int typeIndex = m_tracedHeap.PostorderTypeIndexOrSentinel(postorderIndex);
-                if (typeSet != null && !typeSet.Contains(typeIndex))
-                {
-                    return (0, false);
-                }
-                else
+                if (typeIndex != -1 && (typeSet == null || typeSet.Contains(typeIndex)))
                 {
                     NativeWord address = m_tracedHeap.PostorderAddress(postorderIndex);
                     return (m_traceableHeap.GetObjectSize(address, typeIndex, committedOnly: true), true);
                 }
             }
-            else
-            {
-                // We do not care about the size of roots.
-                // TODO: It might be worth considering using committed size at the root node level, however.
-                return (0, false);
-            }
+
+            return (0, false);
         }
     }
 }
