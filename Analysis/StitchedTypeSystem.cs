@@ -107,7 +107,8 @@ namespace MemorySnapshotAnalyzer.Analysis
             }
             else
             {
-                return m_second.BaseOrElementTypeIndex(typeIndex - m_first.NumberOfTypeIndices) + m_first.NumberOfTypeIndices;
+                int secondBaseTypeIndex = m_second.BaseOrElementTypeIndex(typeIndex - m_first.NumberOfTypeIndices);
+                return secondBaseTypeIndex == -1 ? -1 : secondBaseTypeIndex + m_first.NumberOfTypeIndices;
             }
         }
 
