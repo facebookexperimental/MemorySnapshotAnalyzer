@@ -69,6 +69,7 @@ namespace MemorySnapshotAnalyzer.Commands
             }
 
             int numberOutput = 0;
+            int numberFound = 0;
 
             // Use a single "seen" set, so that backtraces for objects past the first argument
             // can be abbreviated if the first argument's backtrace already contained any
@@ -78,6 +79,7 @@ namespace MemorySnapshotAnalyzer.Commands
 
             Output.BeginArray(Lifelines ? "lifelines" : "backtraces");
 
+            bool output = true;
             foreach (NativeWord addressOrIndex in AddressOrIndexList!)
             {
                 int postorderIndex = Context.ResolveToPostorderIndex(addressOrIndex);
@@ -86,32 +88,44 @@ namespace MemorySnapshotAnalyzer.Commands
                 if (Lifelines)
                 {
                     // DumpLifelines calls BeginElement/EndElement itself if necessary.
-                    if (DumpLifelines(nodeIndex, perTypeCounts))
+                    if (DumpLifelines(nodeIndex, perTypeCounts, output))
                     {
-                        // Only count if we actually did output something.
-                        numberOutput++;
+                        if (output)
+                        {
+                            // Only count if we actually did output something.
+                            numberOutput++;
+                        }
+
+                        numberFound++;
                     }
                 }
                 else
                 {
-                    Output.BeginElement();
-                    DumpBacktraces(nodeIndex, perTypeCounts, ancestors, seen, depth: 0, successorNodeIndex: -1);
-                    Output.EndElement();
+                    if (output)
+                    {
+                        Output.BeginElement();
+                        DumpBacktraces(nodeIndex, perTypeCounts, ancestors, seen, depth: 0, successorNodeIndex: -1);
+                        Output.EndElement();
 
-                    numberOutput++;
+                        numberOutput++;
+                    }
+
+                    numberFound++;
                 }
 
                 if (MaxCount > 0 && numberOutput >= MaxCount)
                 {
-                    break;
+                    output = false;
                 }
             }
 
             Output.EndArray();
 
-            Output.AddDisplayStringLine("found {0} {1}",
-                numberOutput,
-                Lifelines ? "lifeline(s)" : "backtrace(s)");
+            Output.AddProperty(Lifelines ? "numberOfLifelinesFound" : "numberOfBacktracesFound", numberFound);
+            Output.AddDisplayStringLine("found {0} {1}, output {2}",
+                numberFound,
+                Lifelines ? "lifeline(s)" : "backtrace(s)",
+                numberOutput);
         }
 
         void DumpBacktraces(int nodeIndex, Dictionary<int, int>? perTypeCounts, HashSet<int> ancestors, HashSet<int> seen, int depth, int successorNodeIndex)
@@ -216,16 +230,18 @@ namespace MemorySnapshotAnalyzer.Commands
             internal Dictionary<int, TrieNode>? Children;
         }
 
-        bool DumpLifelines(int nodeIndex, Dictionary<int, int>? perTypeCounts)
+        bool DumpLifelines(int nodeIndex, Dictionary<int, int>? perTypeCounts, bool output)
         {
             Dictionary<int, int[]> lifelines = ComputeLifelines(nodeIndex);
             if (lifelines.Count > 0)
             {
                 TrieNode trie = CreateTrie(lifelines);
-
-                Output.BeginElement();
-                DumpTrie(nodeIndex, trie, perTypeCounts);
-                Output.EndElement();
+                if (output)
+                {
+                    Output.BeginElement();
+                    DumpTrie(nodeIndex, trie, perTypeCounts);
+                    Output.EndElement();
+                }
 
                 return true;
             }
