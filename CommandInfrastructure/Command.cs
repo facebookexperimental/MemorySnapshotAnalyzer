@@ -210,11 +210,12 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
 
             if (segmentedHeap != null)
             {
-
-                // If the address is not in mapped memory, then we already returned from this method, further above.
-                HeapSegment segment = segmentedHeap.GetSegmentForAddress(nativeValue)!;
-                sb.Append("pointer into ");
-                segment.Describe(Output, sb);
+                HeapSegment? segment = segmentedHeap.GetSegmentForAddress(nativeValue);
+                if (segment != null)
+                {
+                    sb.Append("pointer into ");
+                    segment.Describe(Output, sb);
+                }
             }
         }
 
