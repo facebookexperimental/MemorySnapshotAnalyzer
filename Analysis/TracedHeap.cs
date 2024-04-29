@@ -116,7 +116,16 @@ namespace MemorySnapshotAnalyzer.Analysis
                     m_objectAddressToPostorderIndex[lookupEntryIndex].PostorderIndex = postorderIndex;
                     lookupEntryIndex++;
 
-                    m_numberOfLiveBytes += m_traceableHeap.GetObjectSize(m_native.From(address), typeIndex, committedOnly: true);
+                    int objectSize = m_traceableHeap.GetObjectSize(m_native.From(address), typeIndex, committedOnly: true);
+                    if (objectSize < 0)
+                    {
+                        // This indicates a memory corruption (array or string with invalid length field)
+                        LogWarning(m_traceableHeap.TypeSystem.QualifiedName(typeIndex), $"object {postorderIndex} has negative size {objectSize}");
+                    }
+                    else
+                    {
+                        m_numberOfLiveBytes += objectSize;
+                    }
                 }
             }
             Array.Sort(m_objectAddressToPostorderIndex, (x, y) => x.Address.CompareTo(y.Address));

@@ -547,7 +547,13 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             int length = maxLength < stringLength ? maxLength : stringLength;
             for (int i = 0; i < length; i++)
             {
-                objectView.Read(CurrentTraceableHeap.TypeSystem.SystemStringFirstCharOffset + i * 2, out char c);
+                int offset = CurrentTraceableHeap.TypeSystem.SystemStringFirstCharOffset + i * 2;
+                if (offset + 2 > objectView.Size)
+                {
+                    // Guard against crashing if there is a memory corruption (string with invalid length)
+                    break;
+                }
+                objectView.Read(offset, out char c);
                 sb.Append(c);
             }
 
