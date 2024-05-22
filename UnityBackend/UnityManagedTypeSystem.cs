@@ -108,6 +108,18 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             Array.Copy(m_typesByIndex, m_typesByAddress, types.Length);
             Array.Sort(m_typesByAddress, (type1, type2) => type1.TypeInfoAddress.Value.CompareTo(type2.TypeInfoAddress.Value));
 
+            // Consistency check that each type has a different address.
+            NativeWord previousTypeInfoAddress = m_typesByAddress[0].TypeInfoAddress;
+            for (int i = 1; i < m_typesByAddress.Length; i++)
+            {
+                if (m_typesByAddress[i].TypeInfoAddress == previousTypeInfoAddress)
+                {
+                    throw new InvalidSnapshotFormatException("multiple type infos have the same address");
+                }
+
+                previousTypeInfoAddress = m_typesByAddress[i].TypeInfoAddress;
+            }
+
             m_virtualMachineInformation = virtualMachineInformation;
         }
 
@@ -124,7 +136,7 @@ namespace MemorySnapshotAnalyzer.UnityBackend
         internal int TypeInfoAddressToIndex(NativeWord address)
         {
             int min = 0;
-            int max = m_typesByIndex.Length;
+            int max = m_typesByAddress.Length;
             while (min < max)
             {
                 int mid = (min + max) / 2;
