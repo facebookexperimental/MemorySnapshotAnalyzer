@@ -44,6 +44,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
             if (m_typeSystem.IsArray(typeIndex))
             {
                 int elementTypeIndex = m_typeSystem.BaseOrElementTypeIndex(typeIndex);
+                if (elementTypeIndex == -1)
+                {
+                    // TODO: Unity 2022.3 has been observed to write out metadata for arrays with element type index -1.
+                    yield break;
+                }
+
                 int arraySize = ReadArraySize(objectView);
                 for (int i = 0; i < arraySize; i++)
                 {
@@ -225,6 +231,12 @@ namespace MemorySnapshotAnalyzer.AbstractMemorySnapshot
                     }
 
                     int elementTypeIndex = m_typeSystem.BaseOrElementTypeIndex(valueReference.TypeIndex);
+                    if (elementTypeIndex == -1)
+                    {
+                        // TODO: Unity 2022.3 has been observed to write out metadata for arrays with element type index -1.
+                        break;
+                    }
+
                     int arraySize = ReadArraySize(valueReference.ValueView);
                     int elementSize = m_typeSystem.GetArrayElementSize(elementTypeIndex);
                     for (int i = 0; i < arraySize; i++)

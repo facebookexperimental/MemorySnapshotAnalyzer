@@ -258,7 +258,14 @@ namespace MemorySnapshotAnalyzer.UnityBackend
             if (IsArray(typeIndex))
             {
                 int arraySize = ReadArraySize(objectView);
-                int elementSize = GetArrayElementSize(BaseOrElementTypeIndex(typeIndex));
+                int elementTypeIndex = BaseOrElementTypeIndex(typeIndex);
+                if (elementTypeIndex == -1)
+                {
+                    // TODO: Unity 2022.3 has been observed to write out metadata for arrays with element type index -1.
+                    return -1;
+                }
+
+                int elementSize = GetArrayElementSize(elementTypeIndex);
                 int arraySizeInBytes = RoundToAllocationGranularity(m_virtualMachineInformation.ArrayHeaderSize + arraySize * elementSize);
                 // We support arrays whose backing store has not been fully committed.
                 return committedOnly && arraySizeInBytes > objectView.Size ? (int)objectView.Size : arraySizeInBytes;

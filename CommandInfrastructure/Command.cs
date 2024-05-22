@@ -455,36 +455,40 @@ namespace MemorySnapshotAnalyzer.CommandInfrastructure
             }
             else if (typeSystem.IsArray(typeIndex))
             {
-                int elementTypeIndex = typeSystem.BaseOrElementTypeIndex(typeIndex);
                 int arraySize = CurrentSegmentedHeapOpt!.ReadArraySize(objectView);
                 Output.AddProperty("kind", "array");
                 Output.AddProperty("arrayLength", arraySize);
-                CurrentTraceableHeap.TypeSystem.OutputType(Output, "elementType", elementTypeIndex);
-                Output.AddDisplayStringLineIndented(indent, "Array of length {0} with element type {1}:{2} (type index {3})",
-                    arraySize,
-                    typeSystem.Assembly(elementTypeIndex),
-                    typeSystem.QualifiedName(elementTypeIndex),
-                    elementTypeIndex);
-
-                Output.BeginArray("elements");
-                int elementSize = typeSystem.GetArrayElementSize(elementTypeIndex);
-                for (int i = 0; i < arraySize; i++)
+                int elementTypeIndex = typeSystem.BaseOrElementTypeIndex(typeIndex);
+                // TODO: Unity 2022.3 has been observed to write out metadata for arrays with element type index -1.
+                if (elementTypeIndex != -1)
                 {
-                    int elementOffset = typeSystem.GetArrayElementOffset(elementTypeIndex, i);
-                    // The backing store of arrays does not have to be fully committed.
-                    if (elementOffset + elementSize > objectView.Size)
-                    {
-                        break;
-                    }
+                    CurrentTraceableHeap.TypeSystem.OutputType(Output, "elementType", elementTypeIndex);
+                    Output.AddDisplayStringLineIndented(indent, "Array of length {0} with element type {1}:{2} (type index {3})",
+                        arraySize,
+                        typeSystem.Assembly(elementTypeIndex),
+                        typeSystem.QualifiedName(elementTypeIndex),
+                        elementTypeIndex);
 
-                    Output.BeginElement();
-                    Output.AddProperty("elementOffset", elementOffset);
-                    MemoryView elementView = objectView.GetRange(elementOffset, elementSize);
-                    Output.AddDisplayStringLineIndented(indent + 1, "Element {0} at offset {1}", i, elementOffset);
-                    DumpFieldMemory(elementView, elementTypeIndex, indent + 2);
-                    Output.EndElement();
+                    Output.BeginArray("elements");
+                    int elementSize = typeSystem.GetArrayElementSize(elementTypeIndex);
+                    for (int i = 0; i < arraySize; i++)
+                    {
+                        int elementOffset = typeSystem.GetArrayElementOffset(elementTypeIndex, i);
+                        // The backing store of arrays does not have to be fully committed.
+                        if (elementOffset + elementSize > objectView.Size)
+                        {
+                            break;
+                        }
+
+                        Output.BeginElement();
+                        Output.AddProperty("elementOffset", elementOffset);
+                        MemoryView elementView = objectView.GetRange(elementOffset, elementSize);
+                        Output.AddDisplayStringLineIndented(indent + 1, "Element {0} at offset {1}", i, elementOffset);
+                        DumpFieldMemory(elementView, elementTypeIndex, indent + 2);
+                        Output.EndElement();
+                    }
+                    Output.EndArray();
                 }
-                Output.EndArray();
             }
             else
             {
